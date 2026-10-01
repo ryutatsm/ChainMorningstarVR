@@ -5,10 +5,12 @@ on:
   push:
     paths:
       - "Source/SKSE/**"
+      - ".ci/skse-full-source.tgz.b64"
       - ".github/workflows/windows-vr-build.yml"
   pull_request:
     paths:
       - "Source/SKSE/**"
+      - ".ci/skse-full-source.tgz.b64"
       - ".github/workflows/windows-vr-build.yml"
 
 jobs:
@@ -20,11 +22,29 @@ jobs:
     env:
       CMS_VCPKG_ROOT: ${{ github.workspace }}\vcpkg
       VCPKG_COMMIT: eb2d3a3279fd019cb7733072d86900d0ad2a1aef
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\.vcpkg-binary-cache
       PLUGIN_SRC: ${{ github.workspace }}\Source\SKSE\PluginSkeleton
 
     steps:
       - name: Checkout Chain Morningstar source
         uses: actions/checkout@v4
+
+      - name: Restore vcpkg binary cache
+        uses: actions/cache@v4
+        with:
+          path: .vcpkg-binary-cache
+          key: cms-vcpkg-${{ runner.os }}-${{ hashFiles('Source/SKSE/PluginSkeleton/vcpkg.json', 'Source/SKSE/PluginSkeleton/vcpkg-configuration.json') }}
+          restore-keys: |
+            cms-vcpkg-${{ runner.os }}-
+
+      - name: Expand full v0.4 SKSE source payload
+        run: |
+          New-Item -ItemType Directory -Force -Path "$env:VCPKG_DEFAULT_BINARY_CACHE" | Out-Null
+          $b64 = Get-Content "$env:GITHUB_WORKSPACE\.ci\skse-full-source.tgz.b64" -Raw
+          $archive = "$env:RUNNER_TEMP\skse-full-source.tgz"
+          [IO.File]::WriteAllBytes($archive, [Convert]::FromBase64String($b64.Trim()))
+          tar -xzf $archive -C "$env:GITHUB_WORKSPACE\Source\SKSE"
+          if (-not (Test-Path "$env:PLUGIN_SRC\SkyrimVRSceneBridge.cpp")) { throw "Full source payload did not expand" }
 
       - name: Enable MSVC x64 environment
         uses: ilammy/msvc-dev-cmd@v1
@@ -43,11 +63,17 @@ jobs:
           git -C "$env:CMS_VCPKG_ROOT" checkout "$env:VCPKG_COMMIT"
           & "$env:CMS_VCPKG_ROOT\bootstrap-vcpkg.bat" -disableMetrics
 
-      - name: Configure safe VR build
+      - name: Verify build tools
+        run: |
+          cmake --version
+          ninja --version
+          cl.exe /Bv
+
+      - name: Configure full VR build
         working-directory: ${{ env.PLUGIN_SRC }}
         run: cmake --preset vr-release
 
-      - name: Compile safe VR DLL
+      - name: Compile full VR DLL
         working-directory: ${{ env.PLUGIN_SRC }}
         run: cmake --build --preset vr-release
 
@@ -62,6 +88,6 @@ jobs:
       - name: Upload compile-gate artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ChainMorningstarVR-v0.4.0-dev-compile-gate
+          name: ChainMorningstarVR-v0.4.0-dev-full-dll
           path: ci-artifact
           if-no-files-found: error
