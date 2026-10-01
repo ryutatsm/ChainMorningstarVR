@@ -66,14 +66,14 @@ bool SkyrimVRSceneBridge::reacquireWeaponNodes()
     }
 
     for (std::size_t i=0;i<links_.size();++i) {
-        links_[i]=findUnder(anchor_.get(), kLinkNodes[i]);
+        links_[i].reset(findUnder(anchor_.get(), kLinkNodes[i]));
         if (!links_[i]) {
             SKSE::log::error("ChainMorningstarVR: missing runtime link node {}", kLinkNodes[i]);
             releaseWeaponNodes();
             return false;
         }
     }
-    head_=findUnder(anchor_.get(), kHeadNode);
+    head_.reset(findUnder(anchor_.get(), kHeadNode));
     if (!head_) {
         SKSE::log::error("ChainMorningstarVR: missing {}", kHeadNode);
         releaseWeaponNodes();
@@ -120,7 +120,7 @@ bool SkyrimVRSceneBridge::tryGetChainAnchorWorldSU(Vec3& outPositionSU, Vec3& ou
     if (!anchor_) return false;
     const RigidTransform t=anchorWorldTransformSU();
     outPositionSU=t.translation;
-    outInitialDirectionWorld=normalized(mul(t.rotation,{0,0,1}));
+    outInitialDirectionWorld=normalized(mul(t.rotation,Vec3{0,0,1}));
     return true;
 }
 
