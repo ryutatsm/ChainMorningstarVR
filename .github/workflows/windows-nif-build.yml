@@ -1,0 +1,75 @@
+name: Windows Skyrim VR NIF build gate
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "Source/NIF/**"
+      - ".github/workflows/windows-nif-build.yml"
+
+jobs:
+  nif:
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      CMS_NIF_OUT: ${{ github.workspace }}\nif-artifact\meshes\weapons\ChainMorningstarVR\ChainMorningstar.nif
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Blender
+        run: |
+          choco install blender --no-progress -y
+          $blender = Get-ChildItem "C:\Program Files\Blender Foundation" -Recurse -Filter blender.exe |
+            Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $blender) { throw "blender.exe not found" }
+          "BLENDER_EXE=$($blender.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+          & $blender.FullName --version
+
+      - name: Download PyNifly 29.0.0
+        run: |
+          $zip="$env:RUNNER_TEMP\io_scene_nifly.zip"
+          Invoke-WebRequest -Uri "https://github.com/BadDogSkyrim/PyNifly/releases/download/V29.0.0/io_scene_nifly.zip" -OutFile $zip
+          $hash=(Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+          if ($hash -ne "7ee96322bd633372b1f2e8a99cac807723e249a132f15338c2f5b1cdf9f32190") {
+            throw "PyNifly release checksum mismatch: $hash"
+          }
+          $dst="$env:GITHUB_WORKSPACE\.pynifly"
+          New-Item -ItemType Directory -Force -Path $dst | Out-Null
+          Expand-Archive -Path $zip -DestinationPath $dst -Force
+          Get-ChildItem $dst -Depth 2 | Select-Object FullName
+
+      - name: Build and round-trip NIF
+        run: |
+          $bootstrap="$env:RUNNER_TEMP\cms_nif_bootstrap.py"
+          @'
+          import os, sys
+          root=os.path.join(os.environ["GITHUB_WORKSPACE"],".pynifly")
+          candidates=[root, os.path.join(root,"io_scene_nifly")]
+          for p in candidates:
+              if os.path.isdir(p) and p not in sys.path:
+                  sys.path.insert(0,p)
+          import io_scene_nifly
+          io_scene_nifly.register()
+          script=os.path.join(os.environ["GITHUB_WORKSPACE"],"Source","NIF","generate_visual_nif.py")
+          exec(compile(open(script,"rb").read(),script,"exec"),{"__name__":"__main__","__file__":script})
+          '@ | Set-Content -Encoding UTF8 $bootstrap
+          & "$env:BLENDER_EXE" --background --python $bootstrap
+          if (-not (Test-Path "$env:CMS_NIF_OUT")) { throw "NIF was not generated" }
+
+      - name: NIF checksum
+        run: |
+          $dir=Split-Path "$env:CMS_NIF_OUT" -Parent
+          $hash=(Get-FileHash "$env:CMS_NIF_OUT" -Algorithm SHA256).Hash.ToLower()
+          $hash | Set-Content "$env:GITHUB_WORKSPACE\nif-artifact\ChainMorningstar.nif.sha256"
+          Write-Host "NIF SHA256 $hash"
+
+      - name: Upload NIF gate artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChainMorningstarVR-visual-nif-dev
+          path: nif-artifact
+          if-no-files-found: error
