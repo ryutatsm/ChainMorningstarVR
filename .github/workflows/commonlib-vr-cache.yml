@@ -1,0 +1,50 @@
+name: Cache CommonLibSSE-NG VR dependencies
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/commonlib-vr-cache.yml"
+
+jobs:
+  cache-vr-deps:
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      CMS_VCPKG_ROOT: ${{ github.workspace }}\vcpkg
+      VCPKG_COMMIT: eb2d3a3279fd019cb7733072d86900d0ad2a1aef
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\.vcpkg-binary-cache
+      MANIFEST_ROOT: ${{ github.workspace }}\Source\SKSE\PluginSkeleton
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore existing binary cache
+        uses: actions/cache@v4
+        with:
+          path: .vcpkg-binary-cache
+          key: cms-vcpkg-Windows-${{ hashFiles('Source/SKSE/PluginSkeleton/vcpkg.json', 'Source/SKSE/PluginSkeleton/vcpkg-configuration.json') }}
+          restore-keys: |
+            cms-vcpkg-Windows-
+
+      - name: Enable MSVC x64 environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Bootstrap pinned vcpkg
+        run: |
+          New-Item -ItemType Directory -Force -Path "$env:VCPKG_DEFAULT_BINARY_CACHE" | Out-Null
+          git clone https://github.com/microsoft/vcpkg.git "$env:CMS_VCPKG_ROOT"
+          git -C "$env:CMS_VCPKG_ROOT" checkout "$env:VCPKG_COMMIT"
+          & "$env:CMS_VCPKG_ROOT\bootstrap-vcpkg.bat" -disableMetrics
+
+      - name: Build/cache CommonLibSSE-NG VR dependency graph
+        run: |
+          & "$env:CMS_VCPKG_ROOT\vcpkg.exe" install --x-manifest-root="$env:MANIFEST_ROOT" --triplet=x64-windows
+          if ($LASTEXITCODE -ne 0) { throw "vcpkg dependency build failed" }
+          $bytes=(Get-ChildItem "$env:VCPKG_DEFAULT_BINARY_CACHE" -Recurse -File | Measure-Object Length -Sum).Sum
+          Write-Host "Binary cache bytes=$bytes"
+          if (-not $bytes -or $bytes -lt 1000000) { throw "Binary cache unexpectedly empty" }
