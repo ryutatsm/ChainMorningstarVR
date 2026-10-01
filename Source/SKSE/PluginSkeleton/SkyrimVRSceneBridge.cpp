@@ -3,6 +3,53 @@
 
 namespace cms::skyrimvr {
 
+void ProbeBothHandsNativeMeleeLayoutReadOnly()
+{
+#if defined(CMS_ENABLE_READONLY_VRMELEE_PROBE) && CMS_ENABLE_READONLY_VRMELEE_PROBE
+    auto* player = RE::PlayerCharacter::GetSingleton();
+    auto* vr = player ? player->GetVRNodeData() : nullptr;
+    if (!player || !vr) {
+        SKSE::log::warn("ChainMorningstarVR: global READ-ONLY VRMeleeData probe skipped: player VR nodes unavailable");
+        return;
+    }
+
+    struct HandCandidate {
+        const char* name;
+        std::size_t offset;
+        RE::NiAVObject* expectedOffsetNode;
+    };
+    const HandCandidate hands[] = {
+        {"right", kPlanckRightVRMeleeDataOffset, vr->RightMeleeWeaponOffsetNode.get()},
+        {"left",  kPlanckLeftVRMeleeDataOffset,  vr->LeftMeleeWeaponOffsetNode.get()}
+    };
+
+    const auto base = reinterpret_cast<std::uintptr_t>(player);
+    for (const auto& hand : hands) {
+        if (!hand.expectedOffsetNode) {
+            SKSE::log::warn("ChainMorningstarVR: global READ-ONLY {} VRMeleeData probe skipped: expected offset node null", hand.name);
+            continue;
+        }
+        const auto* raw = reinterpret_cast<const NativeVRMeleeDataProbeLayout*>(base + hand.offset);
+        const auto expected = reinterpret_cast<std::uintptr_t>(hand.expectedOffsetNode);
+        const auto result = inspectNativeMeleeDataReadOnly(*raw, expected);
+        SKSE::log::info(
+            "ChainMorningstarVR: GLOBAL READ-ONLY {} VRMeleeData status={} candidate=0x{:X} world=0x{:X} collision=0x{:X} offset=0x{:X} expectedOffset=0x{:X} threshold={:.3f} enable={} impulse={}",
+            hand.name,
+            static_cast<unsigned>(result.status),
+            base + hand.offset,
+            result.world,
+            result.collisionNode,
+            result.offsetNode,
+            expected,
+            result.linearVelocityThreshold,
+            result.enableCollision,
+            result.applyImpulseOnHit);
+    }
+#else
+    SKSE::log::debug("ChainMorningstarVR: global VRMeleeData probe disabled in release build");
+#endif
+}
+
 RE::NiAVObject* SkyrimVRSceneBridge::findUnder(RE::NiAVObject* root, std::string_view name) const
 {
     if (!root) return nullptr;

@@ -8,6 +8,11 @@
 
 namespace cms::skyrimvr {
 
+// Diagnostic-only, read-only validation of PLANCK's published PlayerCharacter+0x710/0x7E0
+// VRMeleeData layout. It reads fields inside PlayerCharacter but never writes or dereferences
+// the world/collision pointers contained there.
+void ProbeBothHandsNativeMeleeLayoutReadOnly();
+
 class SkyrimVRSceneBridge final : public IGameBridge {
 public:
     bool tryGetChainAnchorWorldSU(Vec3& outPositionSU, Vec3& outInitialDirectionWorld) override;

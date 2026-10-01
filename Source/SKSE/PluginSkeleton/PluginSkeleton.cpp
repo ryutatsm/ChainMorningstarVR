@@ -33,9 +33,14 @@ void onSKSEMessage(SKSE::MessagingInterface::Message* msg)
         cms::skyrimvr::ProbePlanckBuildNumber();
         break;
     case SKSE::MessagingInterface::kDataLoaded:
+        runtime.requestReacquire();
+        break;
     case SKSE::MessagingInterface::kPostLoadGame:
     case SKSE::MessagingInterface::kNewGame:
         runtime.requestReacquire();
+#if CMS_ENABLE_READONLY_VRMELEE_PROBE
+        cms::skyrimvr::ProbeBothHandsNativeMeleeLayoutReadOnly();
+#endif
         break;
     default:
         break;
