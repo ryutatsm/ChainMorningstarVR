@@ -26,7 +26,7 @@ def clear_scene():
     bpy.ops.object.select_all(action='SELECT')
     bpy.ops.object.delete(use_global=False)
 
-def mat(name, rgba, metallic=0.0, roughness=0.5):
+def mat(name, rgba, metallic=0.0, roughness=0.5, texstem=None, steel=False):
     m=bpy.data.materials.new(name)
     m.diffuse_color=rgba
     m.use_nodes=True
@@ -35,6 +35,43 @@ def mat(name, rgba, metallic=0.0, roughness=0.5):
         bsdf.inputs['Base Color'].default_value=rgba
         bsdf.inputs['Metallic'].default_value=metallic
         bsdf.inputs['Roughness'].default_value=roughness
+
+    # Explicit Skyrim shader metadata. The texture files are packaged separately,
+    # but their game-relative paths are embedded here and validated after export.
+    m['BS_Shader_Block_Name']='BSLightingShaderProperty'
+    m['Shader_Type']='Environment_Map' if steel else 'Default'
+    f1='SPECULAR | RECEIVE_SHADOWS | CAST_SHADOWS | ZBUFFER_TEST'
+    if steel:
+        f1 += ' | ENVIRONMENT_MAPPING'
+    m['Shader_Flags_1']=f1
+    m['Shader_Flags_2']='ZBUFFER_WRITE | WEAPON_BLOOD'
+    m['textureClampMode']=3
+    if steel:
+        # Heavy forged steel: strong micro-normal, restrained broad highlight,
+        # and masked cubemap response instead of smooth chrome/plastic.
+        m['Glossiness']=34.0
+        m['Spec_Color']=[0.72,0.76,0.82]
+        m['Spec_Str']=1.35
+        m['Env_Map_Scale']=0.32
+    elif 'Wood' in name:
+        m['Glossiness']=14.0
+        m['Spec_Color']=[0.34,0.27,0.20]
+        m['Spec_Str']=0.30
+    else:
+        m['Glossiness']=8.0
+        m['Spec_Color']=[0.20,0.16,0.13]
+        m['Spec_Str']=0.22
+
+    if texstem:
+        base=r'textures\\weapons\\ChainMorningstarVR\\'+texstem
+        m['BSShaderTextureSet_Diffuse']=base+'_d.dds'
+        m['BSShaderTextureSet_Normal']=base+'_n.dds'
+        # Supplying an explicit specular slot prevents PyNifly from clearing the
+        # SPECULAR flag when it cannot find a Blender image node.
+        m['BSShaderTextureSet_Specular']=base+('_m.dds' if steel else '_n.dds')
+        if steel:
+            m['BSShaderTextureSet_EnvMask']=base+'_m.dds'
+            m['BSShaderTextureSet_EnvMap']=r'textures\\cubemaps\\ShinySteel_e.dds'
     return m
 
 def add_empty(name, loc=(0,0,0), parent=None):
@@ -214,9 +251,9 @@ def create_head_collision(head, head_z):
 
 def build():
     clear_scene()
-    metal=mat('CMS_Metal',(0.20,0.22,0.24,1.0),0.90,0.26)
-    wood=mat('CMS_Wood',(0.16,0.07,0.025,1.0),0.0,0.48)
-    leather=mat('CMS_Leather',(0.055,0.028,0.018,1.0),0.0,0.62)
+    metal=mat('CMS_Metal',(0.20,0.22,0.24,1.0),0.90,0.26,'cms_metal',True)
+    wood=mat('CMS_Wood',(0.16,0.07,0.025,1.0),0.0,0.48,'cms_wood',False)
+    leather=mat('CMS_Leather',(0.055,0.028,0.018,1.0),0.0,0.62,'cms_leather',False)
 
     root=add_empty('ChainMorningstarRoot',(0,0,0))
     root['pynRoot']=True
@@ -316,6 +353,32 @@ def export_and_roundtrip():
     if bad:
         raise RuntimeError('Unexpected head collision child types: '+', '.join(bad))
     print('CMS_HEAD_COLLISION_OK',body.shape.blockname,len(children),'layer',body.properties.collisionFilter_layer)
+
+    # Shader/texture contract: metal must carry diffuse + normal + env mask;
+    # wood/leather must carry their dedicated diffuse + normal maps.
+    def shape_named(name):
+        return next((s for s in nif.shapes if s.name==name),None)
+    metal_shape=shape_named('CMS_Head_Core')
+    wood_shape=shape_named('CMS_Handle_Wood')
+    leather_shape=shape_named('CMS_Grip_Leather')
+    if not metal_shape or not wood_shape or not leather_shape:
+        raise RuntimeError('Required material validation shapes missing from NIF')
+    mt=metal_shape.shader.textures
+    wt=wood_shape.shader.textures
+    lt=leather_shape.shader.textures
+    required_tex=[
+        (mt.get('Diffuse',''),'cms_metal_d.dds'),
+        (mt.get('Normal',''),'cms_metal_n.dds'),
+        (mt.get('EnvMask',''),'cms_metal_m.dds'),
+        (wt.get('Diffuse',''),'cms_wood_d.dds'),
+        (wt.get('Normal',''),'cms_wood_n.dds'),
+        (lt.get('Diffuse',''),'cms_leather_d.dds'),
+        (lt.get('Normal',''),'cms_leather_n.dds')
+    ]
+    badtex=[(got,want) for got,want in required_tex if not got.lower().endswith(want)]
+    if badtex:
+        raise RuntimeError('NIF texture contract failed: '+repr(badtex))
+    print('CMS_NIF_TEXTURE_PATHS_OK',required_tex)
 
     # Round-trip with the same exporter/importer and verify the runtime ABI names.
     clear_scene()
