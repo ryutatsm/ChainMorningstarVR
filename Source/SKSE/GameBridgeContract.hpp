@@ -43,10 +43,12 @@ public:
             onUnequip();
             return;
         }
+
         if (!controller_.update(frameDt, anchor)) return;
         const VisualFrame frame = controller_.visualFrame();
         bridge_.applyVisualFrame(frame);
         bridge_.updateNativeMeleeHeadProxy(controller_.headSweep());
+
         const float impulse = bridge_.consumeWorldContactImpulse();
         const ChainSoundEvent ev = controller_.soundEvent(frameDt, impulse);
         if (ev.type == ChainSoundEventType::kRattle) bridge_.playChainRattle(ev.intensity);
