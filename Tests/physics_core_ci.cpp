@@ -2,6 +2,7 @@
 #include "Source/SKSE/ChainRuntimeCore.hpp"
 #include "Source/SKSE/SceneTransformCore.hpp"
 #include "Source/SKSE/NativeMeleeDataProbeCore.hpp"
+#include "Source/SKSE/HeadCompoundCore.hpp"
 
 #include <cassert>
 #include <cmath>
@@ -46,6 +47,23 @@ int main()
     assert(visual.links.size()==14);
     auto sweep=controller.headSweep();
     assert(nearf(sweep.radiusM,0.24f,1.0e-6f));
+
+    // New-build head geometry: 16 cm core + 14 explicit spikes, each reaching 24 cm.
+    HeadPose hp{};
+    hp.centerM={0,0,0};
+    hp.chainAxis={0,0,1};
+    const auto compound=buildHeadCompoundFrame(hp);
+    static_assert(kSpikeCount==14);
+    assert(nearf(compound.coreRadiusM,0.16f,1.0e-6f));
+    assert(nearf(compound.broadphaseRadiusM,0.24f,1.0e-6f));
+    for (const auto& sp:compound.spikes) {
+        assert(nearf(length(sp.tipM-compound.coreCenterM),0.24f,1.0e-5f));
+        assert(nearf(length(sp.baseCenterM-compound.coreCenterM),0.154f,1.0e-5f));
+    }
+    assert(nearf(supportDistanceAlongRay(compound,{1,0,0}),0.24f,1.0e-5f));
+    assert(nearf(supportDistanceAlongRay(compound,{-1,0,0}),0.24f,1.0e-5f));
+    assert(nearf(supportDistanceAlongRay(compound,{0,1,0}),0.24f,1.0e-5f));
+    assert(nearf(supportDistanceAlongRay(compound,{0,0,1}),0.24f,1.0e-5f));
 
     const Mat3 basis=basisFromLocalZ({0.3f,0.4f,0.8660254f},0.7f);
     assert(approximatelyOrthonormal(basis,1.0e-4f));
