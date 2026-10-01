@@ -34,23 +34,30 @@ inline Mat3 mul(const Mat3& a, const Mat3& b) {
 
 inline Mat3 transpose(const Mat3& a) {
     Mat3 out{};
-    for (int r=0; r<3; ++r) for (int c=0; c<3; ++c) out.m[r][c] = a.m[c][r];
+    for (int r=0; r<3; ++r)
+        for (int c=0; c<3; ++c)
+            out.m[r][c] = a.m[c][r];
     return out;
 }
 
-inline Vec3 column(const Mat3& a, int c) { return {a.m[0][c], a.m[1][c], a.m[2][c]}; }
+inline Vec3 column(const Mat3& a, int c) {
+    return {a.m[0][c], a.m[1][c], a.m[2][c]};
+}
 
 inline Mat3 basisFromLocalZ(Vec3 zAxis, float rollRadians = 0.0f) {
     Vec3 z = normalized(zAxis);
     if (lengthSq(z) < 1.0e-7f) z = {0,0,1};
+
     const Vec3 ref = (std::fabs(z.z) < 0.90f) ? Vec3{0,0,1} : Vec3{0,1,0};
     Vec3 x = normalized(cross(ref, z));
     if (lengthSq(x) < 1.0e-7f) x = {1,0,0};
     Vec3 y = normalized(cross(z, x));
+
     const float c = std::cos(rollRadians);
     const float s = std::sin(rollRadians);
     const Vec3 xr = x*c + y*s;
     const Vec3 yr = y*c - x*s;
+
     Mat3 out{};
     out.m[0][0]=xr.x; out.m[1][0]=xr.y; out.m[2][0]=xr.z;
     out.m[0][1]=yr.x; out.m[1][1]=yr.y; out.m[2][1]=yr.z;
