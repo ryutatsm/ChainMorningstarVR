@@ -73,7 +73,7 @@ jobs:
         run: |
           cmake --version
           ninja --version
-          cl.exe /Bv
+          Write-Host "MSVC VCToolsVersion=$env:VCToolsVersion"
 
       - name: Configure full VR build
         working-directory: ${{ env.PLUGIN_SRC }}
