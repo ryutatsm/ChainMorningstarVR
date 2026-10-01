@@ -120,7 +120,7 @@ bool SkyrimVRSceneBridge::tryGetChainAnchorWorldSU(Vec3& outPositionSU, Vec3& ou
     if (!anchor_) return false;
     const RigidTransform t=anchorWorldTransformSU();
     outPositionSU=t.translation;
-    outInitialDirectionWorld=normalized(mul(t.rotation,{0,0,1}));
+    outInitialDirectionWorld=normalized(mul(t.rotation,Vec3{0.0f,0.0f,1.0f}));
     return true;
 }
 
