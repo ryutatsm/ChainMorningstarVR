@@ -37,7 +37,7 @@ enum class NativeMeleeProbeStatus : std::uint8_t {
     kPlausible,
     kNullWorld,
     kNullCollisionNode,
-    kOffsetNodeMismatch,
+    kNullOffsetNode,
     kInvalidThreshold,
     kInvalidCollisionFlag,
     kInvalidImpulseFlag,
@@ -52,6 +52,7 @@ struct NativeMeleeProbeResult {
     float linearVelocityThreshold{};
     bool enableCollision{};
     bool applyImpulseOnHit{};
+    bool offsetMatchesExpected{};
 
     [[nodiscard]] bool plausible() const noexcept { return status==NativeMeleeProbeStatus::kPlausible; }
 };
@@ -67,12 +68,14 @@ inline NativeMeleeProbeResult inspectNativeMeleeDataReadOnly(
     r.linearVelocityThreshold=d.linearVelocityThreshold;
     r.enableCollision=d.enableCollision!=0;
     r.applyImpulseOnHit=d.applyImpulseOnHit!=0;
+    r.offsetMatchesExpected = expectedOffsetNode != 0 && d.offsetNode == expectedOffsetNode;
 
     if (!d.world) { r.status=NativeMeleeProbeStatus::kNullWorld; return r; }
     if (!d.collisionNode) { r.status=NativeMeleeProbeStatus::kNullCollisionNode; return r; }
-    if (!expectedOffsetNode || d.offsetNode!=expectedOffsetNode) {
-        r.status=NativeMeleeProbeStatus::kOffsetNodeMismatch; return r;
-    }
+    // PLANCK documents offsetNode at +0x20 but does not guarantee that it is the
+    // same object as PlayerCharacter's Left/RightMeleeWeaponOffsetNode.
+    // Treat equality as diagnostic metadata, not a validity requirement.
+    if (!d.offsetNode) { r.status=NativeMeleeProbeStatus::kNullOffsetNode; return r; }
     if (!std::isfinite(d.linearVelocityThreshold) || d.linearVelocityThreshold<0.0f || d.linearVelocityThreshold>100.0f) {
         r.status=NativeMeleeProbeStatus::kInvalidThreshold; return r;
     }
