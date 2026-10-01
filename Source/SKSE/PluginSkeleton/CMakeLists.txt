@@ -14,14 +14,11 @@ add_commonlibsse_plugin(${PROJECT_NAME}
         PluginSkeleton.cpp
 )
 
-# CommonLibSSE headers and the auto-generated plugin metadata translation unit
-# require the CommonLib PCH definitions (std headers, SKSE::stl, WinAPI wrappers).
 target_precompile_headers(${PROJECT_NAME}
     PRIVATE
-        <SKSE/Impl/PCH.h>
+        PCH.h
 )
 
 if(MSVC)
-    # fmt/CommonLib require UTF-8 source handling on MSVC.
     target_compile_options(${PROJECT_NAME} PRIVATE /utf-8 /W4 /permissive-)
 endif()
