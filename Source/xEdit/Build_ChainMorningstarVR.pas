@@ -44,6 +44,9 @@ begin
     Exit;
   end;
 
+  // Bring in every Skyrim.esm master reference required by the source WEAP before copying.
+  AddRequiredElementMasters(Src, DstFile, False);
+
   // asNew=True: creates a new FormID instead of overriding the vanilla Steel Mace.
   // deepCopy=True: preserves one-handed mace keywords, equip type, sounds, impact
   // data and other vanilla-safe WEAP structure from the master record.
