@@ -5,12 +5,14 @@ on:
   push:
     paths:
       - "Source/SKSE/**"
-      - ".ci/cms-full-source-v040.zip"
+      - ".ci/skse-full-source.tgz.b64"
+      - ".ci/fixed/**"
+      - ".ci/fixed/**"
       - ".github/workflows/windows-vr-build.yml"
   pull_request:
     paths:
       - "Source/SKSE/**"
-      - ".ci/cms-full-source-v040.zip"
+      - ".ci/skse-full-source.tgz.b64"
       - ".github/workflows/windows-vr-build.yml"
 
 jobs:
@@ -40,11 +42,22 @@ jobs:
       - name: Expand full v0.4 SKSE source payload
         run: |
           New-Item -ItemType Directory -Force -Path "$env:VCPKG_DEFAULT_BINARY_CACHE" | Out-Null
-          $archive = "$env:GITHUB_WORKSPACE\.ci\cms-full-source-v040.zip"
-          if (-not (Test-Path $archive)) { throw "Full source ZIP missing" }
-          Expand-Archive -LiteralPath $archive -DestinationPath "$env:GITHUB_WORKSPACE\Source\SKSE" -Force
+          $b64 = Get-Content "$env:GITHUB_WORKSPACE\.ci\skse-full-source.tgz.b64" -Raw
+          $archive = "$env:RUNNER_TEMP\skse-full-source.tgz"
+          [IO.File]::WriteAllBytes($archive, [Convert]::FromBase64String($b64.Trim()))
+          $expected = "9c6b91b11a0c36c4fa253d3ff737e60bd3bb0d5451aad2aacda3fae97e79d256"
+          $actual = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLower()
+          if ($actual -ne $expected) { throw "Full source archive SHA256 mismatch: $actual" }
+          tar -tzf $archive | Out-Host
+          if ($LASTEXITCODE -ne 0) { throw "Full source archive failed tar integrity listing" }
+          tar -xzf $archive -C "$env:GITHUB_WORKSPACE\Source\SKSE"
+          if ($LASTEXITCODE -ne 0) { throw "Full source archive extraction failed" }
           if (-not (Test-Path "$env:PLUGIN_SRC\SkyrimVRSceneBridge.cpp")) { throw "Full source payload did not expand" }
-          if (-not (Test-Path "$env:GITHUB_WORKSPACE\Source\SKSE\ChainPhysicsCore.hpp")) { throw "Core physics source missing" }
+          Copy-Item "$env:GITHUB_WORKSPACE\.ci\fixed\CMakeLists.txt" "$env:PLUGIN_SRC\CMakeLists.txt" -Force
+          Copy-Item "$env:GITHUB_WORKSPACE\.ci\fixed\CMakePresets.json" "$env:PLUGIN_SRC\CMakePresets.json" -Force
+          Copy-Item "$env:GITHUB_WORKSPACE\.ci\fixed\PCH.h" "$env:PLUGIN_SRC\PCH.h" -Force
+          Copy-Item "$env:GITHUB_WORKSPACE\.ci\fixed\vcpkg.json" "$env:PLUGIN_SRC\vcpkg.json" -Force
+          Write-Host "Applied verified CI build overlays"
 
       - name: Enable MSVC x64 environment
         uses: ilammy/msvc-dev-cmd@v1
@@ -67,7 +80,7 @@ jobs:
         run: |
           cmake --version
           ninja --version
-          cl.exe /Bv
+          Write-Host "MSVC VCToolsVersion=$env:VCToolsVersion"
 
       - name: Configure full VR build
         working-directory: ${{ env.PLUGIN_SRC }}
