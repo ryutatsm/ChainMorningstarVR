@@ -93,35 +93,51 @@ jobs:
         working-directory: ${{ env.PLUGIN_SRC }}
         run: cmake --build --preset vr-diagnostic
 
+      - name: Configure native proxy test build
+        working-directory: ${{ env.PLUGIN_SRC }}
+        run: cmake --preset vr-native-proxy-test
+
+      - name: Compile native proxy test DLL
+        working-directory: ${{ env.PLUGIN_SRC }}
+        run: cmake --build --preset vr-native-proxy-test
+
       - name: Stage DLLs and checksums
         run: |
           $release = Get-ChildItem "$env:PLUGIN_SRC\build\vr-release" -Recurse -Filter ChainMorningstarVR.dll | Select-Object -First 1
           $diag = Get-ChildItem "$env:PLUGIN_SRC\build\vr-diagnostic" -Recurse -Filter ChainMorningstarVR.dll | Select-Object -First 1
+          $proxy = Get-ChildItem "$env:PLUGIN_SRC\build\vr-native-proxy-test" -Recurse -Filter ChainMorningstarVR.dll | Select-Object -First 1
           if (-not $release) { throw "Release ChainMorningstarVR.dll not found" }
           if (-not $diag) { throw "Diagnostic ChainMorningstarVR.dll not found" }
+          if (-not $proxy) { throw "Native proxy test ChainMorningstarVR.dll not found" }
 
           $releaseDir = "$env:GITHUB_WORKSPACE\ci-artifact\release\SKSE\Plugins"
           $diagDir = "$env:GITHUB_WORKSPACE\ci-artifact\diagnostic-readonly\SKSE\Plugins"
+          $proxyDir = "$env:GITHUB_WORKSPACE\ci-artifact\native-proxy-test\SKSE\Plugins"
           New-Item -ItemType Directory -Force -Path $releaseDir | Out-Null
           New-Item -ItemType Directory -Force -Path $diagDir | Out-Null
+          New-Item -ItemType Directory -Force -Path $proxyDir | Out-Null
 
           Copy-Item $release.FullName "$releaseDir\ChainMorningstarVR.dll"
           Copy-Item $diag.FullName "$diagDir\ChainMorningstarVR.dll"
+          Copy-Item $proxy.FullName "$proxyDir\ChainMorningstarVR.dll"
 
           (Get-FileHash "$releaseDir\ChainMorningstarVR.dll" -Algorithm SHA256).Hash.ToLower() |
             Set-Content "$env:GITHUB_WORKSPACE\ci-artifact\release\ChainMorningstarVR.dll.sha256"
           (Get-FileHash "$diagDir\ChainMorningstarVR.dll" -Algorithm SHA256).Hash.ToLower() |
             Set-Content "$env:GITHUB_WORKSPACE\ci-artifact\diagnostic-readonly\ChainMorningstarVR.dll.sha256"
+          (Get-FileHash "$proxyDir\ChainMorningstarVR.dll" -Algorithm SHA256).Hash.ToLower() |
+            Set-Content "$env:GITHUB_WORKSPACE\ci-artifact\native-proxy-test\ChainMorningstarVR.dll.sha256"
 
           @"
           ChainMorningstarVR v0.4.1-dev
           release = normal fail-closed build
           diagnostic-readonly = VRMeleeData candidate layout READ ONLY; performs no VRMeleeData writes
+          native-proxy-test = TEST ONLY; swaps current-hand collisionNode to CMS_HeadNode after layout validation and restores it on release
           "@ | Set-Content "$env:GITHUB_WORKSPACE\ci-artifact\README.txt"
 
       - name: Upload compile-gate artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ChainMorningstarVR-v0.4.1-dev-release-and-diagnostic
+          name: ChainMorningstarVR-v0.4.1-dev-release-diagnostic-proxytest
           path: ci-artifact
           if-no-files-found: error
