@@ -143,10 +143,10 @@ def create_head_collision(head, head_z):
         SkyrimCollisionLayer, SkyrimHavokMaterial, hkMotionType,
         hkSolverDeactivation, hkQualityType, hkResponseType)
 
-    holder_mesh=bpy.data.meshes.new('bhkListShape_CMSHeadMesh')
+    holder_mesh=bpy.data.meshes.new('bhkListShapeMesh')
     holder_mesh.from_pydata([(0,0,0)],[],[])
     holder_mesh.update()
-    holder=bpy.data.objects.new('bhkListShape_CMSHead',holder_mesh)
+    holder=bpy.data.objects.new('bhkListShape',holder_mesh)
     bpy.context.collection.objects.link(holder)
     holder.location=(0,0,head_z)
     holder.display_type='WIRE'
@@ -172,7 +172,7 @@ def create_head_collision(head, head_z):
     # Core collision: convex approximation of a true 16 cm-radius sphere.
     bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=2,radius=CORE_R,location=(0,0,0))
     core=bpy.context.object
-    core.name='bhkConvexVerticesShape_CMSCore'
+    core.name='bhkConvexVerticesShape'
     core.data.name=core.name+'Mesh'
     core.parent=holder
     core.location=(0,0,0)
@@ -195,7 +195,7 @@ def create_head_collision(head, head_z):
     spikes=[]
     for i,d in enumerate(dirs):
         verts,faces=collision_spike_mesh(d,base_axis,tip_axis,base_radius,16)
-        s=mesh_object(f'bhkConvexVerticesShape_CMSSpike_{i:02d}',verts,faces,parent=holder)
+        s=mesh_object('bhkConvexVerticesShape',verts,faces,parent=holder)
         s.location=(0,0,0)
         s.rotation_euler=(0,0,0)
         s.scale=(1,1,1)
