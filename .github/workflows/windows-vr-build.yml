@@ -18,7 +18,7 @@ jobs:
       run:
         shell: pwsh
     env:
-      VCPKG_ROOT: ${{ github.workspace }}\vcpkg
+      CMS_VCPKG_ROOT: ${{ github.workspace }}\vcpkg
       VCPKG_COMMIT: fc3f61366102c1f0d4547c06d03c523bb18c13a7
       PLUGIN_SRC: ${{ github.workspace }}\Source\SKSE\PluginSkeleton
 
@@ -36,9 +36,12 @@ jobs:
 
       - name: Bootstrap pinned vcpkg
         run: |
-          git clone https://github.com/microsoft/vcpkg.git "$env:VCPKG_ROOT"
-          git -C "$env:VCPKG_ROOT" checkout "$env:VCPKG_COMMIT"
-          & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat" -disableMetrics
+          if (Test-Path "$env:CMS_VCPKG_ROOT") {
+            Remove-Item -Recurse -Force "$env:CMS_VCPKG_ROOT"
+          }
+          git clone https://github.com/microsoft/vcpkg.git "$env:CMS_VCPKG_ROOT"
+          git -C "$env:CMS_VCPKG_ROOT" checkout "$env:VCPKG_COMMIT"
+          & "$env:CMS_VCPKG_ROOT\bootstrap-vcpkg.bat" -disableMetrics
 
       - name: Configure safe VR build
         working-directory: ${{ env.PLUGIN_SRC }}
