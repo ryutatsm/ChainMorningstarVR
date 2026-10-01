@@ -69,14 +69,21 @@ SKSEPluginLoad(const SKSE::LoadInterface* skse)
     }
 
 #if CMS_ENABLE_READONLY_VRMELEE_PROBE
-    constexpr auto probeMode = "ON (read-only; no VRMeleeData writes)";
+    constexpr auto probeMode = "ON (read-only diagnostics)";
 #else
     constexpr auto probeMode = "OFF";
 #endif
 
+#if CMS_ENABLE_NATIVE_MELEE_PROXY
+    constexpr auto proxyMode = "ON (TEST; guarded collisionNode swap + restore)";
+#else
+    constexpr auto proxyMode = "OFF";
+#endif
+
     SKSE::log::info(
-        "ChainMorningstarVR {} loading (VR-only; native melee proxy fail-closed; VRMeleeData probe={})",
+        "ChainMorningstarVR {} loading (VR-only; native melee proxy={}; VRMeleeData probe={})",
         CMS_VERSION_STRING,
+        proxyMode,
         probeMode);
 
     if (!cms::skyrimvr::InstallPlayerUpdateHook()) {
