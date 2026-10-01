@@ -32,7 +32,8 @@ bool InstallPlayerUpdateHook()
 
     constexpr std::size_t kActorUpdateVRVtableSlot = 0x0AF;
     REL::Relocation<std::uintptr_t> playerVtable{ RE::VTABLE_PlayerCharacter[0] };
-    PlayerUpdateHook::func = playerVtable.write_vfunc(kActorUpdateVRVtableSlot, PlayerUpdateHook::Thunk);
+    const auto original = playerVtable.write_vfunc(kActorUpdateVRVtableSlot, PlayerUpdateHook::Thunk);
+    PlayerUpdateHook::func = REL::Relocation<decltype(PlayerUpdateHook::Thunk)>{ original };
     SKSE::log::info("ChainMorningstarVR: installed PlayerCharacter::Update VR frame hook at vtable slot 0x{:X}",
                     kActorUpdateVRVtableSlot);
     return true;
