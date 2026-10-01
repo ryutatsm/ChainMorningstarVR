@@ -35,6 +35,7 @@ inline VisualFrame buildVisualFrame(const ChainSolver& s) {
     VisualFrame out;
     const std::size_t n = s.linkCount();
     out.links.resize(n);
+
     for (std::size_t i = 0; i < n; ++i) {
         const Vec3 p = s.linkPosition(i);
         Vec3 prev = (i == 0) ? s.anchorPosition() : s.linkPosition(i - 1);
@@ -43,13 +44,18 @@ inline VisualFrame buildVisualFrame(const ChainSolver& s) {
         if (lengthSq(tangent) < 1.0e-7f) tangent = {0,0,1};
         out.links[i] = {p, tangent, (i & 1u) ? (0.5f * kPi) : 0.0f};
     }
+
     Vec3 axis = normalized(s.headPosition() - s.linkPosition(n - 1));
     if (lengthSq(axis) < 1.0e-7f) axis = {0,0,1};
     out.head = {s.headPosition(), axis, s.headVelocity90Hz()};
     return out;
 }
 
-enum class ChainSoundEventType { kNone, kRattle, kHeavyClank };
+enum class ChainSoundEventType {
+    kNone,
+    kRattle,
+    kHeavyClank
+};
 
 struct ChainSoundEvent {
     ChainSoundEventType type{ChainSoundEventType::kNone};
@@ -66,16 +72,22 @@ struct ChainSoundConfig {
 class ChainSoundGate {
 public:
     explicit ChainSoundGate(ChainSoundConfig cfg = {}) : cfg_(cfg) {}
-    void reset() { rattleCooldown_ = 0.0f; clankCooldown_ = 0.0f; }
+
+    void reset() {
+        rattleCooldown_ = 0.0f;
+        clankCooldown_ = 0.0f;
+    }
 
     ChainSoundEvent update(float dt, const ChainSolver& s, float contactImpulse = 0.0f) {
         rattleCooldown_ = std::max(0.0f, rattleCooldown_ - std::max(0.0f, dt));
         clankCooldown_ = std::max(0.0f, clankCooldown_ - std::max(0.0f, dt));
+
         if (contactImpulse >= cfg_.clankImpulseThreshold && clankCooldown_ <= 0.0f) {
             clankCooldown_ = cfg_.clankCooldownS;
             const float x = (contactImpulse - cfg_.clankImpulseThreshold) / (cfg_.clankImpulseThreshold * 2.0f);
             return {ChainSoundEventType::kHeavyClank, std::clamp(0.35f + x, 0.35f, 1.0f)};
         }
+
         float rel = 0.0f;
         Vec3 prevV{};
         for (std::size_t i = 0; i < s.linkCount(); ++i) {
@@ -84,6 +96,7 @@ public:
             prevV = v;
         }
         rel = std::max(rel, length(s.headVelocity90Hz() - prevV));
+
         if (rel >= cfg_.rattleRelativeSpeedMps && rattleCooldown_ <= 0.0f) {
             rattleCooldown_ = cfg_.rattleCooldownS;
             const float x = (rel - cfg_.rattleRelativeSpeedMps) / 3.0f;
@@ -130,6 +143,7 @@ public:
     bool update(float frameDt, Vec3 anchorWorldSU) {
         if (!equipped_) return false;
         const Vec3 anchorM = anchorWorldSU * kMetersPerSkyrimUnit;
+
         if (length(anchorM - lastAnchorM_) > teleportResetDistanceM_) {
             chain_.reset(anchorM, {0,0,-1});
             previousHeadM_ = chain_.solver().headPosition();
@@ -152,7 +166,8 @@ public:
     [[nodiscard]] HeadSweep headSweep() const {
         const Vec3 now = chain_.solver().headPosition();
         const Vec3 from = hasPreviousHead_ ? previousHeadM_ : now;
-        const float speed = (lastSimulatedDt_ > 1.0e-6f) ? (length(now - from) / lastSimulatedDt_) : 0.0f;
+        const float speed = (lastSimulatedDt_ > 1.0e-6f) ?
+            (length(now - from) / lastSimulatedDt_) : 0.0f;
         return {from, now, kHeadDamageRadiusM, speed};
     }
 
