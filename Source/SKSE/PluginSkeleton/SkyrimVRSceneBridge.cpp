@@ -3,6 +3,46 @@
 
 namespace cms::skyrimvr {
 
+namespace {
+
+const char* identifyKnownVrOffsetNode(const RE::VR_NODE_DATA* vr, std::uintptr_t raw) noexcept
+{
+    if (!vr || !raw) return "null";
+
+    struct NamedNode {
+        const char* name;
+        const RE::NiAVObject* node;
+    };
+
+    const NamedNode nodes[] = {
+        {"LeftWeaponOffsetNode", vr->LeftWeaponOffsetNode.get()},
+        {"LeftCrossbowOffsetNode", vr->LeftCrossbowOffsetNode.get()},
+        {"LeftMeleeWeaponOffsetNode", vr->LeftMeleeWeaponOffsetNode.get()},
+        {"LeftStaffWeaponOffsetNode", vr->LeftStaffWeaponOffsetNode.get()},
+        {"LeftShieldOffsetNode", vr->LeftShieldOffsetNode.get()},
+        {"RightShieldOffsetNode", vr->RightShieldOffsetNode.get()},
+        {"SecondaryMagicOffsetNode", vr->SecondaryMagicOffsetNode.get()},
+        {"SecondaryStaffMagicOffsetNode", vr->SecondaryStaffMagicOffsetNode.get()},
+        {"RightWeaponOffsetNode", vr->RightWeaponOffsetNode.get()},
+        {"RightCrossbowOffsetNode", vr->RightCrossbowOffsetNode.get()},
+        {"RightMeleeWeaponOffsetNode", vr->RightMeleeWeaponOffsetNode.get()},
+        {"RightStaffWeaponOffsetNode", vr->RightStaffWeaponOffsetNode.get()},
+        {"PrimaryMagicOffsetNode", vr->PrimaryMagicOffsetNode.get()},
+        {"PrimaryStaffMagicOffsetNode", vr->PrimaryStaffMagicOffsetNode.get()},
+        {"NPCLHnd", vr->NPCLHnd.get()},
+        {"NPCRHnd", vr->NPCRHnd.get()}
+    };
+
+    for (const auto& e : nodes) {
+        if (reinterpret_cast<std::uintptr_t>(e.node) == raw) {
+            return e.name;
+        }
+    }
+    return "unmatched-known-vr-node";
+}
+
+} // namespace
+
 void ProbeBothHandsNativeMeleeLayoutReadOnly()
 {
 #if defined(CMS_ENABLE_READONLY_VRMELEE_PROBE) && CMS_ENABLE_READONLY_VRMELEE_PROBE
@@ -33,14 +73,16 @@ void ProbeBothHandsNativeMeleeLayoutReadOnly()
         const auto expected = reinterpret_cast<std::uintptr_t>(hand.expectedOffsetNode);
         const auto result = inspectNativeMeleeDataReadOnly(*raw, expected);
         SKSE::log::info(
-            "ChainMorningstarVR: GLOBAL READ-ONLY {} VRMeleeData status={} candidate=0x{:X} world=0x{:X} collision=0x{:X} offset=0x{:X} expectedOffset=0x{:X} threshold={:.3f} enable={} impulse={}",
+            "ChainMorningstarVR: GLOBAL READ-ONLY {} VRMeleeData status={} candidate=0x{:X} world=0x{:X} collision=0x{:X} offset=0x{:X} offsetKnownAs={} expectedOffset=0x{:X} expectedMatch={} threshold={:.3f} enable={} impulse={}",
             hand.name,
             static_cast<unsigned>(result.status),
             base + hand.offset,
             result.world,
             result.collisionNode,
             result.offsetNode,
+            identifyKnownVrOffsetNode(vr, result.offsetNode),
             expected,
+            result.offsetMatchesExpected,
             result.linearVelocityThreshold,
             result.enableCollision,
             result.applyImpulseOnHit);
@@ -145,8 +187,9 @@ void SkyrimVRSceneBridge::runReadOnlyNativeMeleeProbe()
     const auto expected=reinterpret_cast<std::uintptr_t>(expectedNode);
     const auto result=inspectNativeMeleeDataReadOnly(*raw,expected);
     SKSE::log::info(
-        "ChainMorningstarVR: READ-ONLY VRMeleeData probe status={} world=0x{:X} collision=0x{:X} offset=0x{:X} threshold={:.3f}",
-        static_cast<unsigned>(result.status), result.world, result.collisionNode, result.offsetNode, result.linearVelocityThreshold);
+        "ChainMorningstarVR: READ-ONLY VRMeleeData probe status={} world=0x{:X} collision=0x{:X} offset=0x{:X} offsetKnownAs={} expectedMatch={} threshold={:.3f}",
+        static_cast<unsigned>(result.status), result.world, result.collisionNode, result.offsetNode,
+        identifyKnownVrOffsetNode(vr, result.offsetNode), result.offsetMatchesExpected, result.linearVelocityThreshold);
     if (!result.plausible()) {
         SKSE::log::warn("ChainMorningstarVR: native melee layout probe rejected candidate; no native proxy writes enabled");
     }
