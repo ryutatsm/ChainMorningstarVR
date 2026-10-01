@@ -19,7 +19,7 @@ jobs:
         shell: pwsh
     env:
       CMS_VCPKG_ROOT: ${{ github.workspace }}\vcpkg
-      VCPKG_COMMIT: fc3f61366102c1f0d4547c06d03c523bb18c13a7
+      VCPKG_COMMIT: eb2d3a3279fd019cb7733072d86900d0ad2a1aef
       PLUGIN_SRC: ${{ github.workspace }}\Source\SKSE\PluginSkeleton
 
     steps:
