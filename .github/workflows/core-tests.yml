@@ -1,0 +1,30 @@
+name: Chain physics core tests
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "Source/SKSE/ChainPhysicsCore.hpp"
+      - "Source/SKSE/ChainRuntimeCore.hpp"
+      - "Source/SKSE/SceneTransformCore.hpp"
+      - "Source/SKSE/NativeMeleeDataProbeCore.hpp"
+      - "Tests/physics_core_ci.cpp"
+      - ".github/workflows/core-tests.yml"
+  pull_request:
+    paths:
+      - "Source/SKSE/ChainPhysicsCore.hpp"
+      - "Source/SKSE/ChainRuntimeCore.hpp"
+      - "Source/SKSE/SceneTransformCore.hpp"
+      - "Source/SKSE/NativeMeleeDataProbeCore.hpp"
+      - "Tests/physics_core_ci.cpp"
+      - ".github/workflows/core-tests.yml"
+
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile dependency-free physics tests
+        run: g++ -std=c++23 -O2 -Wall -Wextra -Werror -pedantic -I. Tests/physics_core_ci.cpp -o cms_core_tests
+      - name: Run physics tests
+        run: ./cms_core_tests
