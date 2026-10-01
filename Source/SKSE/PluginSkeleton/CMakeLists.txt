@@ -10,6 +10,10 @@ option(CMS_ENABLE_READONLY_VRMELEE_PROBE
     "Read PLANCK-published VRMeleeData candidate layout for diagnostics; NO writes"
     OFF)
 
+option(CMS_ENABLE_NATIVE_MELEE_PROXY
+    "Temporarily replace Skyrim VR's current-hand VRMeleeData collisionNode with CMS_HeadNode; TEST ONLY until validated in game"
+    OFF)
+
 find_package(CommonLibSSE CONFIG REQUIRED)
 
 add_commonlibsse_plugin(${PROJECT_NAME}
@@ -43,6 +47,12 @@ if(CMS_ENABLE_READONLY_VRMELEE_PROBE)
     target_compile_definitions(${PROJECT_NAME} PRIVATE CMS_ENABLE_READONLY_VRMELEE_PROBE=1)
 else()
     target_compile_definitions(${PROJECT_NAME} PRIVATE CMS_ENABLE_READONLY_VRMELEE_PROBE=0)
+endif()
+
+if(CMS_ENABLE_NATIVE_MELEE_PROXY)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE CMS_ENABLE_NATIVE_MELEE_PROXY=1)
+else()
+    target_compile_definitions(${PROJECT_NAME} PRIVATE CMS_ENABLE_NATIVE_MELEE_PROXY=0)
 endif()
 
 if(MSVC)
