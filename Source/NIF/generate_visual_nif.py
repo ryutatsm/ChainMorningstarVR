@@ -372,7 +372,7 @@ def build_head_collision(head_node, dirs):
     list_obj["pynRigidBody"] = "bhkRigidBody"
     list_obj["pynCollisionBlockname"] = "bhkCollisionObject"
 
-    pyn_props.set_collshape(list_obj, "MATERIAL_IRON", 0.0)
+    pyn_props.set_collshape(list_obj, "HEAVY_METAL", 0.0)
     pyn_props.set_group(
         list_obj, "pyn_collisionobj",
         flags="ACTIVE | SYNC_ON_UPDATE"
@@ -423,7 +423,7 @@ def build_head_collision(head_node, dirs):
     core.location = (0,0,0)
     core.rotation_euler = (0,0,0)
     core.scale = (1,1,1)
-    pyn_props.set_collshape(core, "MATERIAL_IRON", 0.003)
+    pyn_props.set_collshape(core, "HEAVY_METAL", 0.003)
 
     # 14 separately convex spikes. Geometry is baked in list-local coordinates and
     # object transforms remain identity, so PyNifly exports 15 bare list children
@@ -436,7 +436,7 @@ def build_head_collision(head_node, dirs):
         spike.location = (0,0,0)
         spike.rotation_euler = (0,0,0)
         spike.scale = (1,1,1)
-        pyn_props.set_collshape(spike, "MATERIAL_IRON", 0.002)
+        pyn_props.set_collshape(spike, "HEAVY_METAL", 0.002)
 
     head_node["pynCollisionTarget"] = list_obj.name
     return list_obj
