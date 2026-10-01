@@ -36,6 +36,8 @@ private:
     RigidTransform anchorWorldTransformSU() const;
     void writeNodeWorldPose(RE::NiAVObject* node, Vec3 centerWorldM, Vec3 localZWorld, float rollRadians);
     void runReadOnlyNativeMeleeProbe();
+    bool installNativeMeleeHeadProxy();
+    void restoreNativeMeleeHeadProxy();
 
     RE::NiPointer<RE::NiAVObject> meleeRoot_{};
     RE::NiPointer<RE::NiAVObject> anchor_{};
@@ -43,6 +45,9 @@ private:
     RE::NiPointer<RE::NiAVObject> head_{};
     bool isLeftHand_{};
     bool warnedNativeProxy_{};
+    bool nativeProxyInstalled_{};
+    RE::NiPointer<RE::NiNode> originalNativeCollisionNode_{};
+    std::uintptr_t nativeMeleeDataAddress_{};
 };
 
 } // namespace cms::skyrimvr
