@@ -9,7 +9,7 @@ namespace cms {
 
 constexpr float kHeadCoreRadiusM = 0.160f;
 constexpr float kSpikeInnerAxisM = 0.154f;
-constexpr float kSpikeOuterAxisM = 0.234f;
+constexpr float kSpikeOuterAxisM = 0.240f;
 constexpr float kSpikeBaseRadiusM = 0.046f;
 constexpr std::size_t kSpikeCount = 14;
 
