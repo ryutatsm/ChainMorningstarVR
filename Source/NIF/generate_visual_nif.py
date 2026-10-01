@@ -220,7 +220,7 @@ def build():
 
     root=add_empty('ChainMorningstarRoot',(0,0,0))
     root['pynRoot']=True
-    root['pynGame']='SKYRIMSE'
+    root['PYN_GAME']='SKYRIMSE'
 
     # Handle: anchor sits at Z=0, handle extends downward-to-upward? For hand use,
     # the chain exits the top at Z=0 and the grip extends toward +Z.
@@ -285,7 +285,7 @@ def export_and_roundtrip():
     bpy.ops.object.select_all(action='DESELECT')
     root.select_set(True)
     bpy.context.view_layer.objects.active=root
-    result=bpy.ops.export_scene.pynifly(filepath=out,target_game='SKYRIMSE',preserve_hierarchy=True)
+    result=bpy.ops.export_scene.pynifly(filepath=out,target_game='SKYRIMSE',preserve_hierarchy=True,intuit_defaults=False)
     if 'FINISHED' not in result:
         raise RuntimeError(f'PyNifly export failed: {result}')
     if not os.path.exists(out) or os.path.getsize(out)<1024:
@@ -296,6 +296,9 @@ def export_and_roundtrip():
     from io_scene_nifly.pyn.pynifly import NifFile
     from io_scene_nifly.pyn.nifconstants import SkyrimCollisionLayer
     nif=NifFile(out)
+    if nif.game != 'SKYRIMSE':
+        raise RuntimeError(f'Wrong NIF target game: {nif.game}; expected SKYRIMSE for Skyrim VR')
+    print('CMS_NIF_GAME_OK',nif.game)
     headnode=nif.nodes.get('CMS_HeadNode')
     if headnode is None or headnode.collision_object is None:
         raise RuntimeError('CMS_HeadNode has no exported collision object')
