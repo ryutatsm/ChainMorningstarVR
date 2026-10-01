@@ -56,6 +56,7 @@ jobs:
           Copy-Item "$env:GITHUB_WORKSPACE\.ci\fixed\CMakeLists.txt" "$env:PLUGIN_SRC\CMakeLists.txt" -Force
           Copy-Item "$env:GITHUB_WORKSPACE\.ci\fixed\CMakePresets.json" "$env:PLUGIN_SRC\CMakePresets.json" -Force
           Copy-Item "$env:GITHUB_WORKSPACE\.ci\fixed\PCH.h" "$env:PLUGIN_SRC\PCH.h" -Force
+          Copy-Item "$env:GITHUB_WORKSPACE\.ci\fixed\SkyrimVRSceneBridge.cpp" "$env:PLUGIN_SRC\SkyrimVRSceneBridge.cpp" -Force
           Copy-Item "$env:GITHUB_WORKSPACE\.ci\fixed\vcpkg.json" "$env:PLUGIN_SRC\vcpkg.json" -Force
           Write-Host "Applied verified CI build overlays"
 
