@@ -1,0 +1,9 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "chain-morningstar-vr",
+  "version-string": "0.4.0-dev",
+  "builtin-baseline": "fc3f61366102c1f0d4547c06d03c523bb18c13a7",
+  "dependencies": [
+    "commonlibsse-ng-vr"
+  ]
+}
