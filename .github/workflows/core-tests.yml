@@ -8,6 +8,7 @@ on:
       - "Source/SKSE/ChainRuntimeCore.hpp"
       - "Source/SKSE/SceneTransformCore.hpp"
       - "Source/SKSE/NativeMeleeDataProbeCore.hpp"
+      - "Source/SKSE/HeadCompoundCore.hpp"
       - "Tests/physics_core_ci.cpp"
       - ".github/workflows/core-tests.yml"
   pull_request:
