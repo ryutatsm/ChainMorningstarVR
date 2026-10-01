@@ -55,8 +55,8 @@ bool SkyrimVRSceneBridge::reacquireWeaponNodes()
         if (!c.root) continue;
         auto* candidateAnchor=findUnder(c.root,kChainAnchorNode);
         if (!candidateAnchor) continue;
-        meleeRoot_=c.root;
-        anchor_=candidateAnchor;
+        meleeRoot_.reset(c.root);
+        anchor_.reset(candidateAnchor);
         isLeftHand_=c.left;
         break;
     }
