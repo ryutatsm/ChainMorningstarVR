@@ -11,6 +11,10 @@ on:
       - "Source/SKSE/**"
       - ".github/workflows/windows-vr-build.yml"
 
+concurrency:
+  group: chain-morningstar-vr-windows-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-vr:
     runs-on: windows-2022

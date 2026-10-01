@@ -55,8 +55,8 @@ bool SkyrimVRSceneBridge::reacquireWeaponNodes()
         if (!c.root) continue;
         auto* candidateAnchor=findUnder(c.root,kChainAnchorNode);
         if (!candidateAnchor) continue;
-        meleeRoot_=c.root;
-        anchor_=candidateAnchor;
+        meleeRoot_.reset(c.root);
+        anchor_.reset(candidateAnchor);
         isLeftHand_=c.left;
         break;
     }
@@ -66,14 +66,14 @@ bool SkyrimVRSceneBridge::reacquireWeaponNodes()
     }
 
     for (std::size_t i=0;i<links_.size();++i) {
-        links_[i]=findUnder(anchor_.get(), kLinkNodes[i]);
+        links_[i].reset(findUnder(anchor_.get(), kLinkNodes[i]));
         if (!links_[i]) {
             SKSE::log::error("ChainMorningstarVR: missing runtime link node {}", kLinkNodes[i]);
             releaseWeaponNodes();
             return false;
         }
     }
-    head_=findUnder(anchor_.get(), kHeadNode);
+    head_.reset(findUnder(anchor_.get(), kHeadNode));
     if (!head_) {
         SKSE::log::error("ChainMorningstarVR: missing {}", kHeadNode);
         releaseWeaponNodes();
