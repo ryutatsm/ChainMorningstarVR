@@ -91,6 +91,127 @@ def add_spike(name,base_radius,length,core_radius,direction,head_center,material
     parent_keep_world(o,parent)
     return o
 
+
+def mesh_object(name, verts, faces, parent=None):
+    mesh=bpy.data.meshes.new(name+'Mesh')
+    mesh.from_pydata(verts, [], faces)
+    mesh.update()
+    obj=bpy.data.objects.new(name,mesh)
+    bpy.context.collection.objects.link(obj)
+    if parent is not None:
+        obj.parent=parent
+    return obj
+
+def add_rigidbody(obj, mass=1.0, friction=0.5, restitution=0.05, shape='CONVEX_HULL'):
+    bpy.ops.object.select_all(action='DESELECT')
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active=obj
+    bpy.ops.rigidbody.object_add(type='ACTIVE')
+    obj.rigid_body.collision_shape=shape
+    obj.rigid_body.mass=mass
+    obj.rigid_body.friction=friction
+    obj.rigid_body.restitution=restitution
+    obj.rigid_body.linear_damping=0.08
+    obj.rigid_body.angular_damping=0.12
+    obj.rigid_body.use_margin=False
+
+def collision_spike_mesh(direction, base_axis, tip_axis, base_radius, segments=16):
+    d=Vector(direction).normalized()
+    ref=Vector((0,0,1)) if abs(d.z)<0.9 else Vector((0,1,0))
+    u=ref.cross(d).normalized()
+    v=d.cross(u).normalized()
+    bc=d*base_axis
+    tip=d*tip_axis
+    verts=[]
+    for i in range(segments):
+        a=2.0*math.pi*i/segments
+        p=bc + (math.cos(a)*u + math.sin(a)*v)*base_radius
+        verts.append(tuple(p))
+    verts.append(tuple(tip))
+    ti=segments
+    faces=[tuple(reversed(range(segments)))]
+    for i in range(segments):
+        faces.append((i,(i+1)%segments,ti))
+    return verts,faces
+
+def create_head_collision(head, head_z):
+    # PyNifly 29 can export bhkListShape + bhkConvexVerticesShape author-created
+    # collisions. New bhkSphereShape export is still TODO, so the spherical core is
+    # represented by a convex icosphere and the 14 visible spikes by 14 convex cones.
+    from io_scene_nifly.nif import pyn_props
+    from io_scene_nifly.pyn.nifconstants import (
+        SkyrimCollisionLayer, SkyrimHavokMaterial, hkMotionType,
+        hkSolverDeactivation, hkQualityType, hkResponseType)
+
+    holder_mesh=bpy.data.meshes.new('bhkListShape_CMSHeadMesh')
+    holder_mesh.from_pydata([(0,0,0)],[],[])
+    holder_mesh.update()
+    holder=bpy.data.objects.new('bhkListShape_CMSHead',holder_mesh)
+    bpy.context.collection.objects.link(holder)
+    holder.location=(0,0,head_z)
+    holder.display_type='WIRE'
+    holder.hide_render=True
+    add_rigidbody(holder,mass=8.0,friction=0.58,restitution=0.06,shape='COMPOUND')
+
+    # Collision-object and rigid-body settings for a moving weapon.
+    pyn_props.set_group(holder,'pyn_collisionobj',flags='ACTIVE | SYNC_ON_UPDATE')
+    pyn_props.set_collshape(holder,'HEAVY_METAL',0.0)
+    holder['pynRigidBody']='bhkRigidBody'
+    holder['collisionFilter_layer']=SkyrimCollisionLayer.WEAPON
+    holder['collisionFilterCopy_layer']=SkyrimCollisionLayer.WEAPON
+    holder['collisionResponse']=hkResponseType.SIMPLE_CONTACT
+    holder['collisionResponse2']=hkResponseType.SIMPLE_CONTACT
+    holder['motionSystem']=hkMotionType.SPHERE_STABILIZED
+    holder['solverDeactivation']=hkSolverDeactivation.LOW
+    holder['qualityType']=hkQualityType.MOVING
+    holder['penetrationDepth']=0.08
+    holder['rollingFrictionMult']=0.0
+    holder['processContactCallbackDelay']=65535
+    holder['processContactCallbackDelay2']=65535
+
+    # Core collision: convex approximation of a true 16 cm-radius sphere.
+    bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=2,radius=CORE_R,location=(0,0,0))
+    core=bpy.context.object
+    core.name='bhkConvexVerticesShape_CMSCore'
+    core.data.name=core.name+'Mesh'
+    core.parent=holder
+    core.location=(0,0,0)
+    core.rotation_euler=(0,0,0)
+    core.scale=(1,1,1)
+    core.display_type='WIRE'
+    core.hide_render=True
+    pyn_props.set_collshape(core,'HEAVY_METAL',0.0)
+
+    # Spike proxies deliberately overlap the core slightly so no seam can tunnel.
+    base_axis=0.154*SU_PER_M
+    tip_axis=(CORE_RADIUS_M+SPIKE_LENGTH_M)*SU_PER_M
+    base_radius=SPIKE_BASE_RADIUS_M*SU_PER_M
+    inv=1/math.sqrt(3)
+    dirs=[
+        (1,0,0),(-1,0,0),(0,1,0),(0,-1,0),(0,0,1),(0,0,-1),
+        (inv,inv,inv),(-inv,inv,inv),(inv,-inv,inv),(-inv,-inv,inv),
+        (inv,inv,-inv),(-inv,inv,-inv),(inv,-inv,-inv),(-inv,-inv,-inv)
+    ]
+    spikes=[]
+    for i,d in enumerate(dirs):
+        verts,faces=collision_spike_mesh(d,base_axis,tip_axis,base_radius,16)
+        s=mesh_object(f'bhkConvexVerticesShape_CMSSpike_{i:02d}',verts,faces,parent=holder)
+        s.location=(0,0,0)
+        s.rotation_euler=(0,0,0)
+        s.scale=(1,1,1)
+        s.display_type='WIRE'
+        s.hide_render=True
+        pyn_props.set_collshape(s,'HEAVY_METAL',0.0)
+        spikes.append(s)
+
+    # Collision is authored for THIS head node, not the root and not a vanilla mace node.
+    con=head.constraints.new(type='COPY_TRANSFORMS')
+    con.name='CMS_HeadCollisionConstraint'
+    con.target=holder
+
+    return holder,core,spikes
+
+
 def build():
     clear_scene()
     metal=mat('CMS_Metal',(0.20,0.22,0.24,1.0),0.90,0.26)
@@ -141,6 +262,8 @@ def build():
     for i,d in enumerate(dirs):
         add_spike(f'CMS_Head_Spike_{i:02d}',SPIKE_BASE_R,SPIKE_L,CORE_R,d,(0,0,head_z),metal,head)
 
+    create_head_collision(head,head_z)
+
     # Smooth shading for forged metal silhouette.
     for o in bpy.context.scene.objects:
         if o.type=='MESH':
@@ -163,6 +286,29 @@ def export_and_roundtrip():
         raise RuntimeError(f'PyNifly export failed: {result}')
     if not os.path.exists(out) or os.path.getsize(out)<1024:
         raise RuntimeError('NIF missing or implausibly small')
+
+    # Inspect the actual on-disk NIF before Blender round-trip. This validates that
+    # CMS_HeadNode owns the collision and that it is a 15-part narrow-phase shape.
+    from io_scene_nifly.pyn.pynifly import NifFile
+    from io_scene_nifly.pyn.nifconstants import SkyrimCollisionLayer
+    nif=NifFile(out)
+    headnode=nif.nodes.get('CMS_HeadNode')
+    if headnode is None or headnode.collision_object is None:
+        raise RuntimeError('CMS_HeadNode has no exported collision object')
+    body=headnode.collision_object.body
+    if body is None or body.shape is None:
+        raise RuntimeError('CMS_HeadNode collision has no rigid body/shape')
+    if body.properties.collisionFilter_layer != SkyrimCollisionLayer.WEAPON:
+        raise RuntimeError(f'Head collision layer is not WEAPON: {body.properties.collisionFilter_layer}')
+    if body.shape.blockname != 'bhkListShape':
+        raise RuntimeError(f'Head collision is not bhkListShape: {body.shape.blockname}')
+    children=list(body.shape.children)
+    if len(children)!=15:
+        raise RuntimeError(f'Head collision expected 15 narrow-phase children, got {len(children)}')
+    bad=[x.blockname for x in children if x.blockname!='bhkConvexVerticesShape']
+    if bad:
+        raise RuntimeError('Unexpected head collision child types: '+', '.join(bad))
+    print('CMS_HEAD_COLLISION_OK',body.shape.blockname,len(children),'layer',body.properties.collisionFilter_layer)
 
     # Round-trip with the same exporter/importer and verify the runtime ABI names.
     clear_scene()
