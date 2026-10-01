@@ -77,25 +77,51 @@ jobs:
           cmake --version
           ninja --version
 
-      - name: Configure full VR build
+      - name: Configure release build
         working-directory: ${{ env.PLUGIN_SRC }}
         run: cmake --preset vr-release
 
-      - name: Compile full VR DLL
+      - name: Compile release DLL
         working-directory: ${{ env.PLUGIN_SRC }}
         run: cmake --build --preset vr-release
 
-      - name: Locate DLL and write checksum
+      - name: Configure read-only diagnostic build
+        working-directory: ${{ env.PLUGIN_SRC }}
+        run: cmake --preset vr-diagnostic
+
+      - name: Compile read-only diagnostic DLL
+        working-directory: ${{ env.PLUGIN_SRC }}
+        run: cmake --build --preset vr-diagnostic
+
+      - name: Stage DLLs and checksums
         run: |
-          $dll = Get-ChildItem "$env:PLUGIN_SRC\build\vr-release" -Recurse -Filter ChainMorningstarVR.dll | Select-Object -First 1
-          if (-not $dll) { throw "ChainMorningstarVR.dll not found" }
-          New-Item -ItemType Directory -Force -Path "$env:GITHUB_WORKSPACE\ci-artifact\SKSE\Plugins" | Out-Null
-          Copy-Item $dll.FullName "$env:GITHUB_WORKSPACE\ci-artifact\SKSE\Plugins\ChainMorningstarVR.dll"
-          (Get-FileHash "$env:GITHUB_WORKSPACE\ci-artifact\SKSE\Plugins\ChainMorningstarVR.dll" -Algorithm SHA256).Hash.ToLower() | Set-Content "$env:GITHUB_WORKSPACE\ci-artifact\ChainMorningstarVR.dll.sha256"
+          $release = Get-ChildItem "$env:PLUGIN_SRC\build\vr-release" -Recurse -Filter ChainMorningstarVR.dll | Select-Object -First 1
+          $diag = Get-ChildItem "$env:PLUGIN_SRC\build\vr-diagnostic" -Recurse -Filter ChainMorningstarVR.dll | Select-Object -First 1
+          if (-not $release) { throw "Release ChainMorningstarVR.dll not found" }
+          if (-not $diag) { throw "Diagnostic ChainMorningstarVR.dll not found" }
+
+          $releaseDir = "$env:GITHUB_WORKSPACE\ci-artifact\release\SKSE\Plugins"
+          $diagDir = "$env:GITHUB_WORKSPACE\ci-artifact\diagnostic-readonly\SKSE\Plugins"
+          New-Item -ItemType Directory -Force -Path $releaseDir | Out-Null
+          New-Item -ItemType Directory -Force -Path $diagDir | Out-Null
+
+          Copy-Item $release.FullName "$releaseDir\ChainMorningstarVR.dll"
+          Copy-Item $diag.FullName "$diagDir\ChainMorningstarVR.dll"
+
+          (Get-FileHash "$releaseDir\ChainMorningstarVR.dll" -Algorithm SHA256).Hash.ToLower() |
+            Set-Content "$env:GITHUB_WORKSPACE\ci-artifact\release\ChainMorningstarVR.dll.sha256"
+          (Get-FileHash "$diagDir\ChainMorningstarVR.dll" -Algorithm SHA256).Hash.ToLower() |
+            Set-Content "$env:GITHUB_WORKSPACE\ci-artifact\diagnostic-readonly\ChainMorningstarVR.dll.sha256"
+
+          @"
+          ChainMorningstarVR v0.4.1-dev
+          release = normal fail-closed build
+          diagnostic-readonly = VRMeleeData candidate layout READ ONLY; performs no VRMeleeData writes
+          "@ | Set-Content "$env:GITHUB_WORKSPACE\ci-artifact\README.txt"
 
       - name: Upload compile-gate artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ChainMorningstarVR-v0.4.0-dev-full-dll
+          name: ChainMorningstarVR-v0.4.1-dev-release-and-diagnostic
           path: ci-artifact
           if-no-files-found: error
