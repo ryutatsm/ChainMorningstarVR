@@ -9,13 +9,19 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 find_package(CommonLibSSE CONFIG REQUIRED)
 
 add_commonlibsse_plugin(${PROJECT_NAME}
+    AUTHOR "ChainMorningstarVR"
     SOURCES
         PluginSkeleton.cpp
 )
 
-target_precompile_headers(${PROJECT_NAME} PRIVATE PCH.h)
-target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_23)
+# CommonLibSSE headers and the auto-generated plugin metadata translation unit
+# require the CommonLib PCH definitions (std headers, SKSE::stl, WinAPI wrappers).
+target_precompile_headers(${PROJECT_NAME}
+    PRIVATE
+        <SKSE/Impl/PCH.h>
+)
 
 if(MSVC)
-    target_compile_options(${PROJECT_NAME} PRIVATE /W4 /permissive- /utf-8)
+    # fmt/CommonLib require UTF-8 source handling on MSVC.
+    target_compile_options(${PROJECT_NAME} PRIVATE /utf-8 /W4 /permissive-)
 endif()
