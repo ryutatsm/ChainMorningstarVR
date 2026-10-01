@@ -1,0 +1,64 @@
+name: Windows Skyrim VR compile gate
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "Source/SKSE/**"
+      - ".github/workflows/windows-vr-build.yml"
+  pull_request:
+    paths:
+      - "Source/SKSE/**"
+      - ".github/workflows/windows-vr-build.yml"
+
+jobs:
+  build-vr:
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      VCPKG_ROOT: ${{ github.workspace }}\vcpkg
+      VCPKG_COMMIT: fc3f61366102c1f0d4547c06d03c523bb18c13a7
+      PLUGIN_SRC: ${{ github.workspace }}\Source\SKSE\PluginSkeleton
+
+    steps:
+      - name: Checkout Chain Morningstar source
+        uses: actions/checkout@v4
+
+      - name: Enable MSVC x64 environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Install Ninja
+        run: choco install ninja --no-progress -y
+
+      - name: Bootstrap pinned vcpkg
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git "$env:VCPKG_ROOT"
+          git -C "$env:VCPKG_ROOT" checkout "$env:VCPKG_COMMIT"
+          & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat" -disableMetrics
+
+      - name: Configure safe VR build
+        working-directory: ${{ env.PLUGIN_SRC }}
+        run: cmake --preset vr-release
+
+      - name: Compile safe VR DLL
+        working-directory: ${{ env.PLUGIN_SRC }}
+        run: cmake --build --preset vr-release
+
+      - name: Locate DLL and write checksum
+        run: |
+          $dll = Get-ChildItem "$env:PLUGIN_SRC\build\vr-release" -Recurse -Filter ChainMorningstarVR.dll | Select-Object -First 1
+          if (-not $dll) { throw "ChainMorningstarVR.dll not found" }
+          New-Item -ItemType Directory -Force -Path "$env:GITHUB_WORKSPACE\ci-artifact\SKSE\Plugins" | Out-Null
+          Copy-Item $dll.FullName "$env:GITHUB_WORKSPACE\ci-artifact\SKSE\Plugins\ChainMorningstarVR.dll"
+          (Get-FileHash "$env:GITHUB_WORKSPACE\ci-artifact\SKSE\Plugins\ChainMorningstarVR.dll" -Algorithm SHA256).Hash.ToLower() | Set-Content "$env:GITHUB_WORKSPACE\ci-artifact\ChainMorningstarVR.dll.sha256"
+
+      - name: Upload compile-gate artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChainMorningstarVR-v0.4.0-dev-compile-gate
+          path: ci-artifact
+          if-no-files-found: error
