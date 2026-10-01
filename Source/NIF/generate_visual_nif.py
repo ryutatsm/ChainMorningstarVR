@@ -279,9 +279,13 @@ def export_and_roundtrip():
         raise RuntimeError('CMS_NIF_OUT not set')
     os.makedirs(os.path.dirname(out),exist_ok=True)
 
-    bpy.ops.object.select_all(action='SELECT')
+    # Export only the root hierarchy. Collision helper meshes must NOT be selected as
+    # ordinary visual shapes; PyNifly discovers them through CMS_HeadNode's
+    # COPY_TRANSFORMS collision constraint.
+    bpy.ops.object.select_all(action='DESELECT')
+    root.select_set(True)
     bpy.context.view_layer.objects.active=root
-    result=bpy.ops.export_scene.pynifly(filepath=out,target_game='SKYRIMSE')
+    result=bpy.ops.export_scene.pynifly(filepath=out,target_game='SKYRIMSE',preserve_hierarchy=True)
     if 'FINISHED' not in result:
         raise RuntimeError(f'PyNifly export failed: {result}')
     if not os.path.exists(out) or os.path.getsize(out)<1024:
