@@ -27,7 +27,6 @@ add_commonlibsse_plugin(${PROJECT_NAME}
         ../ChainPhysicsCore.hpp
         ../ChainRuntimeCore.hpp
         ../SceneTransformCore.hpp
-        ../HeadCompoundCore.hpp
         ../NativeMeleeDataProbeCore.hpp
         ../GameBridgeContract.hpp
 )
