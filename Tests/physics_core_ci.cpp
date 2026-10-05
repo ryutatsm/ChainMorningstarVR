@@ -2,7 +2,8 @@
 #include "Source/SKSE/ChainRuntimeCore.hpp"
 #include "Source/SKSE/SceneTransformCore.hpp"
 #include "Source/SKSE/NativeMeleeDataProbeCore.hpp"
-#include "Source/SKSE/HeadCompoundCore.hpp"\n#include "Source/SKSE/NativeProxyOwnershipCore.hpp"
+#include "Source/SKSE/HeadCompoundCore.hpp"
+#include "Source/SKSE/NativeProxyOwnershipCore.hpp"
 
 #include <cassert>
 #include <cmath>
