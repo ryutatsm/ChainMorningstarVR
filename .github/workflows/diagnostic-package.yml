@@ -1,0 +1,221 @@
+name: Complete Skyrim VR diagnostic package gate
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "Source/**"
+      - "Tools/PluginBuilder/**"
+      - "Tools/Textures/**"
+      - "Tools/Package/**"
+      - ".github/workflows/diagnostic-package.yml"
+  pull_request:
+    paths:
+      - "Source/**"
+      - "Tools/PluginBuilder/**"
+      - "Tools/Textures/**"
+      - "Tools/Package/**"
+      - ".github/workflows/diagnostic-package.yml"
+
+concurrency:
+  group: cms-complete-diagnostic-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      CMS_VCPKG_ROOT: ${{ github.workspace }}\vcpkg
+      VCPKG_COMMIT: eb2d3a3279fd019cb7733072d86900d0ad2a1aef
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\.vcpkg-binary-cache
+      PLUGIN_SRC: ${{ github.workspace }}\Source\SKSE\PluginSkeleton
+      PACKAGE_ROOT: ${{ github.workspace }}\package-root
+      CMS_NIF_OUT: ${{ github.workspace }}\package-root\meshes\weapons\ChainMorningstarVR\ChainMorningstar.nif
+      CMS_TEXTURE_OUT: ${{ github.workspace }}\package-root\textures\weapons\ChainMorningstarVR
+
+    steps:
+      - name: Checkout clean-room source
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Restore vcpkg binary cache
+        uses: actions/cache@v4
+        with:
+          path: .vcpkg-binary-cache
+          key: cms-package-vcpkg-${{ runner.os }}-${{ hashFiles('Source/SKSE/PluginSkeleton/vcpkg.json', 'Source/SKSE/PluginSkeleton/vcpkg-configuration.json') }}
+          restore-keys: |
+            cms-package-vcpkg-${{ runner.os }}-
+            cms-vcpkg-${{ runner.os }}-
+
+      - name: Create package root
+        run: |
+          if (Test-Path "$env:PACKAGE_ROOT") { Remove-Item -Recurse -Force "$env:PACKAGE_ROOT" }
+          New-Item -ItemType Directory -Force -Path "$env:PACKAGE_ROOT" | Out-Null
+          New-Item -ItemType Directory -Force -Path "$env:VCPKG_DEFAULT_BINARY_CACHE" | Out-Null
+
+      - name: Restore and build pinned Mutagen ESP generator
+        run: |
+          dotnet restore Tools/PluginBuilder/ChainMorningstarVR.PluginBuilder.csproj
+          dotnet build Tools/PluginBuilder/ChainMorningstarVR.PluginBuilder.csproj -c Release --no-restore
+
+      - name: Generate and round-trip validate ESP
+        run: |
+          $esp="$env:PACKAGE_ROOT\ChainMorningstarVR.esp"
+          dotnet run --project Tools/PluginBuilder/ChainMorningstarVR.PluginBuilder.csproj -c Release --no-build -- $esp
+          if (-not (Test-Path $esp)) { throw "Validated ESP was not generated" }
+
+      - name: Install pinned DDS toolchain
+        run: python -m pip install --disable-pip-version-check "Pillow==12.0.0" "numpy==2.3.3"
+
+      - name: Generate and validate clean-room DDS textures
+        run: python Tools/Textures/generate_textures.py
+
+      - name: Install Blender
+        run: |
+          choco install blender --no-progress -y
+          $blender = Get-ChildItem "C:\Program Files\Blender Foundation" -Recurse -Filter blender.exe |
+            Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $blender) { throw "blender.exe not found" }
+          "BLENDER_EXE=$($blender.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+          & $blender.FullName --version
+
+      - name: Download checksum-pinned PyNifly 29.0.0
+        run: |
+          $zip="$env:RUNNER_TEMP\io_scene_nifly.zip"
+          Invoke-WebRequest -Uri "https://github.com/BadDogSkyrim/PyNifly/releases/download/V29.0.0/io_scene_nifly.zip" -OutFile $zip
+          $hash=(Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+          if ($hash -ne "7ee96322bd633372b1f2e8a99cac807723e249a132f15338c2f5b1cdf9f32190") {
+            throw "PyNifly release checksum mismatch: $hash"
+          }
+          $dst="$env:GITHUB_WORKSPACE\.pynifly"
+          New-Item -ItemType Directory -Force -Path $dst | Out-Null
+          Expand-Archive -Path $zip -DestinationPath $dst -Force
+
+      - name: Build and round-trip validate Skyrim VR NIF
+        run: |
+          $bootstrap="$env:RUNNER_TEMP\cms_nif_bootstrap.py"
+          @'
+          import os, sys
+          root=os.path.join(os.environ["GITHUB_WORKSPACE"],".pynifly")
+          candidates=[root, os.path.join(root,"io_scene_nifly")]
+          for p in candidates:
+              if os.path.isdir(p) and p not in sys.path:
+                  sys.path.insert(0,p)
+          import io_scene_nifly
+          io_scene_nifly.register()
+          script=os.path.join(os.environ["GITHUB_WORKSPACE"],"Source","NIF","generate_visual_nif.py")
+          exec(compile(open(script,"rb").read(),script,"exec"),{"__name__":"__main__","__file__":script})
+          '@ | Set-Content -Encoding UTF8 $bootstrap
+          & "$env:BLENDER_EXE" --background --python $bootstrap
+          if (-not (Test-Path "$env:CMS_NIF_OUT")) { throw "Validated NIF was not generated" }
+
+      - name: Enable MSVC x64 environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Install Ninja
+        run: choco install ninja --no-progress -y
+
+      - name: Bootstrap pinned vcpkg
+        run: |
+          if (Test-Path "$env:CMS_VCPKG_ROOT") {
+            Remove-Item -Recurse -Force "$env:CMS_VCPKG_ROOT"
+          }
+          git clone https://github.com/microsoft/vcpkg.git "$env:CMS_VCPKG_ROOT"
+          git -C "$env:CMS_VCPKG_ROOT" checkout "$env:VCPKG_COMMIT"
+          & "$env:CMS_VCPKG_ROOT\bootstrap-vcpkg.bat" -disableMetrics
+
+      - name: Configure READ-ONLY Skyrim VR DLL
+        working-directory: ${{ env.PLUGIN_SRC }}
+        run: cmake --preset vr-diagnostic
+
+      - name: Compile READ-ONLY Skyrim VR DLL
+        working-directory: ${{ env.PLUGIN_SRC }}
+        run: cmake --build --preset vr-diagnostic
+
+      - name: Stage diagnostic DLL only
+        run: |
+          $diag = Get-ChildItem "$env:PLUGIN_SRC\build\vr-diagnostic" -Recurse -Filter ChainMorningstarVR.dll | Select-Object -First 1
+          if (-not $diag) { throw "Read-only diagnostic DLL not found" }
+          $dst="$env:PACKAGE_ROOT\SKSE\Plugins"
+          New-Item -ItemType Directory -Force -Path $dst | Out-Null
+          Copy-Item $diag.FullName "$dst\ChainMorningstarVR.dll"
+
+      - name: Write diagnostic safety README
+        run: |
+          @"
+          ChainMorningstarVR v0.4.3-dev — READ-ONLY DIAGNOSTIC CANDIDATE
+
+          NOT A FINAL RELEASE.
+
+          Safety:
+          - CMS_ENABLE_READONLY_VRMELEE_PROBE=ON
+          - CMS_ENABLE_NATIVE_MELEE_PROXY=OFF
+          - No VRMeleeData collisionNode writes are compiled into this package.
+          - The native-proxy-test DLL is deliberately NOT included.
+
+          Included:
+          - ChainMorningstarVR.esp
+          - SKSE/Plugins/ChainMorningstarVR.dll
+          - meshes/weapons/ChainMorningstarVR/ChainMorningstar.nif
+          - seven generated DDS material textures
+
+          Gameplay identity:
+          - One-handed mace
+          - Damage 44
+          - Weight 17
+          - Value 550
+
+          Audio:
+          - Vanilla Skyrim PHYChainSD [SNDR:0003D128] for chain rattle
+          - Vanilla Skyrim PHYGenericMetalHeavyH [SNDR:0005CEF9] for heavy metal impact path
+          - Bethesda audio is referenced from Skyrim.esm/BSA and is not redistributed.
+
+          Acquisition for this diagnostic:
+          1. In the console: help "Chain Morningstar" 4
+          2. The generated local FormID is 000800; use the load-order prefix shown by help.
+          3. player.additem <full-form-id> 1
+
+          Eorlund Gray-Mane vendor distribution is intentionally not added to this diagnostic
+          until the moving-head hit path is proven safe on the target Skyrim VR installation.
+
+          Keep unrelated environmental chain mods such as "Animated chains reupload" enabled
+          unless Vortex reports an actual file conflict with this package.
+          "@ | Set-Content -Encoding UTF8 "$env:PACKAGE_ROOT\README_DIAGNOSTIC.txt"
+
+      - name: Strict package validation
+        run: python Tools/Package/validate_package.py "$env:PACKAGE_ROOT"
+
+      - name: Display package manifest
+        run: Get-Content "$env:PACKAGE_ROOT\SHA256SUMS.txt"
+
+      - name: Create Vortex-ready ZIP
+        run: |
+          $zip="$env:GITHUB_WORKSPACE\ChainMorningstarVR-v0.4.3-dev-DIAGNOSTIC-READONLY.zip"
+          if (Test-Path $zip) { Remove-Item -Force $zip }
+          Compress-Archive -Path "$env:PACKAGE_ROOT\*" -DestinationPath $zip -CompressionLevel Optimal
+          $hash=(Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+          $hash | Set-Content "$env:GITHUB_WORKSPACE\ChainMorningstarVR-v0.4.3-dev-DIAGNOSTIC-READONLY.zip.sha256"
+          Write-Host "PACKAGE ZIP SHA256 $hash"
+
+      - name: Upload complete diagnostic package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChainMorningstarVR-v0.4.3-dev-DIAGNOSTIC-READONLY
+          path: |
+            ChainMorningstarVR-v0.4.3-dev-DIAGNOSTIC-READONLY.zip
+            ChainMorningstarVR-v0.4.3-dev-DIAGNOSTIC-READONLY.zip.sha256
+          if-no-files-found: error
