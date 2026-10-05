@@ -44,6 +44,21 @@ enum class NativeMeleeProbeStatus : std::uint8_t {
     kInvalidSwingDirection
 };
 
+[[nodiscard]] constexpr const char* nativeMeleeProbeStatusName(NativeMeleeProbeStatus status) noexcept
+{
+    switch (status) {
+    case NativeMeleeProbeStatus::kPlausible: return "plausible";
+    case NativeMeleeProbeStatus::kNullWorld: return "null-world";
+    case NativeMeleeProbeStatus::kNullCollisionNode: return "null-collision-node";
+    case NativeMeleeProbeStatus::kNullOffsetNode: return "null-offset-node";
+    case NativeMeleeProbeStatus::kInvalidThreshold: return "invalid-threshold";
+    case NativeMeleeProbeStatus::kInvalidCollisionFlag: return "invalid-enable-flag";
+    case NativeMeleeProbeStatus::kInvalidImpulseFlag: return "invalid-impulse-flag";
+    case NativeMeleeProbeStatus::kInvalidSwingDirection: return "invalid-swing-direction";
+    }
+    return "unknown";
+}
+
 struct NativeMeleeProbeResult {
     NativeMeleeProbeStatus status{NativeMeleeProbeStatus::kNullWorld};
     std::uintptr_t world{};
@@ -53,6 +68,9 @@ struct NativeMeleeProbeResult {
     bool enableCollision{};
     bool applyImpulseOnHit{};
     bool offsetMatchesExpected{};
+    std::uint32_t swingDirection{};
+    float cooldown{};
+    float duration{};
 
     [[nodiscard]] bool plausible() const noexcept { return status==NativeMeleeProbeStatus::kPlausible; }
 };
@@ -69,6 +87,9 @@ inline NativeMeleeProbeResult inspectNativeMeleeDataReadOnly(
     r.enableCollision=d.enableCollision!=0;
     r.applyImpulseOnHit=d.applyImpulseOnHit!=0;
     r.offsetMatchesExpected = expectedOffsetNode != 0 && d.offsetNode == expectedOffsetNode;
+    r.swingDirection = d.swingDirection;
+    r.cooldown = d.cooldown;
+    r.duration = d.duration;
 
     if (!d.world) { r.status=NativeMeleeProbeStatus::kNullWorld; return r; }
     if (!d.collisionNode) { r.status=NativeMeleeProbeStatus::kNullCollisionNode; return r; }

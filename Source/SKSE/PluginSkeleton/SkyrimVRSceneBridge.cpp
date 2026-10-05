@@ -99,9 +99,10 @@ void ProbeBothHandsNativeMeleeLayoutReadOnly()
         const auto expected = reinterpret_cast<std::uintptr_t>(hand.expectedOffsetNode);
         const auto result = inspectNativeMeleeDataReadOnly(*raw, expected);
         SKSE::log::info(
-            "ChainMorningstarVR: GLOBAL READ-ONLY {} VRMeleeData status={} candidate=0x{:X} world=0x{:X} collision=0x{:X} offset=0x{:X} offsetKnownAs={} expectedOffset=0x{:X} expectedMatch={} threshold={:.3f} enable={} impulse={}",
+            "ChainMorningstarVR: GLOBAL READ-ONLY {} VRMeleeData status={}({}) candidate=0x{:X} world=0x{:X} collision=0x{:X} offset=0x{:X} offsetKnownAs={} expectedOffset=0x{:X} expectedMatch={} threshold={:.3f} enable={} impulse={} swing={} cooldown={:.3f} duration={:.3f}",
             hand.name,
             static_cast<unsigned>(result.status),
+            nativeMeleeProbeStatusName(result.status),
             base + hand.offset,
             result.world,
             result.collisionNode,
@@ -111,7 +112,10 @@ void ProbeBothHandsNativeMeleeLayoutReadOnly()
             result.offsetMatchesExpected,
             result.linearVelocityThreshold,
             result.enableCollision,
-            result.applyImpulseOnHit);
+            result.applyImpulseOnHit,
+            result.swingDirection,
+            result.cooldown,
+            result.duration);
     }
 #else
     SKSE::log::debug("ChainMorningstarVR: global VRMeleeData probe disabled in release build");
@@ -214,9 +218,11 @@ void SkyrimVRSceneBridge::runReadOnlyNativeMeleeProbe()
     const auto expected=reinterpret_cast<std::uintptr_t>(expectedNode);
     const auto result=inspectNativeMeleeDataReadOnly(*raw,expected);
     SKSE::log::info(
-        "ChainMorningstarVR: READ-ONLY VRMeleeData probe status={} world=0x{:X} collision=0x{:X} offset=0x{:X} offsetKnownAs={} expectedMatch={} threshold={:.3f}",
-        static_cast<unsigned>(result.status), result.world, result.collisionNode, result.offsetNode,
-        identifyKnownVrOffsetNode(vr, result.offsetNode), result.offsetMatchesExpected, result.linearVelocityThreshold);
+        "ChainMorningstarVR: READ-ONLY VRMeleeData probe status={}({}) world=0x{:X} collision=0x{:X} offset=0x{:X} offsetKnownAs={} expectedMatch={} threshold={:.3f} swing={} cooldown={:.3f} duration={:.3f}",
+        static_cast<unsigned>(result.status), nativeMeleeProbeStatusName(result.status),
+        result.world, result.collisionNode, result.offsetNode,
+        identifyKnownVrOffsetNode(vr, result.offsetNode), result.offsetMatchesExpected,
+        result.linearVelocityThreshold, result.swingDirection, result.cooldown, result.duration);
     if (!result.plausible()) {
         SKSE::log::warn("ChainMorningstarVR: native melee layout probe rejected candidate; no native proxy writes enabled");
     }
