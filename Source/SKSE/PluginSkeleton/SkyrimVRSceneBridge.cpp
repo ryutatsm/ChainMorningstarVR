@@ -433,7 +433,7 @@ void SkyrimVRSceneBridge::restoreNativeMeleeHeadProxy()
 #endif
 }
 
-bool SkyrimVRSceneBridge::updateNativeMeleeHeadProxy(const HeadSweep&)
+bool SkyrimVRSceneBridge::updateNativeMeleeHeadProxy(const HeadSweep& sweep)
 {
 #if defined(CMS_ENABLE_NATIVE_MELEE_PROXY) && CMS_ENABLE_NATIVE_MELEE_PROXY
     if (!nativeProxyInstalled_ || !nativeProxyPlayerAddress_ || !head_) {
