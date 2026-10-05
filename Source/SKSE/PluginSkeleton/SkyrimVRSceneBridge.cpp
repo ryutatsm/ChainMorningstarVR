@@ -1,5 +1,6 @@
 #include "SkyrimVRSceneBridge.hpp"
 #include "PlanckBuildProbe.hpp"
+#include "../NativeProxyOwnershipCore.hpp"
 #include <SKSE/SKSE.h>
 
 namespace cms::skyrimvr {
@@ -347,7 +348,18 @@ void SkyrimVRSceneBridge::restoreNativeMeleeHeadProxy()
     // and touch memory only if it is the same owner that CMS originally modified.
     auto* currentPlayer = RE::PlayerCharacter::GetSingleton();
     const auto currentPlayerAddress = reinterpret_cast<std::uintptr_t>(currentPlayer);
-    if (!currentPlayer || currentPlayerAddress != nativeProxyPlayerAddress_) {
+    auto* headNode = head_ ? head_->AsNode() : nullptr;
+
+    // Do not even form/dereference the current VRMeleeData pointer until the player-owner
+    // check passes. This makes save/load/death/new-game fail closed.
+    const auto ownerStateBeforeRead = evaluateNativeProxyOwnership({
+        nativeProxyInstalled_,
+        nativeProxyPlayerAddress_,
+        currentPlayerAddress,
+        reinterpret_cast<std::uintptr_t>(headNode),
+        reinterpret_cast<std::uintptr_t>(headNode)
+    });
+    if (ownerStateBeforeRead == NativeProxyOwnershipState::kPlayerChanged) {
         SKSE::log::warn(
             "ChainMorningstarVR: native proxy owner PlayerCharacter changed; "
             "skipping stale-memory restore and releasing CMS references only");
@@ -357,13 +369,17 @@ void SkyrimVRSceneBridge::restoreNativeMeleeHeadProxy()
         return;
     }
 
-    auto* headNode = head_ ? head_->AsNode() : nullptr;
     const auto offset = isLeftHand_ ? kPlanckLeftVRMeleeDataOffset : kPlanckRightVRMeleeDataOffset;
     auto* data = reinterpret_cast<NativeVRMeleeDataWriteLayout*>(currentPlayerAddress + offset);
+    const auto ownerState = evaluateNativeProxyOwnership({
+        nativeProxyInstalled_,
+        nativeProxyPlayerAddress_,
+        currentPlayerAddress,
+        reinterpret_cast<std::uintptr_t>(headNode),
+        reinterpret_cast<std::uintptr_t>(data->collisionNode.get())
+    });
 
-    // Ownership rule derived from the target log: collisionNode can legitimately change
-    // while the game is running. Restore only if it still points to CMS_HeadNode.
-    if (headNode && data->collisionNode.get() == headNode) {
+    if (ownerState == NativeProxyOwnershipState::kOwnedByCms) {
         data->collisionNode = originalNativeCollisionNode_;
         SKSE::log::info("ChainMorningstarVR: restored original native melee collisionNode");
     } else {
@@ -387,7 +403,16 @@ bool SkyrimVRSceneBridge::updateNativeMeleeHeadProxy(const HeadSweep&)
 
     auto* currentPlayer = RE::PlayerCharacter::GetSingleton();
     const auto currentPlayerAddress = reinterpret_cast<std::uintptr_t>(currentPlayer);
-    if (!currentPlayer || currentPlayerAddress != nativeProxyPlayerAddress_) {
+    auto* headNode = head_->AsNode();
+
+    const auto ownerStateBeforeRead = evaluateNativeProxyOwnership({
+        nativeProxyInstalled_,
+        nativeProxyPlayerAddress_,
+        currentPlayerAddress,
+        reinterpret_cast<std::uintptr_t>(headNode),
+        reinterpret_cast<std::uintptr_t>(headNode)
+    });
+    if (ownerStateBeforeRead == NativeProxyOwnershipState::kPlayerChanged) {
         SKSE::log::warn(
             "ChainMorningstarVR: PlayerCharacter changed while native proxy was active; "
             "dropping CMS proxy ownership without dereferencing stale VRMeleeData");
@@ -397,10 +422,16 @@ bool SkyrimVRSceneBridge::updateNativeMeleeHeadProxy(const HeadSweep&)
         return false;
     }
 
-    auto* headNode = head_->AsNode();
     const auto offset = isLeftHand_ ? kPlanckLeftVRMeleeDataOffset : kPlanckRightVRMeleeDataOffset;
     auto* data = reinterpret_cast<NativeVRMeleeDataWriteLayout*>(currentPlayerAddress + offset);
-    if (!headNode || data->collisionNode.get() != headNode) {
+    const auto ownerState = evaluateNativeProxyOwnership({
+        nativeProxyInstalled_,
+        nativeProxyPlayerAddress_,
+        currentPlayerAddress,
+        reinterpret_cast<std::uintptr_t>(headNode),
+        reinterpret_cast<std::uintptr_t>(data->collisionNode.get())
+    });
+    if (ownerState != NativeProxyOwnershipState::kOwnedByCms) {
         SKSE::log::warn(
             "ChainMorningstarVR: native melee collisionNode changed externally; "
             "disabling CMS proxy ownership without overwriting the new value");
