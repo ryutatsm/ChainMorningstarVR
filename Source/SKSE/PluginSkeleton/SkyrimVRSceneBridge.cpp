@@ -91,10 +91,6 @@ void ProbeBothHandsNativeMeleeLayoutReadOnly()
 
     const auto base = reinterpret_cast<std::uintptr_t>(player);
     for (const auto& hand : hands) {
-        if (!hand.expectedOffsetNode) {
-            SKSE::log::warn("ChainMorningstarVR: global READ-ONLY {} VRMeleeData probe skipped: expected offset node null", hand.name);
-            continue;
-        }
         const auto* raw = reinterpret_cast<const NativeVRMeleeDataProbeLayout*>(base + hand.offset);
         const auto expected = reinterpret_cast<std::uintptr_t>(hand.expectedOffsetNode);
         const auto result = inspectNativeMeleeDataReadOnly(*raw, expected);
@@ -211,7 +207,6 @@ void SkyrimVRSceneBridge::runReadOnlyNativeMeleeProbe()
     auto* vr=player ? player->GetVRNodeData() : nullptr;
     if (!player || !vr) return;
     auto* expectedNode = isLeftHand_ ? vr->LeftMeleeWeaponOffsetNode.get() : vr->RightMeleeWeaponOffsetNode.get();
-    if (!expectedNode) return;
     const auto base=reinterpret_cast<std::uintptr_t>(player);
     const auto offset=isLeftHand_ ? kPlanckLeftVRMeleeDataOffset : kPlanckRightVRMeleeDataOffset;
     const auto* raw=reinterpret_cast<const NativeVRMeleeDataProbeLayout*>(base+offset);
@@ -256,6 +251,11 @@ void SkyrimVRSceneBridge::releaseWeaponNodes()
     anchor_.reset();
     meleeRoot_.reset();
     isLeftHand_=false;
+    readOnlyNativeMotionStateKnown_=false;
+    readOnlyNativeProbeRejectedWarned_=false;
+    readOnlyNativeEnableCollision_=false;
+    readOnlyNativeSwingDirection_=0;
+    readOnlyNativeCollisionNode_=0;
 }
 
 bool SkyrimVRSceneBridge::tryGetChainAnchorWorldSU(Vec3& outPositionSU, Vec3& outInitialDirectionWorld)
@@ -481,12 +481,62 @@ bool SkyrimVRSceneBridge::updateNativeMeleeHeadProxy(const HeadSweep&)
     }
     return true;
 #else
+#if defined(CMS_ENABLE_READONLY_VRMELEE_PROBE) && CMS_ENABLE_READONLY_VRMELEE_PROBE
+    auto* player = RE::PlayerCharacter::GetSingleton();
+    if (!player || !anchor_) {
+        return false;
+    }
+
+    const auto base = reinterpret_cast<std::uintptr_t>(player);
+    const auto offset = isLeftHand_ ? kPlanckLeftVRMeleeDataOffset : kPlanckRightVRMeleeDataOffset;
+    const auto* raw = reinterpret_cast<const NativeVRMeleeDataProbeLayout*>(base + offset);
+    const auto probe = inspectNativeMeleeDataReadOnly(*raw, 0);
+
+    if (!probe.plausible()) {
+        if (!readOnlyNativeProbeRejectedWarned_) {
+            SKSE::log::warn(
+                "ChainMorningstarVR: READ-ONLY MOTION probe rejected {} hand VRMeleeData status={}({}); no writes performed",
+                isLeftHand_ ? "left" : "right",
+                static_cast<unsigned>(probe.status),
+                nativeMeleeProbeStatusName(probe.status));
+            readOnlyNativeProbeRejectedWarned_ = true;
+        }
+        return false;
+    }
+
+    readOnlyNativeProbeRejectedWarned_ = false;
+    const bool stateChanged =
+        !readOnlyNativeMotionStateKnown_ ||
+        readOnlyNativeEnableCollision_ != probe.enableCollision ||
+        readOnlyNativeSwingDirection_ != probe.swingDirection ||
+        readOnlyNativeCollisionNode_ != probe.collisionNode;
+
+    if (stateChanged) {
+        SKSE::log::info(
+            "ChainMorningstarVR: READ-ONLY MOTION hand={} headSpeedMps={:.3f} nativeEnable={} nativeSwing={} collision=0x{:X} threshold={:.3f} cooldown={:.3f} duration={:.3f}",
+            isLeftHand_ ? "left" : "right",
+            sweep.speedMps,
+            probe.enableCollision,
+            probe.swingDirection,
+            probe.collisionNode,
+            probe.linearVelocityThreshold,
+            probe.cooldown,
+            probe.duration);
+    }
+
+    readOnlyNativeMotionStateKnown_ = true;
+    readOnlyNativeEnableCollision_ = probe.enableCollision;
+    readOnlyNativeSwingDirection_ = probe.swingDirection;
+    readOnlyNativeCollisionNode_ = probe.collisionNode;
+    return false;
+#else
     if (!warnedNativeProxy_) {
         SKSE::log::warn(
             "ChainMorningstarVR: native moving melee proxy is disabled in this build; visual bridge only");
         warnedNativeProxy_=true;
     }
     return false;
+#endif
 #endif
 }
 
