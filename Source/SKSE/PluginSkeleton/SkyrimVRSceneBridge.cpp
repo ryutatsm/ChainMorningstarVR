@@ -1,4 +1,5 @@
 #include "SkyrimVRSceneBridge.hpp"
+#include "PlanckBuildProbe.hpp"
 #include <SKSE/SKSE.h>
 
 namespace cms::skyrimvr {
@@ -266,6 +267,15 @@ bool SkyrimVRSceneBridge::installNativeMeleeHeadProxy()
         return true;
     }
 
+    const auto detectedPlanck = GetDetectedPlanckBuildNumber();
+    if (!detectedPlanck || *detectedPlanck != kValidatedNativeProxyPlanckBuild) {
+        SKSE::log::error(
+            "ChainMorningstarVR: native proxy install refused: PLANCK build is {} but validated test build is {}",
+            detectedPlanck ? std::to_string(*detectedPlanck) : std::string("unknown"),
+            kValidatedNativeProxyPlanckBuild);
+        return false;
+    }
+
     auto* player = RE::PlayerCharacter::GetSingleton();
     auto* vr = player ? player->GetVRNodeData() : nullptr;
     auto* headNode = head_ ? head_->AsNode() : nullptr;
@@ -311,7 +321,7 @@ bool SkyrimVRSceneBridge::installNativeMeleeHeadProxy()
         return false;
     }
 
-    nativeMeleeDataAddress_ = address;
+    nativeProxyPlayerAddress_ = base;
     nativeProxyInstalled_ = true;
     SKSE::log::info(
         "ChainMorningstarVR: native melee proxy installed for {} hand; "
@@ -328,26 +338,42 @@ void SkyrimVRSceneBridge::restoreNativeMeleeHeadProxy()
 #if defined(CMS_ENABLE_NATIVE_MELEE_PROXY) && CMS_ENABLE_NATIVE_MELEE_PROXY
     if (!nativeProxyInstalled_) {
         originalNativeCollisionNode_.reset();
-        nativeMeleeDataAddress_ = 0;
+        nativeProxyPlayerAddress_ = 0;
+        return;
+    }
+
+    // Never dereference a VRMeleeData address saved from an earlier player instance.
+    // Save/load/death/new-game may rebuild runtime objects. Re-resolve the singleton now
+    // and touch memory only if it is the same owner that CMS originally modified.
+    auto* currentPlayer = RE::PlayerCharacter::GetSingleton();
+    const auto currentPlayerAddress = reinterpret_cast<std::uintptr_t>(currentPlayer);
+    if (!currentPlayer || currentPlayerAddress != nativeProxyPlayerAddress_) {
+        SKSE::log::warn(
+            "ChainMorningstarVR: native proxy owner PlayerCharacter changed; "
+            "skipping stale-memory restore and releasing CMS references only");
+        originalNativeCollisionNode_.reset();
+        nativeProxyPlayerAddress_ = 0;
+        nativeProxyInstalled_ = false;
         return;
     }
 
     auto* headNode = head_ ? head_->AsNode() : nullptr;
-    auto* data = nativeMeleeDataAddress_
-        ? reinterpret_cast<NativeVRMeleeDataWriteLayout*>(nativeMeleeDataAddress_)
-        : nullptr;
+    const auto offset = isLeftHand_ ? kPlanckLeftVRMeleeDataOffset : kPlanckRightVRMeleeDataOffset;
+    auto* data = reinterpret_cast<NativeVRMeleeDataWriteLayout*>(currentPlayerAddress + offset);
 
-    if (data && headNode && data->collisionNode.get() == headNode) {
+    // Ownership rule derived from the target log: collisionNode can legitimately change
+    // while the game is running. Restore only if it still points to CMS_HeadNode.
+    if (headNode && data->collisionNode.get() == headNode) {
         data->collisionNode = originalNativeCollisionNode_;
         SKSE::log::info("ChainMorningstarVR: restored original native melee collisionNode");
     } else {
         SKSE::log::warn(
-            "ChainMorningstarVR: native collisionNode was no longer owned by CMS during restore; "
-            "left external value untouched");
+            "ChainMorningstarVR: native collisionNode changed externally before restore; "
+            "external value left untouched");
     }
 
     originalNativeCollisionNode_.reset();
-    nativeMeleeDataAddress_ = 0;
+    nativeProxyPlayerAddress_ = 0;
     nativeProxyInstalled_ = false;
 #endif
 }
@@ -355,18 +381,31 @@ void SkyrimVRSceneBridge::restoreNativeMeleeHeadProxy()
 bool SkyrimVRSceneBridge::updateNativeMeleeHeadProxy(const HeadSweep&)
 {
 #if defined(CMS_ENABLE_NATIVE_MELEE_PROXY) && CMS_ENABLE_NATIVE_MELEE_PROXY
-    if (!nativeProxyInstalled_ || !nativeMeleeDataAddress_ || !head_) {
+    if (!nativeProxyInstalled_ || !nativeProxyPlayerAddress_ || !head_) {
+        return false;
+    }
+
+    auto* currentPlayer = RE::PlayerCharacter::GetSingleton();
+    const auto currentPlayerAddress = reinterpret_cast<std::uintptr_t>(currentPlayer);
+    if (!currentPlayer || currentPlayerAddress != nativeProxyPlayerAddress_) {
+        SKSE::log::warn(
+            "ChainMorningstarVR: PlayerCharacter changed while native proxy was active; "
+            "dropping CMS proxy ownership without dereferencing stale VRMeleeData");
+        nativeProxyInstalled_ = false;
+        nativeProxyPlayerAddress_ = 0;
+        originalNativeCollisionNode_.reset();
         return false;
     }
 
     auto* headNode = head_->AsNode();
-    auto* data = reinterpret_cast<NativeVRMeleeDataWriteLayout*>(nativeMeleeDataAddress_);
+    const auto offset = isLeftHand_ ? kPlanckLeftVRMeleeDataOffset : kPlanckRightVRMeleeDataOffset;
+    auto* data = reinterpret_cast<NativeVRMeleeDataWriteLayout*>(currentPlayerAddress + offset);
     if (!headNode || data->collisionNode.get() != headNode) {
         SKSE::log::warn(
             "ChainMorningstarVR: native melee collisionNode changed externally; "
             "disabling CMS proxy ownership without overwriting the new value");
         nativeProxyInstalled_ = false;
-        nativeMeleeDataAddress_ = 0;
+        nativeProxyPlayerAddress_ = 0;
         originalNativeCollisionNode_.reset();
         return false;
     }

@@ -6,6 +6,8 @@
 namespace cms::skyrimvr {
 namespace {
 
+std::optional<std::uint32_t> g_detectedPlanckBuild{};
+
 struct PlanckApiRequest {
     static constexpr std::uint32_t kMessageGetInterface = 0x92F38745;
     void* (*getApiFunction)(unsigned int revisionNumber) = nullptr;
@@ -44,8 +46,14 @@ std::optional<std::uint32_t> ProbePlanckBuildNumber()
     }
 
     const std::uint32_t build = api->GetBuildNumber();
+    g_detectedPlanckBuild = build;
     SKSE::log::info("ChainMorningstarVR: PLANCK API revision 1 detected; build={}", build);
     return build;
+}
+
+std::optional<std::uint32_t> GetDetectedPlanckBuildNumber() noexcept
+{
+    return g_detectedPlanckBuild;
 }
 
 } // namespace cms::skyrimvr

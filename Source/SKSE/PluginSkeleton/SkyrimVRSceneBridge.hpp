@@ -47,7 +47,7 @@ private:
     bool warnedNativeProxy_{};
     bool nativeProxyInstalled_{};
     RE::NiPointer<RE::NiNode> originalNativeCollisionNode_{};
-    std::uintptr_t nativeMeleeDataAddress_{};
+    std::uintptr_t nativeProxyPlayerAddress_{};
 };
 
 } // namespace cms::skyrimvr
