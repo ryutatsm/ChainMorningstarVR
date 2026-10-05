@@ -92,6 +92,37 @@ int main()
     static_assert(offsetof(NativeVRMeleeDataProbeLayout, collisionNode)==0x18);
     static_assert(offsetof(NativeVRMeleeDataProbeLayout, linearVelocityThreshold)==0xA4);
 
+    // Regression from the 0.4.1 target log: PLANCK's internal offsetNode was
+    // consistently +0x300 from CommonLib's named MeleeWeaponOffsetNode. That
+    // identity mismatch is diagnostic metadata only and must not reject the
+    // otherwise-plausible PLANCK VRMeleeData layout.
+    NativeVRMeleeDataProbeLayout targetLogLike{};
+    targetLogLike.world = 0x1000;
+    targetLogLike.collisionNode = 0x2000;
+    constexpr std::uintptr_t expectedNamedOffset = 0x5000;
+    targetLogLike.offsetNode = expectedNamedOffset + 0x300;
+    targetLogLike.linearVelocityThreshold = 2.0f;
+    targetLogLike.enableCollision = 0;
+    targetLogLike.applyImpulseOnHit = 1;
+    targetLogLike.swingDirection = 0;
+    targetLogLike.cooldown = 0.0f;
+    targetLogLike.duration = 0.0f;
+
+    const auto mismatchProbe = inspectNativeMeleeDataReadOnly(targetLogLike, expectedNamedOffset);
+    assert(mismatchProbe.plausible());
+    assert(!mismatchProbe.offsetMatchesExpected);
+
+    // The named CommonLib node may be unavailable; it is not needed to validate
+    // PLANCK's own non-null offsetNode.
+    const auto noExpectedProbe = inspectNativeMeleeDataReadOnly(targetLogLike, 0);
+    assert(noExpectedProbe.plausible());
+    assert(!noExpectedProbe.offsetMatchesExpected);
+
+    targetLogLike.swingDirection = 2; // not a valid Skyrim VR SwingDirection value
+    assert(inspectNativeMeleeDataReadOnly(targetLogLike, expectedNamedOffset).status ==
+           NativeMeleeProbeStatus::kInvalidSwingDirection);
+    targetLogLike.swingDirection = 0;
+
     std::cout << "CMS core CI PASS\n";
     std::cout << "reach_m=" << solver.straightReachM() << "\n";
     std::cout << "constraint_error_m=" << solver.maxConstraintErrorM() << "\n";
