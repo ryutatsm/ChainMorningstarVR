@@ -30,6 +30,16 @@ weapon.Model = new Model
 // EitherHand [EQUP:00013F44].
 weapon.EquipmentType.SetTo(FormKey.Factory("013F44:Skyrim.esm"));
 
+// Vanilla Skyrim 1H blunt/mace sound and impact contracts.
+weapon.PickUpSound.SetTo(FormKey.Factory("03C7BE:Skyrim.esm"));          // ITMGenericWeaponUpSD
+weapon.PutDownSound.SetTo(FormKey.Factory("03C7C0:Skyrim.esm"));        // ITMGenericWeaponDownSD
+weapon.AttackSound.SetTo(FormKey.Factory("105D43:Skyrim.esm"));         // WPNSwingBlunt1Hand
+weapon.EquipSound.SetTo(FormKey.Factory("03DE2A:Skyrim.esm"));          // WPNMace1HandDrawSD
+weapon.UnequipSound.SetTo(FormKey.Factory("03DE2B:Skyrim.esm"));        // WPNMace1HandSheatheSD
+weapon.ImpactDataSet.SetTo(FormKey.Factory("0193B7:Skyrim.esm"));       // WPNzBluntImpactSet
+weapon.BlockBashImpact.SetTo(FormKey.Factory("0193C7:Skyrim.esm"));     // WPNBashBluntImpactSet
+weapon.AlternateBlockMaterial.SetTo(FormKey.Factory("0774C1:Skyrim.esm")); // MaterialBlockBlunt
+
 weapon.Keywords = new ExtendedList<IFormLinkGetter<IKeywordGetter>>
 {
     FormKey.Factory("01E714:Skyrim.esm"), // WeapTypeMace
@@ -92,6 +102,23 @@ if (got.Model?.File.GivenPath != ModelPath)
 if (got.EquipmentType.FormKey != FormKey.Factory("013F44:Skyrim.esm"))
     throw new InvalidOperationException("Equipment type is not EitherHand.");
 
+var vanillaLinks = new (string Name, FormKey Got, FormKey Want)[]
+{
+    ("PickUpSound", got.PickUpSound.FormKey, FormKey.Factory("03C7BE:Skyrim.esm")),
+    ("PutDownSound", got.PutDownSound.FormKey, FormKey.Factory("03C7C0:Skyrim.esm")),
+    ("AttackSound", got.AttackSound.FormKey, FormKey.Factory("105D43:Skyrim.esm")),
+    ("EquipSound", got.EquipSound.FormKey, FormKey.Factory("03DE2A:Skyrim.esm")),
+    ("UnequipSound", got.UnequipSound.FormKey, FormKey.Factory("03DE2B:Skyrim.esm")),
+    ("ImpactDataSet", got.ImpactDataSet.FormKey, FormKey.Factory("0193B7:Skyrim.esm")),
+    ("BlockBashImpact", got.BlockBashImpact.FormKey, FormKey.Factory("0193C7:Skyrim.esm")),
+    ("AlternateBlockMaterial", got.AlternateBlockMaterial.FormKey, FormKey.Factory("0774C1:Skyrim.esm")),
+};
+foreach (var link in vanillaLinks)
+{
+    if (link.Got != link.Want)
+        throw new InvalidOperationException($"{link.Name} mismatch: {link.Got} != {link.Want}");
+}
+
 var keywordKeys = got.Keywords?.Select(x => x.FormKey).ToHashSet() ?? [];
 foreach (var required in new[]
 {
@@ -108,4 +135,5 @@ Console.WriteLine("CMS_ESP_VALIDATE: PASS");
 Console.WriteLine($"CMS_ESP_FORMKEY: {got.FormKey}");
 Console.WriteLine("CMS_ESP_STATS: damage=44 weight=17 value=550");
 Console.WriteLine("CMS_ESP_TYPE: OneHandMace / OneHanded / EitherHand");
+Console.WriteLine("CMS_ESP_VANILLA_AUDIO_IMPACT_LINKS: PASS");
 Console.WriteLine($"CMS_ESP_MODEL: {got.Model!.File.GivenPath}");
