@@ -56,6 +56,15 @@ def multiscale_noise(rng: np.random.Generator, size: int) -> np.ndarray:
     return normalize01(out)
 
 
+def anisotropic_brush_noise(rng: np.random.Generator, size: int, angle_deg: float) -> np.ndarray:
+    # Random anisotropic grain rather than a periodic sine pattern.  A low vertical
+    # resolution stretched to square creates long, irregular machining/forging streaks.
+    small = rng.normal(0.0, 1.0, (48, 512)).astype(np.float32)
+    im = Image.fromarray(small, mode="F").resize((size, size), Image.Resampling.BICUBIC)
+    im = im.rotate(angle_deg, resample=Image.Resampling.BICUBIC, expand=False)
+    return normalize01(np.asarray(im, dtype=np.float32)) * 2.0 - 1.0
+
+
 def normals_from_height(height: np.ndarray, strength: float) -> np.ndarray:
     gy, gx = np.gradient(height.astype(np.float32))
     nx = -gx * strength
@@ -76,9 +85,7 @@ def metal_textures(rng: np.random.Generator):
     n = multiscale_noise(rng, SIZE)
     fine = rng.normal(0.0, 1.0, (SIZE, SIZE)).astype(np.float32)
 
-    angle = math.radians(17.0)
-    axis = x * math.cos(angle) + y * math.sin(angle)
-    brushed = np.sin(axis * 0.19 + smooth_noise(rng, SIZE, 28) * 2.4)
+    brushed = anisotropic_brush_noise(rng, SIZE, 17.0)
     scars = np.zeros((SIZE, SIZE), np.float32)
     for _ in range(34):
         cx = rng.uniform(0, SIZE)
@@ -91,13 +98,13 @@ def metal_textures(rng: np.random.Generator):
         py = -(x - cx) * dy + (y - cy) * dx
         scars -= np.exp(-0.5 * (py / width) ** 2) * np.exp(-0.5 * (px / length) ** 8)
 
-    height = 0.42 * n + 0.035 * brushed + 0.018 * fine + 0.12 * scars
-    tone = np.clip(0.30 + 0.30 * n + 0.035 * brushed + 0.04 * fine + 0.10 * scars, 0, 1)
+    height = 0.46 * n + 0.045 * brushed + 0.018 * fine + 0.13 * scars
+    tone = np.clip(0.31 + 0.29 * n + 0.028 * brushed + 0.035 * fine + 0.11 * scars, 0, 1)
     base = np.stack((tone * 168, tone * 176, tone * 184), axis=2)
     base = np.clip(base, 22, 190).astype(np.uint8)
     normal = normals_from_height(height, 11.0)
 
-    mask = np.clip(0.42 + 0.30 * n + 0.08 * brushed + 0.25 * scars, 0.06, 0.88)
+    mask = np.clip(0.40 + 0.28 * n + 0.055 * brushed + 0.28 * scars, 0.05, 0.84)
     m = (mask * 255.0).astype(np.uint8)
     mask_rgb = np.stack((m, m, m), axis=2)
     return rgba(base), Image.fromarray(normal, "RGB"), rgba(mask_rgb)
