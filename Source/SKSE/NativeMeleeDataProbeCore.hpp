@@ -95,6 +95,7 @@ inline NativeMeleeProbeResult inspectNativeMeleeDataReadOnly(
     if (!d.collisionNode) { r.status=NativeMeleeProbeStatus::kNullCollisionNode; return r; }
     // PLANCK documents offsetNode at +0x20 but does not guarantee that it is the
     // same object as PlayerCharacter's Left/RightMeleeWeaponOffsetNode.
+    // Target v0.4.1 evidence showed a stable +0x300 pointer difference on both hands.
     // Treat equality as diagnostic metadata, not a validity requirement.
     if (!d.offsetNode) { r.status=NativeMeleeProbeStatus::kNullOffsetNode; return r; }
     if (!std::isfinite(d.linearVelocityThreshold) || d.linearVelocityThreshold<0.0f || d.linearVelocityThreshold>100.0f) {
