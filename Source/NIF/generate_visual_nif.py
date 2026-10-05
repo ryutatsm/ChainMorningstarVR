@@ -35,7 +35,7 @@ HEAD_CENTER_FROM_ANCHOR_M = 1.065
 
 HEAD_CORE_RADIUS_M = 0.160
 SPIKE_INNER_AXIS_M = 0.154
-SPIKE_OUTER_AXIS_M = 0.234
+SPIKE_OUTER_AXIS_M = 0.240
 SPIKE_BASE_RADIUS_M = 0.046
 
 LINK_MAJOR_RADIUS_M = 0.045
@@ -465,6 +465,35 @@ def patch_and_validate_nif(nif_path: Path):
             f"CMS_ChainAnchor Y mismatch: got {got[1]:.4f}, want {want_anchor_y:.4f}"
         )
 
+    # Runtime ABI dimensions must survive the NIF export exactly enough for the
+    # 90 Hz solver to address the same geometry it was designed for.
+    first_link = nif.nodes["CMS_LinkNode_00"].transform.translation
+    last_link = nif.nodes["CMS_LinkNode_13"].transform.translation
+    head_local = nif.nodes["CMS_HeadNode"].transform.translation
+
+    want_first_z = su(FIRST_LINK_CENTER_M)
+    want_last_z = su(FIRST_LINK_CENTER_M + LINK_CENTER_SPAN_M)
+    want_head_z = su(HEAD_CENTER_FROM_ANCHOR_M)
+    for label, got, want in (
+        ("first link Z", first_link[2], want_first_z),
+        ("last link Z", last_link[2], want_last_z),
+        ("head Z", head_local[2], want_head_z),
+    ):
+        if abs(got - want) > 0.15:
+            raise RuntimeError(f"{label} mismatch: got {got:.4f}, want {want:.4f}")
+
+    span_m = (last_link[2] - first_link[2]) / SU_PER_M
+    head_reach_m = head_local[2] / SU_PER_M
+    if abs(span_m - 0.840) > 0.002:
+        raise RuntimeError(f"Link-centre span mismatch: {span_m:.6f}m")
+    if abs(head_reach_m - 1.065) > 0.002:
+        raise RuntimeError(f"Head-centre reach mismatch: {head_reach_m:.6f}m")
+
+    print(
+        f"CMS_NIF_DIMENSIONS_OK handle={HANDLE_LENGTH_M:.3f}m "
+        f"link_span={span_m:.3f}m head_reach={head_reach_m:.3f}m"
+    )
+
     head_node = nif.nodes["CMS_HeadNode"]
     coll = head_node.collision_object
     if coll is None or coll.body is None or coll.body.shape is None:
@@ -481,6 +510,31 @@ def patch_and_validate_nif(nif_path: Path):
     names = [c.blockname for c in children]
     if any(n != "bhkConvexVerticesShape" for n in names):
         raise RuntimeError(f"Unexpected head collision child blocks: {names}")
+
+    # PyNifly exposes Skyrim Havok convex vertices in meter-like Havok units.
+    # The head must be one ~16 cm core plus fourteen spikes whose tips reach 24 cm.
+    radii = []
+    for child in children:
+        verts = list(child.vertices)
+        if not verts:
+            raise RuntimeError("Head collision child has no vertices")
+        rmax = max(math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]) for v in verts)
+        radii.append(rmax)
+    radii.sort()
+    core_radius = radii[0]
+    spike_radii = radii[1:]
+    if abs(core_radius - HEAD_CORE_RADIUS_M) > 0.008:
+        raise RuntimeError(
+            f"Head core collision radius mismatch: {core_radius:.6f}m"
+        )
+    if len(spike_radii) != 14 or any(abs(r - SPIKE_OUTER_AXIS_M) > 0.008 for r in spike_radii):
+        raise RuntimeError(
+            f"Head spike collision extents mismatch: {spike_radii}"
+        )
+    print(
+        f"CMS_NIF_HEAD_EXTENTS_OK core={core_radius:.3f}m "
+        f"spikes={min(spike_radii):.3f}..{max(spike_radii):.3f}m"
+    )
 
     # Normalize shader settings after Blender export. Texture slots were already
     # written from material custom props; this guarantees a heavy metal response.
