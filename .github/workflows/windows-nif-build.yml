@@ -6,6 +6,10 @@ on:
     paths:
       - "Source/NIF/**"
       - ".github/workflows/windows-nif-build.yml"
+  pull_request:
+    paths:
+      - "Source/NIF/**"
+      - ".github/workflows/windows-nif-build.yml"
 
 jobs:
   nif:
