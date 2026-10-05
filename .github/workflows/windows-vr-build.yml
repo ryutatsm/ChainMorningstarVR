@@ -129,7 +129,7 @@ jobs:
             Set-Content "$env:GITHUB_WORKSPACE\ci-artifact\native-proxy-test\ChainMorningstarVR.dll.sha256"
 
           @"
-          ChainMorningstarVR v0.4.1-dev
+          ChainMorningstarVR v0.4.2-dev
           release = normal fail-closed build
           diagnostic-readonly = VRMeleeData candidate layout READ ONLY; performs no VRMeleeData writes
           native-proxy-test = TEST ONLY; swaps current-hand collisionNode to CMS_HeadNode after layout validation and restores it on release
@@ -138,6 +138,6 @@ jobs:
       - name: Upload compile-gate artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ChainMorningstarVR-v0.4.1-dev-release-diagnostic-proxytest
+          name: ChainMorningstarVR-v0.4.2-dev-release-diagnostic-proxytest
           path: ci-artifact
           if-no-files-found: error
