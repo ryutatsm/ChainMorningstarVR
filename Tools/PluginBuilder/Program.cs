@@ -1,8 +1,9 @@
 using Mutagen.Bethesda;
-using Mutagen.Bethesda.Assets;
 using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins.Assets;
 using Mutagen.Bethesda.Plugins.Records;
 using Mutagen.Bethesda.Skyrim;
+using Mutagen.Bethesda.Skyrim.Assets;
 using Noggog;
 
 const string Edid = "CMS_ChainMorningstar";
@@ -60,7 +61,12 @@ weapon.Data = new WeaponData
     Stagger = 1.0f
 };
 
-mod.WriteToBinaryParallel(outputPath);
+await mod.BeginWrite
+    .ToPath(outputPath)
+    .WithNoLoadOrder()
+    .WithMastersListContent(Mutagen.Bethesda.Plugins.Binary.Parameters.MastersListContentOption.Iterate)
+    .SingleThread()
+    .WriteAsync();
 
 // Release gate: re-open the exact bytes written and validate the fields that
 // define gameplay identity. This catches serializer/API mistakes in CI.
@@ -81,8 +87,8 @@ if (got.Data is null || got.Data.AnimationType != WeaponAnimationType.OneHandMac
     throw new InvalidOperationException("DNAM mismatch: weapon is not OneHandMace.");
 if (got.Data.Skill != Skill.OneHanded)
     throw new InvalidOperationException("DNAM mismatch: skill is not OneHanded.");
-if (got.Model?.File.DataPath != ModelPath)
-    throw new InvalidOperationException($"Model mismatch: {got.Model?.File.DataPath}");
+if (got.Model?.File.GivenPath != ModelPath)
+    throw new InvalidOperationException($"Model mismatch: {got.Model?.File.GivenPath}");
 if (got.EquipmentType.FormKey != FormKey.Factory("013F44:Skyrim.esm"))
     throw new InvalidOperationException("Equipment type is not EitherHand.");
 
@@ -102,4 +108,4 @@ Console.WriteLine("CMS_ESP_VALIDATE: PASS");
 Console.WriteLine($"CMS_ESP_FORMKEY: {got.FormKey}");
 Console.WriteLine("CMS_ESP_STATS: damage=44 weight=17 value=550");
 Console.WriteLine("CMS_ESP_TYPE: OneHandMace / OneHanded / EitherHand");
-Console.WriteLine($"CMS_ESP_MODEL: {got.Model!.File.DataPath}");
+Console.WriteLine($"CMS_ESP_MODEL: {got.Model!.File.GivenPath}");
