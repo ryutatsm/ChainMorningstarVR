@@ -1,0 +1,47 @@
+name: Clean-room Skyrim ESP build gate
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "Tools/PluginBuilder/**"
+      - ".github/workflows/esp-build.yml"
+  pull_request:
+    paths:
+      - "Tools/PluginBuilder/**"
+      - ".github/workflows/esp-build.yml"
+
+jobs:
+  esp:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Restore pinned Mutagen builder
+        run: dotnet restore Tools/PluginBuilder/ChainMorningstarVR.PluginBuilder.csproj
+
+      - name: Build plugin generator
+        run: dotnet build Tools/PluginBuilder/ChainMorningstarVR.PluginBuilder.csproj -c Release --no-restore
+
+      - name: Generate and round-trip validate ESP
+        shell: pwsh
+        run: |
+          $out = "$env:GITHUB_WORKSPACE\esp-artifact\ChainMorningstarVR.esp"
+          New-Item -ItemType Directory -Force -Path (Split-Path $out -Parent) | Out-Null
+          dotnet run --project Tools/PluginBuilder/ChainMorningstarVR.PluginBuilder.csproj -c Release --no-build -- $out
+          if (-not (Test-Path $out)) { throw "ChainMorningstarVR.esp was not generated" }
+          $hash=(Get-FileHash $out -Algorithm SHA256).Hash.ToLower()
+          $hash | Set-Content "$env:GITHUB_WORKSPACE\esp-artifact\ChainMorningstarVR.esp.sha256"
+          Write-Host "ESP SHA256 $hash"
+
+      - name: Upload validated ESP
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChainMorningstarVR-cleanroom-esp
+          path: esp-artifact
+          if-no-files-found: error

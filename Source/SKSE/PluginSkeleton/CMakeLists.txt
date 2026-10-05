@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(ChainMorningstarVR VERSION 0.4.2 LANGUAGES CXX)
+project(ChainMorningstarVR VERSION 0.4.3 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -43,7 +43,7 @@ target_precompile_headers(${PROJECT_NAME}
         PCH.h
 )
 
-target_compile_definitions(${PROJECT_NAME} PRIVATE CMS_VERSION_STRING="0.4.2-dev")
+target_compile_definitions(${PROJECT_NAME} PRIVATE CMS_VERSION_STRING="0.4.3-dev")
 if(CMS_ENABLE_READONLY_VRMELEE_PROBE)
     target_compile_definitions(${PROJECT_NAME} PRIVATE CMS_ENABLE_READONLY_VRMELEE_PROBE=1)
 else()
