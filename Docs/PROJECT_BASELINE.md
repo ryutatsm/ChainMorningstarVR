@@ -39,5 +39,22 @@ Only evidence collected from this clean-room repository counts.
   structurally plausible.
 - Equality between VRMeleeData.offsetNode and CommonLib's named MeleeWeaponOffsetNode is NOT
   a validity requirement. PLANCK's published structure does not document that identity.
+- In the target read-only log, both hands retained the same VRMeleeData candidate/world/offset
+  fields while collisionNode changed between two samples. Therefore collisionNode is treated
+  as externally mutable runtime state, not a stable owned pointer.
+- The old diagnostic status=3 was caused by the now-removed offset-node identity requirement.
+  Because that old probe returned early, a new read-only v0.4.2 diagnostic run is required
+  before any write-enabled proxy test is authorized.
 
-No native VRMeleeData writes are enabled yet.
+## Native proxy safety state
+
+- Normal release build: VRMeleeData writes OFF.
+- Read-only diagnostic build: VRMeleeData writes OFF.
+- Native-proxy-test build: compiled separately and TEST ONLY. It is gated to PLANCK build 80100,
+  requires the VRMeleeData layout probe to be plausible, requires CMS_HeadNode to own collision,
+  detects current-hand CMS node ownership, and restores the prior collisionNode only while CMS
+  still owns that field.
+- If PlayerCharacter changes or collisionNode changes externally, the proxy fails closed and does
+  not write an old value back.
+- The native-proxy-test build is NOT approved for target-machine use until the new v0.4.2
+  read-only diagnostic reports plausible layout for both hands.
