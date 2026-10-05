@@ -23,7 +23,7 @@ jobs:
           dotnet-version: "8.0.x"
 
       - name: Restore pinned Mutagen builder
-        run: dotnet restore Tools/PluginBuilder/ChainMorningstarVR.PluginBuilder.csproj --locked-mode
+        run: dotnet restore Tools/PluginBuilder/ChainMorningstarVR.PluginBuilder.csproj
 
       - name: Build plugin generator
         run: dotnet build Tools/PluginBuilder/ChainMorningstarVR.PluginBuilder.csproj -c Release --no-restore
