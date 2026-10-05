@@ -36,6 +36,7 @@ private:
     RigidTransform anchorWorldTransformSU() const;
     void writeNodeWorldPose(RE::NiAVObject* node, Vec3 centerWorldM, Vec3 localZWorld, float rollRadians);
     void runReadOnlyNativeMeleeProbe();
+    bool currentHandStillOwnsAnchor() const;
     bool installNativeMeleeHeadProxy();
     void restoreNativeMeleeHeadProxy();
 

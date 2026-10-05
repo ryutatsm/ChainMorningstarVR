@@ -223,6 +223,25 @@ void SkyrimVRSceneBridge::runReadOnlyNativeMeleeProbe()
 #endif
 }
 
+bool SkyrimVRSceneBridge::currentHandStillOwnsAnchor() const
+{
+    if (!anchor_) return false;
+
+    auto* player = RE::PlayerCharacter::GetSingleton();
+    auto* vr = player ? player->GetVRNodeData() : nullptr;
+    if (!player || !vr) return false;
+
+    RE::NiAVObject* currentRoot = isLeftHand_
+        ? static_cast<RE::NiAVObject*>(vr->LeftMeleeWeaponOffsetNode.get())
+        : static_cast<RE::NiAVObject*>(vr->RightMeleeWeaponOffsetNode.get());
+    if (!currentRoot) return false;
+
+    // A retained NiPointer can keep a detached old weapon graph alive after unequip.
+    // Identity under the CURRENT hand root is therefore the authoritative ownership test.
+    auto* currentAnchor = findUnder(currentRoot, kChainAnchorNode);
+    return currentAnchor == anchor_.get();
+}
+
 void SkyrimVRSceneBridge::releaseWeaponNodes()
 {
     restoreNativeMeleeHeadProxy();
@@ -235,7 +254,9 @@ void SkyrimVRSceneBridge::releaseWeaponNodes()
 
 bool SkyrimVRSceneBridge::tryGetChainAnchorWorldSU(Vec3& outPositionSU, Vec3& outInitialDirectionWorld)
 {
-    if (!anchor_) return false;
+    if (!anchor_ || !currentHandStillOwnsAnchor()) {
+        return false;
+    }
     const RigidTransform t=anchorWorldTransformSU();
     outPositionSU=t.translation;
     outInitialDirectionWorld=normalized(mul(t.rotation,Vec3{0,0,1}));
