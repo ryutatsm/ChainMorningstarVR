@@ -3,9 +3,34 @@
 #include "../NativeProxyOwnershipCore.hpp"
 #include <SKSE/SKSE.h>
 
+#include <algorithm>
+
 namespace cms::skyrimvr {
 
 namespace {
+
+void playVanillaSoundAtNode(RE::NiAVObject* node, const char* editorID, float volume)
+{
+    if (!node || !editorID || !*editorID) {
+        return;
+    }
+
+    auto* audio = RE::BSAudioManager::GetSingleton();
+    if (!audio) {
+        return;
+    }
+
+    RE::BSSoundHandle handle{};
+    audio->BuildSoundDataFromEditorID(handle, editorID, 0x1A);
+    if (!handle.IsValid()) {
+        return;
+    }
+
+    handle.SetObjectToFollow(node);
+    handle.SetPosition(node->world.translate);
+    handle.SetVolume(std::clamp(volume, 0.0f, 1.0f));
+    handle.Play();
+}
 
 const char* identifyKnownVrOffsetNode(const RE::VR_NODE_DATA* vr, std::uintptr_t raw) noexcept
 {
@@ -541,7 +566,18 @@ bool SkyrimVRSceneBridge::updateNativeMeleeHeadProxy(const HeadSweep& sweep)
 }
 
 float SkyrimVRSceneBridge::consumeWorldContactImpulse() { return 0.0f; }
-void SkyrimVRSceneBridge::playChainRattle(float) {}
-void SkyrimVRSceneBridge::playChainClank(float) {}
+
+void SkyrimVRSceneBridge::playChainRattle(float intensity)
+{
+    // Vanilla Skyrim generic physical chain sound [SNDR:0003D128].
+    // Referenced by EditorID so Bethesda audio stays in Skyrim.esm/BSA and is not redistributed.
+    playVanillaSoundAtNode(head_.get(), "PHYChainSD", 0.18f + 0.62f * std::clamp(intensity, 0.0f, 1.0f));
+}
+
+void SkyrimVRSceneBridge::playChainClank(float intensity)
+{
+    // Vanilla heavy-metal high-impact sound [SNDR:0005CEF9].
+    playVanillaSoundAtNode(head_.get(), "PHYGenericMetalHeavyH", 0.25f + 0.70f * std::clamp(intensity, 0.0f, 1.0f));
+}
 
 } // namespace cms::skyrimvr
