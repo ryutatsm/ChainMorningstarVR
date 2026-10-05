@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <RE/Skyrim.h>
 #include "../GameBridgeContract.hpp"
 #include "../SceneTransformCore.hpp"
@@ -47,6 +48,11 @@ private:
     bool isLeftHand_{};
     bool warnedNativeProxy_{};
     bool nativeProxyInstalled_{};
+    bool readOnlyNativeMotionStateKnown_{};
+    bool readOnlyNativeProbeRejectedWarned_{};
+    bool readOnlyNativeEnableCollision_{};
+    std::uint32_t readOnlyNativeSwingDirection_{};
+    std::uintptr_t readOnlyNativeCollisionNode_{};
     RE::NiPointer<RE::NiNode> originalNativeCollisionNode_{};
     std::uintptr_t nativeProxyPlayerAddress_{};
 };
