@@ -259,6 +259,18 @@ void SkyrimVRSceneBridge::applyVisualFrame(const VisualFrame& frame)
     for (std::size_t i=0;i<links_.size();++i)
         writeNodeWorldPose(links_[i].get(),frame.links[i].centerM,frame.links[i].tangent,frame.links[i].rollRadians);
     writeNodeWorldPose(head_.get(),frame.head.centerM,frame.head.chainAxis,0.0f);
+
+#if defined(CMS_ENABLE_NATIVE_MELEE_PROXY) && CMS_ENABLE_NATIVE_MELEE_PROXY
+    // PlayerCharacter::Update already ran before this hook. Re-run the CMS subtree only
+    // after writing its local poses so CMS_HeadNode world transform and its SYNC_ON_UPDATE
+    // collision do not wait one extra frame. HIGGS uses the same NiAVObject update path
+    // after programmatic scene-graph transform changes.
+    if (nativeProxyInstalled_ && anchor_) {
+        RE::NiUpdateData updateData{};
+        updateData.time = 0.0f;
+        anchor_->Update(updateData);
+    }
+#endif
 }
 
 bool SkyrimVRSceneBridge::installNativeMeleeHeadProxy()
