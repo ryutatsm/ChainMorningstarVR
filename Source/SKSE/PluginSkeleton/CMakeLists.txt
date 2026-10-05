@@ -32,6 +32,7 @@ add_commonlibsse_plugin(${PROJECT_NAME}
         ../ChainRuntimeCore.hpp
         ../SceneTransformCore.hpp
         ../NativeMeleeDataProbeCore.hpp
+        ../NativeProxyOwnershipCore.hpp
         ../GameBridgeContract.hpp
 )
 

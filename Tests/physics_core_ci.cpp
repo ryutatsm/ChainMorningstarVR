@@ -2,7 +2,7 @@
 #include "Source/SKSE/ChainRuntimeCore.hpp"
 #include "Source/SKSE/SceneTransformCore.hpp"
 #include "Source/SKSE/NativeMeleeDataProbeCore.hpp"
-#include "Source/SKSE/HeadCompoundCore.hpp"
+#include "Source/SKSE/HeadCompoundCore.hpp"\n#include "Source/SKSE/NativeProxyOwnershipCore.hpp"
 
 #include <cassert>
 #include <cmath>
@@ -67,6 +67,25 @@ int main()
 
     const Mat3 basis=basisFromLocalZ({0.3f,0.4f,0.8660254f},0.7f);
     assert(approximatelyOrthonormal(basis,1.0e-4f));
+
+    // Ownership behavior derived from the target runtime log: native collisionNode can
+    // legitimately change between samples, so CMS must not overwrite an external value.
+    constexpr std::uintptr_t playerA=0x1000;
+    constexpr std::uintptr_t playerB=0x2000;
+    constexpr std::uintptr_t cmsHead=0x3000;
+    constexpr std::uintptr_t externalA=0x4000;
+    constexpr std::uintptr_t externalB=0x5000;
+
+    static_assert(evaluateNativeProxyOwnership(
+        {false,playerA,playerA,cmsHead,cmsHead}) == NativeProxyOwnershipState::kInactive);
+    static_assert(evaluateNativeProxyOwnership(
+        {true,playerA,playerA,cmsHead,cmsHead}) == NativeProxyOwnershipState::kOwnedByCms);
+    static_assert(evaluateNativeProxyOwnership(
+        {true,playerA,playerB,cmsHead,cmsHead}) == NativeProxyOwnershipState::kPlayerChanged);
+    static_assert(evaluateNativeProxyOwnership(
+        {true,playerA,playerA,cmsHead,externalA}) == NativeProxyOwnershipState::kCollisionChanged);
+    static_assert(evaluateNativeProxyOwnership(
+        {true,playerA,playerA,cmsHead,externalB}) == NativeProxyOwnershipState::kCollisionChanged);
 
     static_assert(sizeof(NativeVRMeleeDataProbeLayout)==0xD0);
     static_assert(offsetof(NativeVRMeleeDataProbeLayout, collisionNode)==0x18);
