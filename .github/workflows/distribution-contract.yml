@@ -1,0 +1,24 @@
+name: Vendor distribution contract
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "Source/xEdit/**"
+      - "Distribution/**"
+      - "Tests/validate_distribution_contract.py"
+      - ".github/workflows/distribution-contract.yml"
+  pull_request:
+    paths:
+      - "Source/xEdit/**"
+      - "Distribution/**"
+      - "Tests/validate_distribution_contract.py"
+      - ".github/workflows/distribution-contract.yml"
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate CID and xEdit conflict contract
+        run: python Tests/validate_distribution_contract.py
