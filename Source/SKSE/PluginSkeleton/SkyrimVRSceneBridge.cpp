@@ -364,6 +364,7 @@ void SkyrimVRSceneBridge::applyVisualFrame(const VisualFrame& frame)
     RE::NiUpdateData updateData{};
     updateData.time = 0.0f;
     anchor_->Update(updateData);
+    lastVisualHeadErrorM_=length(toCms(head_->world.translate)*kMetersPerSkyrimUnit-frame.head.centerM);
 }
 
 bool SkyrimVRSceneBridge::updateNativeMeleeHeadProxy(const HeadSweep& sweep)

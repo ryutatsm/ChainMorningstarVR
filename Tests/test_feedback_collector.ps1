@@ -9,12 +9,18 @@ New-Item -ItemType Directory -Path $logRoot -Force | Out-Null
 $fixture = Join-Path $logRoot 'ChainMorningstarVR.log'
 if (Test-Path -LiteralPath $fixture) { throw 'Refusing to overwrite an existing Skyrim log' }
 $payload = @'
-[info] ChainMorningstarVR 1.0.0-rc2 loading: RELEASE CANDIDATE
+[info] ChainMorningstarVR 1.0.0-audit1 loading: INVESTIGATION BUILD
 [info] Native head attached: generation=1
 [info] CMS player-body chain contact: samples=2 total=2 damage=false
 [info] CMS offhand grip attempt: result=rejected reason=higgs-not-grabbable distanceM=0.10 captured=false
 [info] CMS offhand head grip: held physical-left=true right-weapon=true
 [info] CMS offhand head grip: released physical-left=true right-weapon=true
+[info] CMS offhand head grip: held reason=ready heldMs=0 physical-left=true right-weapon=true
+[info] CMS offhand head grip: released reason=input-stale heldMs=141 physical-left=true right-weapon=true
+[info] CMS offhand head grip: held reason=ready heldMs=0 physical-left=true right-weapon=true
+[info] CMS offhand hold progress: heldMs=502 inputAgeMs=1
+[info] CMS offhand hold progress: heldMs=10004 inputAgeMs=1
+[info] CMS offhand head grip: released reason=grip-released heldMs=11003 physical-left=true right-weapon=true
 [info] CMS offhand selection guard: rejectedPickPairs=2 scope=HIGGS-update
 [info] CMS certified contact: part=1 outcome=kept-by-one-third-draw
 [info] CMS certified contact: part=1 outcome=drop
@@ -83,8 +89,12 @@ try {
             $summaryReader = [IO.StreamReader]::new($summaryEntry.Open())
             try { $summary = $summaryReader.ReadToEnd() | ConvertFrom-Json }
             finally { $summaryReader.Dispose() }
-            if ($summary.cms_version -ne '1.0.0-rc2' -or $summary.offhand_held_entries -ne 1 -or
-                $summary.offhand_released_entries -ne 1 -or $summary.equipment_drop_references -ne 1 -or
+            if ($summary.cms_version -ne '1.0.0-audit1' -or $summary.offhand_held_entries -ne 3 -or
+                $summary.offhand_released_entries -ne 3 -or $summary.equipment_drop_references -ne 1 -or
+                $summary.offhand_release_reasons.'input-stale' -ne 1 -or
+                $summary.offhand_release_reasons.'grip-released' -ne 1 -or
+                $summary.offhand_release_reason_unknown_entries -ne 1 -or
+                $summary.offhand_progress_entries -ne 2 -or $summary.offhand_max_observed_hold_ms -ne 11003 -or
                 $summary.warning_or_error_lines -ne 1 -or $summary.native_head_attachments -ne 1 -or
                 $summary.player_body_contact_entries -ne 1 -or
                 $summary.offhand_rejected_reasons.'higgs-not-grabbable' -ne 1 -or

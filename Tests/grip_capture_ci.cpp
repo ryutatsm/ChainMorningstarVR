@@ -28,6 +28,19 @@ int main() {
     assert(!state.sample(100,true,1202));
     assert(!state.read(100,1202).fresh);
 
+    // Withdrawal by an earlier plugin must not turn a still-pressed physical
+    // button into a fresh press when that plugin grants input again.
+    state.sample(1,false,1300);state.arm(1,true,1301);
+    assert(state.sample(1,true,1302));
+    assert(!state.sample(1,true,1303,false,true));
+    const auto withdrawn=state.read(1,1304);
+    assert(withdrawn.fresh&&!withdrawn.down&&!withdrawn.captured);
+    assert(withdrawn.pressed&&withdrawn.touched&&!withdrawn.accepted&&withdrawn.ageMs==1);
+    assert(!state.sample(1,true,1305));
+    assert(state.read(1,1305).serial==withdrawn.serial+1);
+    state.sample(1,false,1306);
+    assert(state.sample(1,true,1307));
+
     // Both legal orders of a simultaneous poll/reset must leave capture off.
     // The former independent atomic load/store could restore the old claim.
     std::barrier sync(3);

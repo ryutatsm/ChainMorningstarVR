@@ -23,9 +23,17 @@ constexpr BodyPart bodyParts[]={
 }
 
 void SkyrimVRSceneBridge::resetPlayerInteraction() {
+    if (offhandGrab_.held()) {
+        const auto duration=std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now()-gripStarted_).count();
+        SKSE::log::info("CMS offhand head grip: released reason=lifecycle-reset heldMs={} physical-left=true right-weapon=true",
+            duration);
+    }
     ResetOffhandInput();offhandGrab_.reset();playerCapsules_.clear();
     playerBodyContacts_=0;reportedPlayerBody_=false;grabSamples_=bodyContactSamples_=0;
     gripAttemptSamples_=0;gripWasDown_=false;
+    gripStarted_={};gripProgressSamples_=0;
+    gripMaxTargetErrorM_=gripMaxChainExcessM_=0;lastVisualHeadErrorM_=-1;
 }
 
 HeadHoldTarget SkyrimVRSceneBridge::updatePlayerInteraction(const HeadPose& head,Vec3 anchorM,float dt) {
@@ -88,22 +96,50 @@ HeadHoldTarget SkyrimVRSceneBridge::updatePlayerInteraction(const HeadPose& head
     const float radius=kHeadBroadphaseRadiusM*acquiredScale_;
     const auto hold=offhandGrab_.update(input.fresh,input.down,input.captured,freeHand,
         palm,head.centerM,anchorM,radius,kStraightReachM,dt);
+    const auto& diagnostic=offhandGrab_.diagnostic();
     const bool nearHead=freeHand&&isFinite(palm.translation)&&
         length(palm.translation-head.centerM)<=radius+.06f;
-    if(input.fresh&&input.down&&!gripWasDown_&&gripAttemptSamples_<16) {
-        ++gripAttemptSamples_;
-        SKSE::log::info("CMS offhand grip attempt: result={} reason={} distanceM={} captured={}",
-            hold.active?"held":"rejected",hold.active?"ready":blocked?blocked:
-            !nearHead?"outside-head-reach":!input.captured?"press-not-armed":"pose-or-chain-limit",
-            hand?length(palm.translation-head.centerM):-1.f,input.captured);
+    const auto now=std::chrono::steady_clock::now();
+    if (hold.active&&!wasHeld) {
+        gripStarted_=now;gripProgressSamples_=0;
+        gripMaxTargetErrorM_=gripMaxChainExcessM_=0;
     }
-    gripWasDown_=input.down;
+    if (wasHeld||hold.active) {
+        gripMaxTargetErrorM_=std::max(gripMaxTargetErrorM_,diagnostic.targetErrorM);
+        gripMaxChainExcessM_=std::max(gripMaxChainExcessM_,diagnostic.chainExcessM);
+    }
+    const auto heldMs=(wasHeld||hold.active)?
+        std::chrono::duration_cast<std::chrono::milliseconds>(now-gripStarted_).count():0;
+    if(input.fresh&&input.pressed&&!gripWasDown_&&gripAttemptSamples_<16) {
+        ++gripAttemptSamples_;
+        SKSE::log::info("CMS offhand grip attempt: result={} reason={} distanceM={} captured={} radiusM={} inputAgeMs={} inputSerial={} pressed={} touched={} accepted={} visualErrorM={}",
+            hold.active?"held":"rejected",hold.active?"ready":!input.accepted?"input-withdrawn":blocked?blocked:
+            !nearHead?"outside-head-reach":!input.captured?"press-not-armed":offhandGrabReasonName(diagnostic.reason),
+            hand?length(palm.translation-head.centerM):-1.f,input.captured,radius,
+            input.ageMs,input.serial,input.pressed,input.touched,input.accepted,lastVisualHeadErrorM_);
+    }
+    gripWasDown_=input.pressed;
     // Arm a fresh press only. Captured holds keep the grip until released.
     ArmLeftGrip(freeHand&&(hold.active||(nearHead&&!input.down)));
-    if (wasHeld!=hold.active&&grabSamples_<12) {
+    if (wasHeld!=hold.active&&grabSamples_<32) {
         ++grabSamples_;
-        SKSE::log::info("CMS offhand head grip: {} physical-left=true right-weapon=true",
-            hold.active?"held":"released");
+        const char* reason=diagnostic.reason==OffhandGrabReason::kHandUnavailable&&blocked?blocked:
+            diagnostic.reason==OffhandGrabReason::kGripReleased&&!input.accepted?"input-withdrawn":
+            offhandGrabReasonName(diagnostic.reason);
+        const auto native=NativePhysicsBackend::GetSingleton().Snapshot();
+        SKSE::log::info("CMS offhand head grip: {} reason={} heldMs={} physical-left=true right-weapon=true inputFresh={} inputDown={} captured={} inputAgeMs={} inputSerial={} pressed={} touched={} accepted={} distanceM={} palmStepM={} chainExcessM={} targetErrorM={} maxChainExcessM={} maxTargetErrorM={} visualErrorM={} nativeLagM={}",
+            hold.active?"held":"released",reason,heldMs,input.fresh,input.down,input.captured,
+            input.ageMs,input.serial,input.pressed,input.touched,input.accepted,
+            hand?length(palm.translation-head.centerM):-1.f,diagnostic.palmStepM,
+            diagnostic.chainExcessM,diagnostic.targetErrorM,gripMaxChainExcessM_,
+            gripMaxTargetErrorM_,lastVisualHeadErrorM_,native.ready?length(native.centerM-head.centerM):-1.f);
+    }
+    constexpr std::int64_t progressMs[]={500,2000,5000,10000};
+    if (hold.active&&gripProgressSamples_<std::size(progressMs)&&
+        heldMs>=progressMs[gripProgressSamples_]) {
+        ++gripProgressSamples_;
+        SKSE::log::info("CMS offhand hold progress: heldMs={} inputAgeMs={} inputSerial={} maxChainExcessM={} maxTargetErrorM={} visualErrorM={}",
+            heldMs,input.ageMs,input.serial,gripMaxChainExcessM_,gripMaxTargetErrorM_,lastVisualHeadErrorM_);
     }
     return hold;
 }

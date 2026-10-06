@@ -35,6 +35,40 @@ int main() {
     assert(taut.active&&length(taut.positionM)<=kStraightReachM+.0001f);
     grab.reset();
 
+    // Release diagnostics must distinguish each fail-closed branch, rather
+    // than turning every short hold into an unexplained "released" entry.
+    const auto startHold=[&] {
+        grab.reset();palm={};palm.translation={.08f,0,-.8f};
+        assert(sample(true,true,true,palm.translation).active);
+    };
+    startHold();
+    assert(!sample(false,false,true,palm.translation).active);
+    assert(grab.diagnostic().reason==OffhandGrabReason::kGripReleased);
+    startHold();
+    assert(!sample(true,false,true,palm.translation).active);
+    assert(grab.diagnostic().reason==OffhandGrabReason::kInputNotCaptured);
+    startHold();
+    assert(!sample(true,true,false,palm.translation).active);
+    assert(grab.diagnostic().reason==OffhandGrabReason::kHandUnavailable);
+    assert(!sample(true,true,true,palm.translation).active);
+    assert(grab.diagnostic().reason==OffhandGrabReason::kNeedsNewPress);
+    startHold();
+    assert(!grab.update(false,true,true,true,palm,head,{},.15f,kStraightReachM,1.f/90).active);
+    assert(grab.diagnostic().reason==OffhandGrabReason::kInputStale);
+    startHold();palm.rotation.m[0][0]=2;
+    assert(!sample(true,true,true,palm.translation).active);
+    assert(grab.diagnostic().reason==OffhandGrabReason::kInvalidPose);
+    startHold();
+    assert(!sample(true,true,true,{.5f,0,-.8f}).active);
+    assert(grab.diagnostic().reason==OffhandGrabReason::kTrackingJump);
+    startHold();
+    assert(!grab.update(true,true,true,true,palm,head+Vec3{.4f,0,0},{},.15f,kStraightReachM,1.f/90).active);
+    assert(grab.diagnostic().reason==OffhandGrabReason::kHeadObstructed);
+    startHold();
+    for(int i=1;i<=30&&grab.held();++i)
+        grab.update(true,true,true,true,palm,head,{0,0,.025f*i},.15f,kStraightReachM,1.f/90);
+    assert(!grab.held()&&grab.diagnostic().reason==OffhandGrabReason::kChainOverextended);
+
     // A second endpoint must remain fixed while the 19 links sag. Releasing
     // resumes gravity; sampled movement must not inject unbounded throw speed.
     for (float hz:{45.f,72.f,90.f,120.f,144.f}) {

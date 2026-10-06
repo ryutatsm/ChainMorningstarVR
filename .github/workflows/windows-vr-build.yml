@@ -105,15 +105,15 @@ jobs:
           cmake --version
           ninja --version
 
-      - name: Configure release candidate
+      - name: Configure investigation build
         working-directory: ${{ env.PLUGIN_SRC }}
         run: cmake --preset vr-physics-test
 
-      - name: Compile release candidate DLL
+      - name: Compile investigation DLL
         working-directory: ${{ env.PLUGIN_SRC }}
         run: cmake --build --preset vr-physics-test
 
-      - name: Stage release candidate DLL and checksum
+      - name: Stage investigation DLL and checksum
         id: stage
         run: |
           $projectText = Get-Content "$env:PLUGIN_SRC\CMakeLists.txt" -Raw
@@ -154,7 +154,7 @@ jobs:
           ConvertTo-Json -InputObject @($thirdPartyHashes) -Depth 3 |
             Set-Content "$env:GITHUB_WORKSPACE\ci-artifact\DLL_THIRD_PARTY_SHA256.json"
           @"
-          ChainMorningstarVR $cmsVersion release candidate -- RUNTIME GATES PENDING
+          ChainMorningstarVR $cmsVersion investigation only -- RELEASE BLOCKED
           Commit: $env:GITHUB_SHA
           HIGGS head-compound collision and solver contact feedback are connected.
           Enemy head/weapon contacts feed the one-in-three worn-instance drop policy.
@@ -162,13 +162,15 @@ jobs:
           Chain links use swept capsule queries against world and NPC bodies without attack bodies or damage.
           Chain response is one-way: links bend and slide but do not push objects/NPCs.
           Retains Japanese naming, upright inventory preview, offhand ball holding and VRIK body chain contacts.
-          Input reset is serialized against controller polling; grip rejection reasons are logged.
-          rc2 excludes right-hand CMS only from HIGGS CustomPick2 selection queries during HIGGS Update.
+          Input reset is serialized against controller polling; raw grip state, release reason and duration are logged.
+          Retains the rc2 right-hand CMS exclusion from HIGGS CustomPick2 selection queries during HIGGS Update.
           No HIGGS settings or physical collision filters are changed. Busy-hand guards remain.
-          User rc1 logs show two grip rejections due to HIGGS two-handing; target retest of rc2 is pending.
+          User rc2 logs show a 141ms hold then unexplained release. A 140ms taut-chain release is reproduced in simulation.
+          The new hold target stays within chain reach while the palm remains near the ball.
+          This CI artifact is for investigation, not a verified fix or a Vortex release.
           "@ | Set-Content "$env:GITHUB_WORKSPACE\ci-artifact\BUILD_STATUS.txt"
 
-      - name: Upload release candidate artifact
+      - name: Upload investigation artifact
         uses: actions/upload-artifact@v4
         with:
           name: ChainMorningstarVR-v${{ steps.stage.outputs.version }}-dll

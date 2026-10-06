@@ -29,6 +29,10 @@ $summary = [ordered]@{
     player_body_contact_entries = 0
     offhand_held_entries = 0
     offhand_released_entries = 0
+    offhand_release_reasons = [ordered]@{}
+    offhand_release_reason_unknown_entries = 0
+    offhand_progress_entries = 0
+    offhand_max_observed_hold_ms = 0L
     offhand_selection_guard_entries = 0
     offhand_rejected_reasons = [ordered]@{}
     certified_contact_outcomes = [ordered]@{}
@@ -44,6 +48,20 @@ if ($summary.cms_log_present) {
     $summary.player_body_contact_entries = [regex]::Matches($cmsText, 'CMS player-body chain contact:').Count
     $summary.offhand_held_entries = [regex]::Matches($cmsText, 'CMS offhand head grip: held\b').Count
     $summary.offhand_released_entries = [regex]::Matches($cmsText, 'CMS offhand head grip: released\b').Count
+    $summary.offhand_progress_entries = [regex]::Matches($cmsText, 'CMS offhand hold progress:').Count
+    $releases = [regex]::Matches($cmsText, 'CMS offhand head grip: released\b[^\r\n]*')
+    foreach ($release in $releases) {
+        $reason = [regex]::Match($release.Value, '\breason=([^\s]+)')
+        if ($reason.Success) {
+            $key = $reason.Groups[1].Value
+            if (-not $summary.offhand_release_reasons.Contains($key)) { $summary.offhand_release_reasons[$key] = 0 }
+            $summary.offhand_release_reasons[$key]++
+        } else { $summary.offhand_release_reason_unknown_entries++ }
+    }
+    foreach ($match in [regex]::Matches($cmsText, 'CMS offhand (?:head grip: released|hold progress:)[^\r\n]*\bheldMs=([0-9]+)')) {
+        $duration = [long]::Parse($match.Groups[1].Value, [Globalization.CultureInfo]::InvariantCulture)
+        $summary.offhand_max_observed_hold_ms = [Math]::Max($summary.offhand_max_observed_hold_ms, $duration)
+    }
     $summary.offhand_selection_guard_entries = [regex]::Matches($cmsText, 'CMS offhand selection guard: rejectedPickPairs=[1-9][0-9]*\b').Count
     $summary.equipment_drop_references = [regex]::Matches($cmsText, 'CMS equipment drop: actor=[0-9A-Fa-f]+, item=[0-9A-Fa-f]+, reference=[0-9A-Fa-f]+,').Count
     foreach ($match in [regex]::Matches($cmsText, 'CMS offhand grip attempt: result=rejected reason=([^\s]+)')) {

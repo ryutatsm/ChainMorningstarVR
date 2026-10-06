@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <chrono>
 #include <cstdint>
 #include <RE/Skyrim.h>
 #include "../GameBridgeContract.hpp"
@@ -90,6 +91,10 @@ private:
     unsigned grabSamples_{}, bodyContactSamples_{};
     unsigned gripAttemptSamples_{};
     bool gripWasDown_{};
+    std::chrono::steady_clock::time_point gripStarted_{};
+    unsigned gripProgressSamples_{};
+    float gripMaxTargetErrorM_{}, gripMaxChainExcessM_{};
+    float lastVisualHeadErrorM_{-1};
     std::uint64_t playerBodyContacts_{};
 };
 

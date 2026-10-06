@@ -38,10 +38,11 @@ std::uint32_t leftDevice() {
 }
 void controller(std::uint32_t index,ControllerState* input,std::uint32_t size,bool& accepted) {
     if (!input||size<sizeof(ControllerState)) return;
-    const bool down=accepted&&(input->pressed&gripMask)!=0;
+    const bool pressed=(input->pressed&gripMask)!=0;
+    const bool touched=(input->touched&gripMask)!=0;
     // Once claimed, consume only this grip until release, even if stretch or
     // obstruction made CMS let go. Never leak a mid-press into HIGGS two-hand.
-    const bool claimed=capture.sample(index,down,nowMs());
+    const bool claimed=capture.sample(index,pressed,nowMs(),accepted,touched);
     if (claimed) {input->pressed&=~gripMask;input->touched&=~gripMask;}
 }
 }

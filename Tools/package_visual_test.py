@@ -110,6 +110,8 @@ def main():
     project_version = re.search(r'project\(ChainMorningstarVR VERSION ([0-9.]+)', cmake).group(1)
     suffix = re.search(r'set\(CMS_BUILD_LABEL \"\$\{PROJECT_VERSION\}(-[a-z0-9]+)\"\)', cmake).group(1)
     version = project_version + suffix
+    require(re.fullmatch(r'-rc[0-9]+', suffix),
+            'Investigation build: distributable ZIP packaging is blocked pending runtime verification')
     require(subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip() == args.commit,
             'Package commit differs from current checkout')
     require(not subprocess.check_output(['git', 'status', '--porcelain', '--untracked-files=no'], cwd=ROOT),

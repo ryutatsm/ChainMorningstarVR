@@ -3,7 +3,7 @@
 This is the independent ChainMorningstarVR project. Do not mix runtime evidence
 or assets from the older ChainedMorningstarVR project.
 Audited main: `0777e257d64fcab908df03ff94e7a9af4ff1a0ee` (2026-10-06).
-Current work: `astra/zero-base-audit-v050`, 1.0.0-rc2. Main remains unchanged.
+Current work: `astra/zero-base-audit-v050`, 1.0.0-audit1 (release blocked). Main remains unchanged.
 
 One-hand mace: damage44, weight17, value550; Japanese name
 「チェーンドモーニングスター」; Eorlund sale; physical chain without chain damage;
@@ -24,9 +24,10 @@ enemy headgear/weapon instance on each eligible distinct contact episode.
 
 ## Evidence and constraints
 
-User reports and received logs through rc1 establish working observations,
-not blanket proof of every gate or of the new candidate. See
-RELEASE_STATUS_100_RC2.md and RUNTIME_EVIDENCE_100_RC2.json for exact boundaries.
+Rc2 user feedback reports failure; one hold lasted 141ms. The taut-chain
+limit and input withdrawal edge have portable reproductions and fixes, but
+the user-specific release cause remains unconfirmed. See
+OFFHAND_AUDIT_100_AUDIT1.md for evidence and release-blocking checks.
 RELEASE_GATE_NEW_BUILD.md is unchanged; pending observations remain pending.
 
 The obsolete native-proxy-test mode remains removed. No PlayerCharacter
