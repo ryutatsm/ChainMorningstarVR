@@ -3,9 +3,13 @@
 Skyrim VR chain morningstar, under development. Audited against main commit
 `0777e257d64fcab908df03ff94e7a9af4ff1a0ee` on 2026-10-06.
 
-**0.5.2 visual/audio test is not a completed combat mod or a release.**
+**0.5.3 visual/audio test is not a completed combat mod or a release.**
 The moving head has no verified native collision backend. Enemy helmet/weapon
 drops have tested source logic but are not connected to gameplay.
+
+The current appearance revision curves the emblem plaque around the iron ball
+and uses the supplied texture images for the corresponding weapon parts.
+Preview renders show the generated model; Skyrim VR lighting remains unverified.
 
 - [Audit and implementation status](Docs/AUDIT_20261006_JA.md)
 - [Build and target-test status](Docs/INSTALL_VR.md)

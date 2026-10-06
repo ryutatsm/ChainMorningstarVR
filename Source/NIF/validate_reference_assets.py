@@ -32,6 +32,8 @@ def validate(build):
             span=np.ptp(v@nodes[parent][3].T,axis=0)
             assert np.ptp(v,axis=0)[0]>np.ptp(v,axis=0)[1]*3,'Baked alternation would conflict with runtime roll'
             assert span[(parent-2)%2]>span[1-(parent-2)%2]*3,'Chain links not alternating'
+            assert np.ptp(data[f,7],axis=1).max()<=.0750001,'Chain closure drags texture backwards across repeat seam'
+            assert np.allclose(data[:11,:6],data[-11:,:6],atol=1e-9),'Closed chain geometry seam split'
         meshes.append((name,parent,material,data,f))
     hulls=[];hull_planes=[]
     for i in range(nh):
@@ -48,43 +50,74 @@ def validate(build):
     for d,v in zip(dirs,hulls[1:]):
         assert np.min(np.linalg.norm(v-np.array(d)*.24,axis=1))<1e-6,'Wrong spike direction'
     manifest=json.loads((build/'visual-preview/asset_manifest.json').read_text())
-    # Read the emitted front geometry independently of its generator. The exact
-    # traced triangulation forbids new faces across the wing/leg/tail bays.
+    # Independently inspect the emitted curved shell, including texture-space
+    # registration and topological closure. No older dragon contour is drawn.
     emblem=manifest['emblem']
-    contour=json.loads(Path(__file__).with_name('skyrim_emblem_contours.json').read_text())
-    assert emblem['source']==contour['source'] and len(contour['polygons'])==1 and not contour['polygons'][0]['holes']
-    names=['metal','wood','leather','darksteel','edge','cord','bronze'];parts={}
+    names=['metal','wood','leather','darksteel','edge','cord','bronze','spike','chain','ring','emblem'];parts={}
+    assert emblem['surface']=='spherical_radial_image_relief' and emblem['replaces_previous_contour']
     for part in emblem['parts']:
         matches=[m for m in meshes if m[1]==part['parent'] and m[2]==names.index(part['material'])];assert len(matches)==1
         data=matches[0][3];tri=matches[0][4];vs=part['vertex_start'];ve=vs+part['vertex_count'];fs=part['face_start'];fe=fs+part['face_count']
         assert ve<=len(data) and fe<=len(tri)
         local_tri=tri[fs:fe]-vs;assert local_tri.min()>=0 and local_tri.max()<ve-vs
         parts[part['name']]=(data[vs:ve],local_tri)
-    front,front_tri=parts['front'];angle=emblem['crest_rotation_rad']
+    assert set(parts)=={'front','back','sides'}
+    assert next(p['material'] for p in emblem['parts'] if p['name']=='front')=='emblem'
+    front,front_tri=parts['front'];back,back_tri=parts['back'];side,side_tri=parts['sides']
+    angle=emblem['crest_rotation_rad']
     rot=np.array([[np.cos(angle),0,np.sin(angle)],[0,1,0],[-np.sin(angle),0,np.cos(angle)]])
-    flat=front[:,:3]@rot
-    pixels=np.column_stack([flat[:,0]/emblem['scale_m_per_pixel']+emblem['center_pixel'][0],emblem['center_pixel'][1]-flat[:,2]/emblem['scale_m_per_pixel']])
-    outline=np.asarray(contour['polygons'][0]['outer']);expected_tri=np.asarray(contour['mesh2d']['triangles'])[:,[0,2,1]]
-    assert pixels.shape==outline.shape and np.max(np.abs(pixels-outline))<1e-5,'Emblem boundary differs from reference trace'
-    assert np.array_equal(front_tri,expected_tri),'Emblem triangulation bridges or changes reference bays'
-    assert np.max(abs(flat[:,1]-emblem['front_y']))<1e-9
+    front_v=front[:,:3]@rot;back_v=back[:,:3]@rot
+    front_r=np.linalg.norm(front_v,axis=1);back_r=np.linalg.norm(back_v,axis=1)
+    assert front.shape==back.shape and np.allclose(front_v/front_r[:,None],back_v/back_r[:,None],atol=1e-8),'Plaque sides are not radial'
+    assert front_r.min()>=emblem['front_base_radius_m']-1e-9
+    assert front_r.max()<=emblem['front_base_radius_m']+emblem['maximum_image_relief_m']+1e-9
+    assert np.max(abs(back_r-emblem['back_radius_m']))<1e-9 and back_r.max()<.148,'Plaque back does not embed into forged sphere'
+    # Even triangle interiors clear the maximum 160 mm core sphere. The front
+    # mesh is actually curved, not a planar face with a bent border.
+    centroid=front_v[front_tri].mean(axis=1)
+    edge_mid=(front_v[front_tri]+np.roll(front_v[front_tri],-1,axis=1))*.5
+    assert min(np.linalg.norm(centroid,axis=1).min(),np.linalg.norm(edge_mid,axis=2).min())>.160,'Curved front intersects sphere between vertices'
+    assert np.ptp(front_v[:,1])>.06,'Emblem face is still planar'
+    projected=front_v*(emblem['sphere_radius_m']/front_r[:,None])
+    pixels=np.column_stack([projected[:,0]/emblem['scale_m_per_pixel']+emblem['center_pixel'][0],emblem['center_pixel'][1]-projected[:,2]/emblem['scale_m_per_pixel']])
+    size=np.array(emblem['source_dimensions_px'])-1
+    uv_px=np.column_stack([front[:,6]*size[0],(1-front[:,7])*size[1]])
+    assert np.max(abs(pixels-uv_px))<1e-4,'Emblem source image is offset, stretched, or mirrored'
+    assert np.all(front[:,6:8]>=0) and np.all(front[:,6:8]<=1),'Non-tiling emblem repeats outside its image'
+    corners=np.asarray(emblem['source_corners_px']);boundary=np.asarray(emblem['boundary_vertex_indices']);nedge=emblem['edge_subdivisions']
+    assert len(boundary)==nedge*4
+    expected=np.concatenate([corners[i]+(corners[(i+1)%4]-corners[i])*np.arange(nedge)[:,None]/nedge for i in range(4)])
+    assert np.max(abs(pixels[boundary]-expected))<1e-4,'Diamond boundary no longer follows source corners'
     u=pixels[front_tri[:,1]]-pixels[front_tri[:,0]];w=pixels[front_tri[:,2]]-pixels[front_tri[:,0]]
     area=np.abs(u[:,0]*w[:,1]-u[:,1]*w[:,0]).sum()/2
-    source_area=contour['fidelity']['polygon_area']
-    assert abs(area/source_area-1)<1e-6,'Emblem projected area changed'
-    fit=np.max(abs(flat[:,0])/.0501+abs(flat[:,2])/.1063)
-    assert fit<=.920001,'Emblem intersects inner diamond frame'
-    assert parts['back'][0].shape[0]==len(outline) and parts['sides'][0].shape[0]==4*len(outline)
-    # Every original contour segment has a full-depth side wall; the opaque
-    # relief has real thickness, with no decal image standing in for the mark.
-    back=parts['back'][0][:,:3]@rot;sides=parts['sides'][0][:,:3]@rot
-    assert np.max(abs(back[:,1]-emblem['back_y']))<1e-9
-    assert np.allclose(back[:,[0,2]],flat[:,[0,2]],atol=1e-9)
-    assert np.allclose(sides.reshape(-1,4,3)[:,0],flat,atol=1e-9)
-    assert np.allclose(sides.reshape(-1,4,3)[:,2],np.roll(back,-1,axis=0),atol=1e-9)
-    print(f'EMBLEM_CONTOUR_PASS {len(outline)} exact contour points; {len(front_tri)} source triangles; area={area:.3f}px2; diamond_fit={fit:.6f}; source_IoU={contour["fidelity"]["raster_intersection_over_union"]:.6f}')
+    source_area=abs(np.sum(corners[:,0]*np.roll(corners[:,1],-1)-corners[:,1]*np.roll(corners[:,0],-1)))/2
+    assert abs(area/source_area-1)<1e-7,'Curved image surface has missing or overlapping triangles'
+    # Weld the independently emitted front/back/side vertices geometrically,
+    # then require each edge twice with opposite orientation (closed shell).
+    all_v=np.vstack([front[:,:3],back[:,:3],side[:,:3]])
+    all_f=np.vstack([front_tri,back_tri+len(front),side_tri+len(front)+len(back)])
+    _,weld=np.unique(np.round(all_v,8),axis=0,return_inverse=True)
+    wf=weld[all_f];edges=np.vstack([wf[:,[0,1]],wf[:,[1,2]],wf[:,[2,0]]])
+    keys=np.sort(edges,axis=1);_,inverse,count=np.unique(keys,axis=0,return_inverse=True,return_counts=True)
+    assert np.all(count==2),'Curved plaque is not a closed two-manifold shell'
+    orientation=np.zeros(len(count),dtype=int);np.add.at(orientation,inverse,np.where(edges[:,0]<edges[:,1],1,-1))
+    assert np.all(orientation==0),'Curved plaque has inverted shell triangles'
+    # For every front triangle and every spike hull, find a separating hull
+    # plane that puts all three triangle vertices outside. Unlike a vertices-
+    # only overlap test this also rejects a spike cutting through a triangle.
+    spike_clearance=[]
+    for planes in hull_planes[1:]:
+        signed=front[front_tri,:3]@planes[:,:3].T+planes[:,3]
+        separation=signed.min(axis=1).max(axis=1)
+        assert separation.min()>.001,'A spike hull clips the textured emblem front'
+        spike_clearance.append(float(separation.min()))
+    print(f'EMBLEM_SPIKE_CLEARANCE_PASS all front triangles separated from14spikehulls by >= {min(spike_clearance)*1000:.3f}mm')
+    import hashlib
+    texture=build/'textures/weapons/ChainMorningstarVR'/emblem['processed_texture']
+    assert hashlib.sha256(texture.read_bytes()).hexdigest()==emblem['processed_texture_sha256'],'Emblem geometry uses different texture input'
+    print(f'EMBLEM_CURVE_PASS front_vertices={len(front)} front_triangles={len(front_tri)} radius={front_r.min():.6f}..{front_r.max():.6f}m buried_back={back_r.max():.6f}m depth_sag={np.ptp(front_v[:,1]):.6f}m source_area={area:.2f}px2 closed_shell=true exact_image_uv=true')
     feature_vertices={};feature_data={}
-    material_names=['metal','wood','leather','darksteel','edge','cord','bronze']
+    material_names=names
     for feature in manifest.get('sculpt_features',[]):
         match=[m for m in meshes if m[1]==feature['parent'] and m[2]==material_names.index(feature['material'])]
         assert len(match)==1
@@ -129,7 +162,7 @@ def validate(build):
             arr=np.frombuffer(raw,dtype='<f4',offset=binstart+view['byteOffset'],count=data[:,cols].size).reshape(data[:,cols].shape)
             assert np.allclose(arr,data[:,cols],atol=1e-6),'GLB mesh differs from NIF input'
     texture_dir=build/'textures/weapons/ChainMorningstarVR'
-    for i,(base,kind) in enumerate((b,k) for b in ['metal','wood','leather'] for k in ['d','n']):
+    for i,(base,kind) in enumerate((b,k) for b in ['metal','wood','leather','cord','spike','chain','ring','emblem'] for k in ['d','n']):
         view=doc['bufferViews'][doc['images'][i]['bufferView']]
         embedded=raw[binstart+view['byteOffset']:binstart+view['byteOffset']+view['byteLength']]
         got=np.asarray(Image.open(io.BytesIO(embedded)).convert('RGB'))

@@ -1,4 +1,4 @@
-"""Encode seven Skyrim BC3/DXT5 textures, decode and validate all 11 mips.
+"""Encode supplied-material Skyrim BC3/DXT5 textures, decode and validate all 11 mips.
 
 Canonical PNG normal maps follow the source mesh's V-up tangent basis. The NIF
 writer flips V before it builds its tangent basis, so this encoder flips normal
@@ -15,8 +15,10 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-NAMES = ['cms_metal_d','cms_metal_n','cms_metal_m','cms_wood_d',
-         'cms_wood_n','cms_leather_d','cms_leather_n']
+BASES = ['metal','wood','leather','cord','spike','chain','ring','emblem']
+METALS = {'metal','spike','chain','ring','emblem'}
+NAMES = [f'cms_{base}_{kind}' for base in BASES for kind in ('d','n','m')
+         if kind != 'm' or base in METALS]
 
 
 def encode_bc3_alpha(pixels, blocks):
@@ -120,7 +122,7 @@ def encode(src: Path):
             mean_error = float(angular_error.mean())
             # Error compares the decoded mip to its authored, normalized mip.
             # This catches broken/swizzled channels instead of merely file size.
-            assert mean_error < 12.0, 'Excessive BC3 normal direction error'
+            assert mean_error < 12.0, f'Excessive BC3 normal direction error: {src.name} mip {i}: {mean_error:.3f}'
             assert alpha_rmse < 4.0, f'Specular alpha corrupted: {src.name} mip {i} RMSE {alpha_rmse:.3f}'
             check.update(normal_mean_error_degrees=mean_error,
                          specular_alpha_rmse=alpha_rmse,

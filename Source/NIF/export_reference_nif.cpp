@@ -34,7 +34,7 @@ int main(int argc,char**argv) try {
     uint64_t totalVerts=0,totalTriangles=0;
     for(int i=0;i<nmesh;i++){
         std::string name;int parent,mat;size_t nv,nt;in>>name>>parent>>mat>>nv>>nt;
-        require(nv<65536&&nt<65536&&parent>=0&&parent<nnode&&mat>=0&&mat<7,"invalid mesh");
+        require(nv<65536&&nt<65536&&parent>=0&&parent<nnode&&mat>=0&&mat<11,"invalid mesh");
         std::vector<Vector3> v(nv),n(nv);std::vector<Vector2>uv(nv);std::vector<Triangle>t(nt);
         for(size_t j=0;j<nv;j++){in>>v[j].x>>v[j].y>>v[j].z>>n[j].x>>n[j].y>>n[j].z>>uv[j].u>>uv[j].v;v[j]*=SU;uv[j].v=1-uv[j].v;}
         for(auto& tri:t){unsigned a,b,c;in>>a>>b>>c;require(a<nv&&b<nv&&c<nv,"bad index");tri=Triangle(a,b,c);}
@@ -44,20 +44,21 @@ int main(int argc,char**argv) try {
         bool metal=mat!=1&&mat!=2&&mat!=5;
         sh->shaderFlags1=SLSF1_SPECULAR|SLSF1_ZBUFFER_TEST|SLSF1_CAST_SHADOWS|SLSF1_RECEIVE_SHADOWS;
         sh->shaderFlags2=SLSF2_ZBUFFER_WRITE;
-        sh->glossiness=metal?28.f:(mat==1?8.f:13.f);sh->specularStrength=metal?1.15f:(mat==1?.18f:.36f);
+        sh->glossiness=metal?28.f:(mat==1?8.f:13.f);sh->specularStrength=metal?.75f:(mat==1?.18f:.28f);
         sh->specularColor=Vector3(.78f,.79f,.8f);
-        if(metal){sh->SetShaderType(BSLSP_ENVMAP);sh->shaderFlags1|=SLSF1_ENVIRONMENT_MAPPING;sh->environmentMapScale=.65f;}
+        if(metal){sh->SetShaderType(BSLSP_ENVMAP);sh->shaderFlags1|=SLSF1_ENVIRONMENT_MAPPING;sh->environmentMapScale=.45f;}
         if(mat==3){sh->environmentMapScale=.16f;sh->specularStrength=.45f;}
         if(mat==4){sh->environmentMapScale=.72f;sh->glossiness=38.f;}
-        std::string base=(mat==1||mat==5)?"wood":mat==2?"leather":"metal";
+        static const char* bases[]={"metal","wood","leather","metal","metal","cord","metal","spike","chain","ring","emblem"};
+        std::string base=bases[mat];
         std::string prefix="textures\\weapons\\ChainMorningstarVR\\cms_"+base;
-        std::string path=prefix+"_d.dds";nif.SetTextureSlot(shape,path,0);path=mat==5?"textures\\weapons\\ChainMorningstarVR\\cms_leather_n.dds":prefix+"_n.dds";nif.SetTextureSlot(shape,path,1);
+        std::string path=prefix+"_d.dds";nif.SetTextureSlot(shape,path,0);path=prefix+"_n.dds";nif.SetTextureSlot(shape,path,1);
         if(metal){path="textures\\cubemaps\\ShinyDull_e.dds";nif.SetTextureSlot(shape,path,4);path=prefix+"_m.dds";nif.SetTextureSlot(shape,path,5);}
         Color4 tint(1,1,1,1);
         if(mat==3)tint=Color4(.30f,.32f,.35f,1);
-        if(mat==5)tint=Color4(.90f,.85f,.75f,1);
+
         if(mat==6)tint=Color4(1,.76f,.44f,1);
-        if(mat==3||mat==5||mat==6){nif.SetColorsForShape(shape,std::vector<Color4>(nv,tint));sh->shaderFlags2|=SLSF2_VERTEX_COLORS;}
+        if(mat==3||mat==6){nif.SetColorsForShape(shape,std::vector<Color4>(nv,tint));sh->shaderFlags2|=SLSF2_VERTEX_COLORS;}
         nif.CalcTangentsForShape(shape);totalVerts+=nv;totalTriangles+=nt;
     }
     auto list=std::make_unique<bhkListShape>();list->SetMaterial(HeavyMetal);

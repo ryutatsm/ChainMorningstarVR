@@ -6,7 +6,7 @@ runtime evidence. User-provided unmodified vanilla records in ReferenceBundle
 are primary inputs, not an older mod implementation.
 
 Audited main: `0777e257d64fcab908df03ff94e7a9af4ff1a0ee` (2026-10-06).
-Current work: `astra/zero-base-audit-v050`, 0.5.2 visual/audio test.
+Current work: `astra/zero-base-audit-v050`, 0.5.3 visual/audio test.
 
 ## Requirements
 
@@ -22,6 +22,9 @@ with 1/3 probability per distinct impact.
 - Head centre straight reach from anchor106.5cm.
 - Fourteen spike directions shared by mesh/core; 24cm envelope is broadphase,
   never a substitute for actual narrowphase shape.
+- The supplied diamond emblem is mapped once across a curved plaque with shallow
+  image-correlated relief. Its front follows the ball curvature; the backing is
+  embedded in the ball. Supplied material images are processed per part.
 - These are authored dimensions retained from the audited source. The supplied
   image has no physical scale ruler, so exact real-world scale cannot be derived
   from it alone. In-game size still requires user visual verification.
@@ -31,8 +34,10 @@ with 1/3 probability per distinct impact.
 Earlier CI passes establish only earlier commits' build status. Earlier target
 logs mentioned in the handoff were not attached in this turn and are not proof
 of this build's runtime behavior. The audited source at `4639e0cc` passed Windows
-DLL and asset builds (runs `37420567376`, `37420567388`). The 0.5.2 material and
-geometry revision must pass the same gates at its own commit. No in-game pass is claimed.
+DLL and asset builds (runs `37420567376`, `37420567388`). The 0.5.2 contour revision
+at `da283957c76f4f1c2a0a2539d1ecb7f9ada8fad8` also passed Windows DLL and asset
+builds (runs `37425555050`, `37425555046`). The 0.5.3 material and geometry revision
+must pass the same gates at its own commit. No in-game pass is claimed.
 Local portable core tests, source-schema audit and generated asset checks are
 recorded separately from runtime gates.
 

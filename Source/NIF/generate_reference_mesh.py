@@ -18,7 +18,8 @@ MESHES = {}
 COLLISION = []
 FEATURES = []
 EMBLEM = {}
-MATERIALS = ['metal', 'wood', 'leather', 'darksteel', 'edge', 'cord', 'bronze']
+MATERIALS = ['metal', 'wood', 'leather', 'darksteel', 'edge', 'cord', 'bronze', 'spike', 'chain', 'ring', 'emblem']
+TEXTURE_BASES = ['metal', 'wood', 'leather', 'cord', 'spike', 'chain', 'ring', 'emblem']
 
 def unit(v):
     v=np.asarray(v,dtype=float)
@@ -79,8 +80,13 @@ def tube(parent,mat,points,radius,sides=8,closed=False):
         for j in range(sides+1):
             a=j/sides*2*math.pi; norm=math.cos(a)*u+math.sin(a)*w
             v.append(q+radius*norm); n.append(norm); uv.append([j/sides,i/count*3])
+    if closed:
+        # Duplicate the exact first geometric ring at the terminal V. Reusing
+        # its V=0 vertices would drag almost three texture repeats backwards
+        # over the final link segment and smear the supplied chain material.
+        v.extend(v[:sides+1]);n.extend(n[:sides+1]);uv.extend([[j/sides,3.] for j in range(sides+1)])
     for i in range(count if closed else count-1):
-        k=(i+1)%count
+        k=i+1
         for j in range(sides):
             a=i*(sides+1)+j; b=k*(sides+1)+j
             f.extend([[a,a+1,b],[a+1,b+1,b]])
@@ -238,12 +244,12 @@ def battered_spike(head,d,index):
             dent=.0005*(.6+.4*math.sin(a*5+index+z*90)**2)
             dent+=.0014*math.exp(-(wrapped_angle(a-(index*.79))/.30)**2)*math.exp(-((z-(.177+.005*(index%4)))/.014)**2)
             r=max(.0007,r-dent)
-            radial=math.cos(a)*u+math.sin(a)*w;vr.append(d*z+radial*r);nr.append(unit(radial+d*.52));ur.append([(index*.173)% .61+.34*a/(2*math.pi),(index*.219)% .57+.38*(z-.154)/.086])
+            radial=math.cos(a)*u+math.sin(a)*w;vr.append(d*z+radial*r);nr.append(unit(radial+d*.52));ur.append([a/(2*math.pi),max(0.,min(1.,(z-.134)/(top-.134)))])
         v.append(vr);uv.append(ur);n.append(nr)
-    sculpt_grid(head,'metal',v,uv,n,f'battered_spike_{index:02d}')
+    sculpt_grid(head,'spike',v,uv,n,f'battered_spike_{index:02d}')
     # Close each flattened tip with an actual cap so it isn't a hollow cone.
     p=np.asarray(v[-1]);center=d*top;verts=np.vstack([center,p]);norm=np.tile(d,(len(verts),1));f=[[0,j+1,j+2] for j in range(segs)]
-    mesh(head,'metal').add(verts,norm,[[.5,.5]]*len(verts),f)
+    mesh(head,'spike').add(verts,norm,[[.5,1.]]*len(verts),f)
     FEATURES[-1]['vertex_count']+=len(verts)
 
 def polygon_triangles(outline):
@@ -293,7 +299,7 @@ def rune_band(parent,axis_origin,axis=(0,1,0),radius=.047,length=.036,segments=8
             a=ang+da;path.append(o+(math.cos(a)*u+math.sin(a)*w)*(radius-.0005)+d*z*length)
         tube(parent,'darksteel',path,.0011,5)
 
-def build():
+def build(texture_dir):
     root=node('CMS_ROOT',-1)
     anchor=node('CMS_ChainAnchor',root,(0,.4,0),[[1,0,0],[0,0,1],[0,-1,0]])
     links=[]
@@ -305,20 +311,19 @@ def build():
     # Ferrules follow the taper: broad pommel/hand end, narrow chain end.
     for y,r,L in [(-.145,.0485,.044),(.3725,.0365,.055)]:
         profile=[(y-L/2,.031),(y-L/2+.003,r-.005),(y-L/2+.007,r),(y+L/2-.007,r),(y+L/2-.003,r-.004),(y+L/2,.031)]
-        lathe(root,'metal',profile)
+        lathe(root,'ring',profile)
         for a in [y-L/2+.006,y+L/2-.006]:ring(root,'edge',r,.0025,(0,a,0))
-        rune_band(root,(0,y,0),radius=r+.0006,length=L*.9)
     # Reference has a distinct free pommel ring, never a spherical pommel.
     lathe(root,'metal',[(-.181,.014),(-.178,.022),(-.165,.024),(-.156,.020)])
     ring(root,'bronze',.052,.0085,(0,-.226,0),axis=(0,0,1),segs=64)
-    ring(root,'metal',.025,.009,(0,.405,0),axis=(1,0,0),stretch=1.22)
+    ring(root,'chain',.025,.009,(0,.405,0),axis=(1,0,0),stretch=1.22)
     for i,ln in enumerate(links):
         # Runtime writes alternating roll onto this node, so mesh stays XZ.
         u=np.array([1,0,0]);w=np.array([0,0,1])
         pts=[]
         for t in np.linspace(0,2*math.pi,40,endpoint=False):
             pts.append(u*(.0369*math.cos(t))+w*(.0603*math.sin(t)))
-        tube(ln,'metal',pts,.0105,10,True)
+        tube(ln,'chain',pts,.0105,10,True)
     forged_ball(head)
     dirs=[]
     for i in range(8): dirs.append([math.cos(i*math.pi/4+math.pi/8),0,math.sin(i*math.pi/4+math.pi/8)])
@@ -329,28 +334,25 @@ def build():
     for index,d in enumerate(dirs):
         battered_spike(head,d,index)
     # Head chain socket finishes at z=-.170, connecting to the last oval link.
-    lathe(head,'metal',[(-.202,.023),(-.198,.035),(-.167,.035),(-.154,.028)],axis=(0,0,1))
-    rune_band(head,(0,0,-.181),axis=(0,0,1),radius=.0355,length=.026,segments=6)
-    ring(head,'metal',.029,.008,(0,0,-.212),axis=(0,1,0),stretch=1.13)
-    # Diamond frame + black recessed field + exact traced Imperial dragon relief.
+    lathe(head,'ring',[(-.202,.023),(-.198,.035),(-.167,.035),(-.154,.028)],axis=(0,0,1))
+    ring(head,'chain',.029,.008,(0,0,-.212),axis=(0,1,0),stretch=1.13)
+    # The supplied complete emblem replaces the previous independent dragon
+    # and frame, preventing two incompatible silhouettes from overlapping.
     crest_starts={k:len(m.v) for k,m in MESHES.items() if k[0]==head}
-    diamond=[(0,.146),(-.070,0),(0,-.146),(.070,0)]
-    plate(head,'metal',diamond,-.150,-.125)
-    for scale,rad,yy in [(1,.004,-.155),(.88,.0026,-.158),(.74,.0017,-.162)]:
-        tube(head,'edge',[[x*scale,yy,z*scale] for x,z in diamond],rad,6,True)
-    plate(head,'darksteel',[(x*.77,z*.77) for x,z in diamond],-.159,-.148)
-    front,back,sides,info=create_relief(Path(__file__).with_name('skyrim_emblem_contours.json'))
+    front,back,sides,info=create_relief(texture_dir/'cms_emblem_d.png')
     parts=[]
-    for name,material,part in [('front','edge',front),('back','metal',back),('sides','metal',sides)]:
+    for name,material,part in [('front','emblem',front),('back','metal',back),('sides','metal',sides)]:
         target=mesh(head,material);vstart=len(target.v);fstart=len(target.f)
         target.add(part['v'],part['n'],part['uv'],part['f'])
         parts.append(dict(name=name,parent=head,material=material,vertex_start=vstart,vertex_count=len(target.v)-vstart,face_start=fstart,face_count=len(target.f)-fstart))
     EMBLEM.update(info,parts=parts)
     # The reference emblem stands almost upright while the weapon lies diagonally.
-    angle=math.pi/4;rot=np.array([[math.cos(angle),0,math.sin(angle)],[0,1,0],[-math.sin(angle),0,math.cos(angle)]])
+    angle=info['crest_rotation_rad'];rot=np.array([[math.cos(angle),0,math.sin(angle)],[0,1,0],[-math.sin(angle),0,math.cos(angle)]])
     for k,m in MESHES.items():
         if k[0]==head:
-            start=crest_starts.get(k,0);m.v[start:]=(np.asarray(m.v[start:])@rot.T).tolist();m.n[start:]=(np.asarray(m.n[start:])@rot.T).tolist()
+            start=crest_starts.get(k,0)
+            if start<len(m.v):
+                m.v[start:]=(np.asarray(m.v[start:])@rot.T).tolist();m.n[start:]=(np.asarray(m.n[start:])@rot.T).tolist()
     # Independent low-poly convex collision hulls; all planes generated by scipy
     # in a separate pass, never derived from a decorative surface normal.
     from scipy.spatial import ConvexHull
@@ -383,7 +385,7 @@ def glb(out,texture_dir):
         if typ=='VEC3':obj.update(min=a.min(0).tolist(),max=a.max(0).tolist())
         accessors.append(obj);return len(accessors)-1
     images=[];textures=[];slots={}
-    for base in ['metal','wood','leather']:
+    for base in TEXTURE_BASES:
         for kind in ['d','n']:
             # glTF samples image rows in UV-V direction. Flipping the image lets
             # source UV stay V-up; tangent normal green remains unchanged.
@@ -394,9 +396,9 @@ def glb(out,texture_dir):
             textures.append(dict(source=len(images)-1,sampler=0));slots[(base,kind)]=len(textures)-1
     mats=[]
     for name in MATERIALS:
-        base={'wood':'wood','leather':'leather','cord':'leather'}.get(name,'metal')
-        factor={'darksteel':[.31,.33,.35,1],'edge':[1,1,1,1],'cord':[.90,.85,.75,1],'bronze':[1,.76,.44,1]}.get(name,[1,1,1,1])
-        mats.append(dict(name=name,pbrMetallicRoughness=dict(baseColorTexture={'index':slots[('wood' if name=='cord' else base,'d')]},baseColorFactor=factor,metallicFactor=0 if name in ['wood','leather','cord'] else .85,roughnessFactor=.48 if name not in ['wood','leather','cord'] else .78),normalTexture=dict(index=slots[(base,'n')],scale=1)))
+        base=name if name in TEXTURE_BASES else 'metal'
+        factor={'darksteel':[.31,.33,.35,1],'edge':[1,1,1,1],'cord':[1,1,1,1],'bronze':[1,.76,.44,1]}.get(name,[1,1,1,1])
+        mats.append(dict(name=name,pbrMetallicRoughness=dict(baseColorTexture={'index':slots[(base,'d')]},baseColorFactor=factor,metallicFactor=0 if name in ['wood','leather','cord'] else .85,roughnessFactor=.48 if name not in ['wood','leather','cord'] else .78),normalTexture=dict(index=slots[(base,'n')],scale=1)))
     nodes=[]
     for n in NODES:
         r=np.asarray(n['r']);mat=np.eye(4);mat[:3,:3]=r;mat[:3,3]=n['t']
@@ -412,7 +414,7 @@ def glb(out,texture_dir):
     out.write_bytes(struct.pack('<4sII',b'glTF',2,12+8+len(data)+8+len(chunks))+struct.pack('<I4s',len(data),b'JSON')+data+struct.pack('<I4s',len(chunks),b'BIN\0')+chunks)
 
 def write(out,texture_dir):
-    dirs=build();out.mkdir(parents=True,exist_ok=True)
+    dirs=build(texture_dir);out.mkdir(parents=True,exist_ok=True)
     # Text interchange intentionally readable and simple to independently inspect.
     with (out/'reference_mesh.cms').open('w') as f:
         f.write(f'CMSMESH 1\n{len(NODES)} {len(MESHES)} {len(COLLISION)}\n')
@@ -430,7 +432,7 @@ def write(out,texture_dir):
     for (parent,_),m in MESHES.items():
         r,t=world_transform(parent);vertices.extend(np.asarray(m.v)@r.T+t)
     v=np.asarray(vertices)
-    manifest=dict(generator='reference_mesh_v2_sculpt',visual_only_preview=True,head_directions=dirs,vertices=len(v),triangles=sum(len(m.f) for m in MESHES.values()),skyrim_units_per_meter=SU,bounds_m=[v.min(0).tolist(),v.max(0).tolist()],bounds_skyrim_units=[(v.min(0)*SU).tolist(),(v.max(0)*SU).tolist()],nodes=NODES,collision_hulls=len(COLLISION),sculpt_features=FEATURES,emblem=EMBLEM,reference_fidelity_limitations=['Single reference image has no rear/underside views; rear decoration is inferred.','Dragon outline is traced from the supplied emblem image; its unseen depth is an extruded reconstruction.','Surface response requires Skyrim VR lighting verification.'])
+    manifest=dict(generator='reference_mesh_v3_curved_textured_emblem',visual_only_preview=True,head_directions=dirs,vertices=len(v),triangles=sum(len(m.f) for m in MESHES.values()),skyrim_units_per_meter=SU,bounds_m=[v.min(0).tolist(),v.max(0).tolist()],bounds_skyrim_units=[(v.min(0)*SU).tolist(),(v.max(0)*SU).tolist()],nodes=NODES,collision_hulls=len(COLLISION),sculpt_features=FEATURES,emblem=EMBLEM,reference_fidelity_limitations=['Single reference image has no rear/underside views; rear decoration is inferred.','The supplied full diamond emblem is mapped onto a curved closed plaque; small relief follows image luminance and is not a recovered sculpture.','Surface response requires Skyrim VR lighting verification.'])
     (out/'asset_manifest.json').write_text(json.dumps(manifest,indent=2))
     print(json.dumps({k:v for k,v in manifest.items() if k not in ['nodes','head_directions','sculpt_features']},indent=2))
 

@@ -25,9 +25,9 @@ def bilinear(levels,uv,lod):
     return (v00*(1-fx)+v10*fx)*(1-fy)+(v01*(1-fx)+v11*fx)*fy
 
 def render(texture_dir,out,size=1600,part="full"):
-    head_only=part=="head";emblem_only=part.startswith("emblem_")
-    cam=g.unit([0,0,1] if part=="emblem_front" else [.38,-.10,1] if emblem_only else [.19,-.065,1]);bx=g.unit([cam[2],0,-cam[0]]);by=np.cross(cam,bx)
-    a=math.pi/4 if emblem_only else .78 if part!="handle" else .28
+    head_only=part in {"head","head_profile"};emblem_only=part.startswith("emblem_")
+    cam=g.unit([0,0,1] if part=="emblem_front" else [.85,0,.526] if part=="head_profile" or emblem_only else [.19,-.065,1]);bx=g.unit([cam[2],0,-cam[0]]);by=np.cross(cam,bx)
+    a=g.EMBLEM['crest_rotation_rad'] if emblem_only else .78 if part!="handle" else .28
     u=math.cos(a)*bx-math.sin(a)*by;v=math.sin(a)*bx+math.cos(a)*by
     basis=np.array([u,v,cam]);allv=[];objects=[]
     selected=[]
@@ -46,14 +46,17 @@ def render(texture_dir,out,size=1600,part="full"):
         objects.append((world@basis.T,n,muv,mf,mat,world));allv.extend(world@basis.T)
     arr=np.asarray(allv);mi=arr.min(0);ma=arr.max(0);scale=(size-180)/max(ma[0]-mi[0],ma[1]-mi[1]);center=(mi+ma)/2
     img=np.full((size,size,3),12 if emblem_only else 242,dtype=np.float32);depth=np.full((size,size),-1e10)
-    tex={k:mip_chain(texture_dir/f'cms_{k}_d.png','RGB') for k in ['metal','wood','leather']}
-    normal_rgba={k:mip_chain(texture_dir/f'cms_{k}_n.png','RGBA') for k in ['metal','wood','leather']}
-    envmask=mip_chain(texture_dir/'cms_metal_m.png','L')
+    bases=['metal','wood','leather','cord','spike','chain','ring','emblem']
+    metals={'metal','spike','chain','ring','emblem'}
+    tex={k:mip_chain(texture_dir/f'cms_{k}_d.png','RGB') for k in bases}
+    normal_rgba={k:mip_chain(texture_dir/f'cms_{k}_n.png','RGBA') for k in bases}
+    envmask={k:mip_chain(texture_dir/f'cms_{k}_m.png','L') for k in metals}
     light=g.unit([-.4,.5,1]);fill=g.unit([.65,-.4,.6]);half=g.unit(light+cam)
     for pos,n,uv,faces,mat,world in objects:
         p=pos.copy();p[:,0]=(p[:,0]-center[0])*scale+size/2;p[:,1]=size/2-(p[:,1]-center[1])*scale
-        base='wood' if mat=='wood' else 'leather' if mat in ['leather','cord'] else 'metal'
-        tint={'darksteel':np.array([.30,.32,.35]),'edge':np.array([1.35]*3),'bronze':np.array([1,.76,.44]),'cord':np.array([.90,.85,.75])}.get(mat,np.ones(3))
+        base=mat if mat in bases else 'metal'
+        metallic=base in metals
+        tint={'darksteel':np.array([.30,.32,.35]),'edge':np.array([1.35]*3),'bronze':np.array([1,.76,.44])}.get(mat,np.ones(3))
         for ids in faces:
             tri=p[ids];a,b,c=tri[:,:2];den=(b[1]-c[1])*(a[0]-c[0])+(c[0]-b[0])*(a[1]-c[1])
             if abs(den)<1e-5:continue
@@ -73,7 +76,7 @@ def render(texture_dir,out,size=1600,part="full"):
             ux=(duv1*dp2[1]-duv2*dp1[1])/ds;uy=(-duv1*dp2[0]+duv2*dp1[0])/ds
             footprint=1024*max(np.linalg.norm(ux),np.linalg.norm(uy))
             lod=min(10,max(0,int(math.log2(max(1,footprint)))))
-            color=bilinear(tex['wood' if mat=='cord' else base],tx,lod)*tint
+            color=bilinear(tex[base],tx,lod)*tint
             sampled_normal=bilinear(normal_rgba[base],tx,lod)
             e1=world[ids[1]]-world[ids[0]];e2=world[ids[2]]-world[ids[0]];d1=uv[ids[1]]-uv[ids[0]];d2=uv[ids[2]]-uv[ids[0]];det=d1[0]*d2[1]-d1[1]*d2[0]
             if abs(det)>1e-14:
@@ -81,20 +84,20 @@ def render(texture_dir,out,size=1600,part="full"):
                 nm=sampled_normal[:,:3]/127.5-1;norm=norm*nm[:,2,None]+tangent*nm[:,0,None]+bitangent*nm[:,1,None];norm/=np.maximum(np.linalg.norm(norm,axis=1)[:,None],1e-10)
             diffuse=.28+.82*np.maximum(norm@light,0)+.25*np.maximum(norm@fill,0)
             specmask=sampled_normal[:,3]/255
-            rough=10 if base!='metal' else 28
-            spec=(np.maximum(norm@half,0)**rough)*specmask*(65 if base!='metal' else 255)
+            rough=28 if metallic else 10
+            spec=(np.maximum(norm@half,0)**rough)*specmask*(175 if metallic else 50)
             # Authored metal environment mask suppresses reflections in pits.
-            refl=(np.maximum(norm@fill,0)**8)*(0 if base!='metal' else 105*bilinear(envmask,tx,lod)/255)
+            refl=(np.maximum(norm@fill,0)**8)*(65*bilinear(envmask[base],tx,lod)/255 if metallic else 0)
             rgb=np.clip(color*diffuse[:,None]+spec[:,None]+refl[:,None]*[.87,.94,1],0,255)
             target[mask]=z[mask];img[lo[1]:hi[1]+1,lo[0]:hi[0]+1][mask]=rgb
     im=Image.fromarray(img.astype('uint8'));d=ImageDraw.Draw(im)
     font=ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',22)
-    title={'full':'CHAIN MORNINGSTAR / SCULPTED MESH','head':'FORGED IRON / SCULPTED MESH','handle':'TAPERED WOOD + WORN LEATHER / SCULPTED MESH','emblem_front':'REFERENCE CONTOUR / ORTHOGRAPHIC FRONT','emblem_relief':'REFERENCE CONTOUR / EXTRUDED METAL RELIEF'}[part]
+    title={'full':'CHAIN MORNINGSTAR / SCULPTED MESH','head':'FORGED IRON / SCULPTED MESH','head_profile':'SPHERICAL HEAD / CURVED EMBLEM SEATING','handle':'TAPERED WOOD + WORN LEATHER / SCULPTED MESH','emblem_front':'SUPPLIED EMBLEM / CURVED SURFACE','emblem_relief':'CURVED PLAQUE / TEXTURED RELIEF'}[part]
     d.text((38,26),title,fill=(210,214,218) if emblem_only else (35,41,46),font=font)
     d.text((38,size-46),f'Asset preview  |  {sum(len(m.f) for m in g.MESHES.values()):,} triangles  |  Skyrim VR verification pending',fill=(75,79,84),font=font)
     im.save(out)
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('--textures',type=Path,required=True);p.add_argument('--out',type=Path,required=True);p.add_argument('--parts',nargs='+',default=['full','head','handle','emblem_front','emblem_relief']);args=p.parse_args();g.build();args.out.mkdir(parents=True,exist_ok=True)
-    filenames={'full':'ChainMorningstar_mesh_preview.png','head':'ChainMorningstar_head_detail.png','handle':'ChainMorningstar_handle_detail.png','emblem_front':'ChainMorningstar_emblem_front.png','emblem_relief':'ChainMorningstar_emblem_relief.png'}
+    p=argparse.ArgumentParser();p.add_argument('--textures',type=Path,required=True);p.add_argument('--out',type=Path,required=True);p.add_argument('--parts',nargs='+',default=['full','head','handle','emblem_front','emblem_relief','head_profile']);args=p.parse_args();g.build(args.textures);args.out.mkdir(parents=True,exist_ok=True)
+    filenames={'full':'ChainMorningstar_mesh_preview.png','head':'ChainMorningstar_head_detail.png','head_profile':'ChainMorningstar_head_profile.png','handle':'ChainMorningstar_handle_detail.png','emblem_front':'ChainMorningstar_emblem_front.png','emblem_relief':'ChainMorningstar_emblem_relief.png'}
     for part in args.parts:render(args.textures,args.out/filenames[part],part=part)

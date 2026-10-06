@@ -11,7 +11,7 @@ ChainedMorningstarVR project or a different build combination.
 - Plugin binary structural tests pass; xEdit Check for Errors passes.
 - WEAP local 00000800 and first-person STAT local 00000801 share custom model.
 - Mace / damage44 / weight17 / value550 and vanilla sound/impact/equip data verified.
-- Final NIF node tree, actual transforms, triangle bounds, 7 texture references,
+- Final NIF node tree, actual transforms, triangle bounds, all material texture references,
   DDS format, mip count, normal alpha and shader flags verified.
 - Package contains one matched DLL/ESP/NIF/DDS set with SHA-256 manifest.
 

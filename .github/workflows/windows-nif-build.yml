@@ -2,9 +2,9 @@ name: Reference mesh and Skyrim VR NIF build gate
 on:
   workflow_dispatch:
   push:
-    paths: ["Source/NIF/**", "Source/Textures/**", "Tests/test_material_maps.py", ".github/workflows/windows-nif-build.yml"]
+    paths: ["Source/NIF/**", "Source/Textures/**", "Tests/test_material_maps.py", "Tools/write_asset_provenance.py", "Tools/package_visual_test.py", ".github/workflows/windows-nif-build.yml"]
   pull_request:
-    paths: ["Source/NIF/**", "Source/Textures/**", "Tests/test_material_maps.py", ".github/workflows/windows-nif-build.yml"]
+    paths: ["Source/NIF/**", "Source/Textures/**", "Tests/test_material_maps.py", "Tools/write_asset_provenance.py", "Tools/package_visual_test.py", ".github/workflows/windows-nif-build.yml"]
 permissions:
   contents: read
 jobs:
@@ -50,14 +50,26 @@ jobs:
           New-Item -ItemType Directory -Force build/meshes/weapons/ChainMorningstarVR | Out-Null
           & build/asset-exporter/Release/export_reference_nif.exe build/visual-preview/reference_mesh.cms build/meshes/weapons/ChainMorningstarVR/ChainMorningstar.nif
           if ($LASTEXITCODE -ne 0) { throw "NIF roundtrip failed" }
+      - name: Record exact source and output provenance
+        run: |
+          python Tools/write_asset_provenance.py --commit "$env:GITHUB_SHA" --build build
+          if ($LASTEXITCODE -ne 0) { throw "Asset provenance failed" }
       - name: Upload development assets (not a playable release)
         uses: actions/upload-artifact@v4
         with:
           name: ChainMorningstarVR-reference-assets-dev
           path: |
             build/meshes/
+            build/ASSET_BUILD_PROVENANCE.json
             build/textures/**/*.dds
             build/textures/**/texture_validation.json
             build/textures/**/material_generation.json
-            build/visual-preview/
+            build/visual-preview/asset_manifest.json
+            build/visual-preview/reference_mesh.cms
+          if-no-files-found: error
+      - name: Upload model preview separately
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChainMorningstarVR-model-preview-dev
+          path: build/visual-preview/ChainMorningstar_reference.glb
           if-no-files-found: error

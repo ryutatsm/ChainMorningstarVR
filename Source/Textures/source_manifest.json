@@ -1,0 +1,201 @@
+{
+  "schema_version": 1,
+  "source": "User attachment テクスチャ.zip (2026-10-06)",
+  "archive_sha256": "0c8defdd487f67f4fc68a5e02124bdbddb9e31db35970fa1f6b0e6d12dff49c3",
+  "originals_preserved_in_user_attachment": true,
+  "preprocessing": "Only resolution/format normalization; later technical crop and map derivation are implemented in generate_textures.py. No generative repaint.",
+  "materials": {
+    "emblem": {
+      "original_filename": "エンブレム.png",
+      "original_sha256": "6fb02dca50a7b0d62073fd1f6eb1494478b6bdfdee988c5151144d765c51027e",
+      "original_size": [
+        1254,
+        1254
+      ],
+      "source_file": "source/emblem.jpg",
+      "source_sha256": "dbab85f7e26537b506f1c8714de151159b23de5d23463505dd140ba3df7d6671",
+      "source_bytes": 339003,
+      "stored_size": [
+        1024,
+        1024
+      ],
+      "encoding": {
+        "format": "JPEG",
+        "quality": 94,
+        "subsampling": 0,
+        "optimize": true,
+        "resize": "Pillow LANCZOS"
+      },
+      "rgb_rmse_after_encoding": 1.8549603538697832,
+      "psnr_after_encoding_db": 42.76411097148618
+    },
+    "spike": {
+      "original_filename": "スパイク.png",
+      "original_sha256": "cf96d92b4b028ec2b0e3536ba25eba7f56ebca70c9252b43368b229a91115e7d",
+      "original_size": [
+        1254,
+        1254
+      ],
+      "source_file": "source/spike.jpg",
+      "source_sha256": "112b6965ddda9e7365748e3f0d8f3073c7ee80cd953632b6f4e7e77bef912074",
+      "source_bytes": 673366,
+      "stored_size": [
+        1024,
+        1024
+      ],
+      "encoding": {
+        "format": "JPEG",
+        "quality": 94,
+        "subsampling": 0,
+        "optimize": true,
+        "resize": "Pillow LANCZOS"
+      },
+      "rgb_rmse_after_encoding": 2.7871373190099376,
+      "psnr_after_encoding_db": 39.22763628020324
+    },
+    "chain": {
+      "original_filename": "チェーン.png",
+      "original_sha256": "f12b29c15b95af11f430d842f91f49b7b6996133d9ab6a57a827a503002d4e5c",
+      "original_size": [
+        1254,
+        1254
+      ],
+      "source_file": "source/chain.jpg",
+      "source_sha256": "5b9ff92892245d9bea53be987e71c6ae7c8268f097b32afc20f3b77b1c6bcbd3",
+      "source_bytes": 661774,
+      "stored_size": [
+        1024,
+        1024
+      ],
+      "encoding": {
+        "format": "JPEG",
+        "quality": 94,
+        "subsampling": 0,
+        "optimize": true,
+        "resize": "Pillow LANCZOS"
+      },
+      "rgb_rmse_after_encoding": 2.7758205151574513,
+      "psnr_after_encoding_db": 39.2629759853913
+    },
+    "ring": {
+      "original_filename": "リング状エンブレム.png",
+      "original_sha256": "0e8d88c27d891ad36eae22c467c5641dacb809467e0958890f312bdc977a6e51",
+      "original_size": [
+        1254,
+        1254
+      ],
+      "source_file": "source/ring.jpg",
+      "source_sha256": "9abdcefe512da6288c703f68ae64bf83401e43e020a0f9f1b214a95df0c4e297",
+      "source_bytes": 665083,
+      "stored_size": [
+        1024,
+        1024
+      ],
+      "encoding": {
+        "format": "JPEG",
+        "quality": 94,
+        "subsampling": 0,
+        "optimize": true,
+        "resize": "Pillow LANCZOS"
+      },
+      "rgb_rmse_after_encoding": 2.6396048416750753,
+      "psnr_after_encoding_db": 39.70002528283588
+    },
+    "wood": {
+      "original_filename": "木.png",
+      "original_sha256": "ee9e2e89aadedf208b1c09587b6214c7b43900c45f03eb40f2016477bacb7dac",
+      "original_size": [
+        1254,
+        1254
+      ],
+      "source_file": "source/wood.jpg",
+      "source_sha256": "0321b670fe6dbcfec2532717583cc75e1f8ebf091b1b371982ec8dca7bfd8179",
+      "source_bytes": 705805,
+      "stored_size": [
+        1024,
+        1024
+      ],
+      "encoding": {
+        "format": "JPEG",
+        "quality": 94,
+        "subsampling": 0,
+        "optimize": true,
+        "resize": "Pillow LANCZOS"
+      },
+      "rgb_rmse_after_encoding": 2.8957653083404318,
+      "psnr_after_encoding_db": 38.895536390655735
+    },
+    "metal": {
+      "original_filename": "鉄球.png",
+      "original_sha256": "1893e3181051b8f1f4eca554b50d3c0d62649afd436790e4e5a79e15a4ade6e1",
+      "original_size": [
+        1254,
+        1254
+      ],
+      "source_file": "source/metal.jpg",
+      "source_sha256": "4b2fead31e49fbd06e23bcbda076206a453c7c513d3bc61bced79468ecd95045",
+      "source_bytes": 645108,
+      "stored_size": [
+        1024,
+        1024
+      ],
+      "encoding": {
+        "format": "JPEG",
+        "quality": 94,
+        "subsampling": 0,
+        "optimize": true,
+        "resize": "Pillow LANCZOS"
+      },
+      "rgb_rmse_after_encoding": 2.735385264913463,
+      "psnr_after_encoding_db": 39.39043354635069
+    },
+    "leather": {
+      "original_filename": "革.png",
+      "original_sha256": "3f33c4089b0b363b533093baf592a352475544077b273328296d59497d2a1f0a",
+      "original_size": [
+        1254,
+        1254
+      ],
+      "source_file": "source/leather.jpg",
+      "source_sha256": "541a01f0e7ccc4956c1ad8fb35775fd829045d28ebdb7942c8f52166c1dbc3f8",
+      "source_bytes": 825018,
+      "stored_size": [
+        1024,
+        1024
+      ],
+      "encoding": {
+        "format": "JPEG",
+        "quality": 94,
+        "subsampling": 0,
+        "optimize": true,
+        "resize": "Pillow LANCZOS"
+      },
+      "rgb_rmse_after_encoding": 3.638398544302621,
+      "psnr_after_encoding_db": 36.912598223688256
+    },
+    "cord": {
+      "original_filename": "革のベルト.png",
+      "original_sha256": "84146794bfc74ad245f1eb7930d5bcd749a50959955af1602b4f2d1957d0de7a",
+      "original_size": [
+        1254,
+        1254
+      ],
+      "source_file": "source/cord.jpg",
+      "source_sha256": "7a256691af4be367c6c4b88dd41af7c089aaffd9b1dad2d97dbb277c8fd94bd6",
+      "source_bytes": 717185,
+      "stored_size": [
+        1024,
+        1024
+      ],
+      "encoding": {
+        "format": "JPEG",
+        "quality": 94,
+        "subsampling": 0,
+        "optimize": true,
+        "resize": "Pillow LANCZOS"
+      },
+      "rgb_rmse_after_encoding": 3.1127912454039346,
+      "psnr_after_encoding_db": 38.267803681434806
+    }
+  }
+}
