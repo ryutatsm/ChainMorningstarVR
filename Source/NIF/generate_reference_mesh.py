@@ -60,7 +60,9 @@ def lathe(parent,mat,profile,axis=(0,1,0),origin=(0,0,0),segs=48,texture_repeat=
         slope=(nxt[1]-prv[1])/max(nxt[0]-prv[0],1e-8)
         for i in range(segs+1):
             a=2*math.pi*i/segs; radial=math.cos(a)*u+math.sin(a)*w
-            v.append(o+d*z+radial*r); n.append(unit(radial-d*slope)); uv.append([i/segs*texture_repeat,j/(len(profile)-1)])
+            # Collar art follows physical axial distance, not bevel sample count.
+            texture_v=(z-profile[0][0])/(profile[-1][0]-profile[0][0]) if mat=='ring' else j/(len(profile)-1)
+            v.append(o+d*z+radial*r); n.append(unit(radial-d*slope)); uv.append([i/segs*texture_repeat,texture_v])
     for j in range(len(profile)-1):
         for i in range(segs):
             a=j*(segs+1)+i; b=a+segs+1

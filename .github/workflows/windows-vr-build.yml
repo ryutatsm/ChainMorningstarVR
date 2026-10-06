@@ -5,10 +5,16 @@ on:
   push:
     paths:
       - "Source/SKSE/**"
+      - "Source/NIF/**"
+      - "Source/Textures/**"
+      - "Tools/package_visual_test.py"
       - ".github/workflows/windows-vr-build.yml"
   pull_request:
     paths:
       - "Source/SKSE/**"
+      - "Source/NIF/**"
+      - "Source/Textures/**"
+      - "Tools/package_visual_test.py"
       - ".github/workflows/windows-vr-build.yml"
 
 concurrency:
