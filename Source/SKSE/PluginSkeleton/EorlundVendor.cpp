@@ -30,6 +30,14 @@ bool EnsureEorlundSellsChainMorningstar()
         return false;
     }
 
+    if (std::string_view(weapon->GetFormEditorID()) != "CMS_ChainMorningstar") {
+        SKSE::log::error(
+            "ChainMorningstarVR: Eorlund vendor injection refused: local FormID {:06X} EDID is '{}'",
+            kChainMorningstarLocalFormID,
+            weapon->GetFormEditorID());
+        return false;
+    }
+
     if (!weapon->IsOneHandedMace()) {
         SKSE::log::error(
             "ChainMorningstarVR: Eorlund vendor injection refused: CMS weapon is not One-Hand Mace");
@@ -46,6 +54,14 @@ bool EnsureEorlundSellsChainMorningstar()
         SKSE::log::error(
             "ChainMorningstarVR: Eorlund vendor injection failed: MerchantWhiterunEorlundChest [{:08X}] not found",
             kEorlundMerchantChestLocalFormID);
+        return false;
+    }
+
+    if (std::string_view(chest->GetFormEditorID()) != "MerchantWhiterunEorlundChest") {
+        SKSE::log::error(
+            "ChainMorningstarVR: Eorlund vendor injection refused: Skyrim.esm {:08X} EDID is '{}'",
+            kEorlundMerchantChestLocalFormID,
+            chest->GetFormEditorID());
         return false;
     }
 
