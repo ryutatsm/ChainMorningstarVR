@@ -12,6 +12,12 @@ end;
 function Initialize: integer;
 begin
   Result := 1;
+
+  if LowerCase(wbAppName) <> 'tes5vr' then begin
+    AddMessage('ERROR: This script must run in Skyrim VR mode (TES5VREdit / -TES5VR). Current mode: ' + wbAppName);
+    Result := 1;
+    Exit;
+  end;
   WeaponRec := nil;
 
   ModFile := FileByName('ChainMorningstarVR.esp');
