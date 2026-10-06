@@ -1,9 +1,8 @@
 unit userscript;
 
 var
-  ModFile, G, Rec, WeaponRec, ChestRec, Items, Entry, Linked: IInterface;
+  ModFile, G, Rec, WeaponRec: IInterface;
   i: integer;
-  FoundVendorItem: boolean;
 
 procedure Fail(const S: string);
 begin
@@ -14,8 +13,6 @@ function Initialize: integer;
 begin
   Result := 1;
   WeaponRec := nil;
-  ChestRec := nil;
-  FoundVendorItem := False;
 
   ModFile := FileByName('ChainMorningstarVR.esp');
   if not Assigned(ModFile) then begin
@@ -60,49 +57,23 @@ begin
     Exit;
   end;
 
+  // The ESP must contain no merchant chest or leveled-list override.
   G := GroupBySignature(ModFile, 'CONT');
-  if Assigned(G) then
-    for i := 0 to ElementCount(G) - 1 do begin
-      Rec := ElementByIndex(G, i);
-      if GetElementEditValues(Rec, 'EDID') = 'MerchantWhiterunEorlundChest' then begin
-        ChestRec := Rec;
-        Break;
-      end;
-    end;
-
-  if not Assigned(ChestRec) then begin
-    Fail('MerchantWhiterunEorlundChest override not found.');
+  if Assigned(G) and (ElementCount(G) > 0) then begin
+    Fail('Unexpected CONT override found. Vendor distribution must be CID-only.');
     Exit;
   end;
 
-  Items := ElementByPath(ChestRec, 'Items');
-  if not Assigned(Items) then begin
-    Fail('Eorlund chest Items array missing.');
-    Exit;
-  end;
-
-  for i := 0 to ElementCount(Items) - 1 do begin
-    Entry := ElementByIndex(Items, i);
-    Linked := LinksTo(ElementByPath(Entry, 'CNTO\Item'));
-    if Assigned(Linked) and (GetElementEditValues(Linked, 'EDID') = 'CMS_ChainMorningstar') then begin
-      if GetElementEditValues(Entry, 'CNTO\Count') <> '1' then begin
-        Fail('Eorlund chest contains Chain Morningstar with count other than 1.');
-        Exit;
-      end;
-      FoundVendorItem := True;
-      Break;
-    end;
-  end;
-
-  if not FoundVendorItem then begin
-    Fail('Chain Morningstar is not present in Eorlund merchant chest.');
+  G := GroupBySignature(ModFile, 'LVLI');
+  if Assigned(G) and (ElementCount(G) > 0) then begin
+    Fail('Unexpected LVLI override found. Vendor distribution must be CID-only.');
     Exit;
   end;
 
   AddMessage('PASS: ChainMorningstarVR.esp structural validation succeeded.');
   AddMessage('PASS: WEAP CMS_ChainMorningstar / Damage 44 / Weight 17 / Value 550.');
   AddMessage('PASS: Model path weapons\ChainMorningstarVR\ChainMorningstar.nif.');
-  AddMessage('PASS: MerchantWhiterunEorlundChest contains one Chain Morningstar.');
+  AddMessage('PASS: No CONT or LVLI overrides are present.');
   AddMessage('NEXT: run xEdit Check for Errors on ChainMorningstarVR.esp.');
   Result := 0;
 end;
