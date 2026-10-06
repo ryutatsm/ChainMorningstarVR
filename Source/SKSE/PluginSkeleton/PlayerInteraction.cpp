@@ -86,10 +86,10 @@ HeadHoldTarget SkyrimVRSceneBridge::updatePlayerInteraction(const HeadPose& head
     const float radius=kHeadBroadphaseRadiusM*acquiredScale_;
     const auto hold=offhandGrab_.update(input.fresh,input.down,input.captured,freeHand,
         palm,head.centerM,anchorM,radius,kStraightReachM,dt);
-    const bool near=freeHand&&isFinite(palm.translation)&&
+    const bool nearHead=freeHand&&isFinite(palm.translation)&&
         length(palm.translation-head.centerM)<=radius+.06f;
     // Arm a fresh press only. Captured holds keep the grip until released.
-    ArmLeftGrip(freeHand&&(hold.active||(near&&!input.down)));
+    ArmLeftGrip(freeHand&&(hold.active||(nearHead&&!input.down)));
     if (wasHeld!=hold.active&&grabSamples_<12) {
         ++grabSamples_;
         SKSE::log::info("CMS offhand head grip: {} physical-left=true right-weapon=true",
