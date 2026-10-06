@@ -113,7 +113,13 @@ jobs:
         run: cmake --build --preset vr-physics-test
 
       - name: Stage physics test DLL and checksum
+        id: stage
         run: |
+          $projectText = Get-Content "$env:PLUGIN_SRC\CMakeLists.txt" -Raw
+          $versionMatch = [regex]::Match($projectText, 'project\(ChainMorningstarVR VERSION ([0-9.]+)')
+          if (-not $versionMatch.Success) { throw "CMake version missing" }
+          $cmsVersion = $versionMatch.Groups[1].Value
+          "version=$cmsVersion" >> $env:GITHUB_OUTPUT
           $builtDll = Get-ChildItem "$env:PLUGIN_SRC\build\vr-physics-test" -Recurse -Filter ChainMorningstarVR.dll | Select-Object -First 1
           if (-not $builtDll) { throw "Physics test ChainMorningstarVR.dll not found" }
           $dir = "$env:GITHUB_WORKSPACE\ci-artifact\SKSE\Plugins"
@@ -145,7 +151,7 @@ jobs:
           ConvertTo-Json -InputObject @($thirdPartyHashes) -Depth 3 |
             Set-Content "$env:GITHUB_WORKSPACE\ci-artifact\DLL_THIRD_PARTY_SHA256.json"
           @"
-          ChainMorningstarVR 0.6.0 physics test -- NOT A RELEASE
+          ChainMorningstarVR $cmsVersion physics test -- NOT A RELEASE
           Commit: $env:GITHUB_SHA
           HIGGS head-compound collision and solver contact feedback are connected.
           Enemy head/weapon contacts feed the one-in-three worn-instance drop policy.
@@ -156,6 +162,6 @@ jobs:
       - name: Upload physics test artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ChainMorningstarVR-v0.6.0-physics-test-dll
+          name: ChainMorningstarVR-v${{ steps.stage.outputs.version }}-physics-test-dll
           path: ci-artifact
           if-no-files-found: error
