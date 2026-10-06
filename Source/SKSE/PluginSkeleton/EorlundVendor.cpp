@@ -65,6 +65,12 @@ bool EnsureEorlundSellsChainMorningstar()
         return false;
     }
 
+    if (!chest->data.flags.any(RE::CONT_DATA::Flag::kRespawn)) {
+        SKSE::log::error(
+            "ChainMorningstarVR: Eorlund vendor injection refused: merchant chest no longer has Respawns flag");
+        return false;
+    }
+
     const auto before = chest->CountObjectsInContainer(weapon);
     if (before > 0) {
         SKSE::log::info(
