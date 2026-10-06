@@ -13,7 +13,9 @@ A release archive must pass all checks below on the target Skyrim VR installatio
 - Weight 17.
 - Value 550.
 - Model path is `weapons\\ChainMorningstarVR\\ChainMorningstar.nif`.
-- Eorlund Gray-Mane vendor path is `MerchantWhiterunEorlundChest [CONT:0010FDE6]`, count 1.
+- Eorlund vendor distribution is runtime-only via Container Item Distributor (CID).
+- `ChainMorningstarVR.esp` contains no `CONT` or `LVLI` override.
+- `ChainMorningstarVR_CID.ini` targets `0x10FDE6~Skyrim.esm` and adds `CMS_ChainMorningstar|1`.
 - Generated ESP passes `Validate_ChainMorningstarVR.pas` and xEdit `Check for Errors`.
 
 ## Visual/NIF
@@ -49,7 +51,8 @@ A release archive must pass all checks below on the target Skyrim VR installatio
 ## Compatibility / packaging
 - The release archive is self-contained: ESP + SKSE DLL + NIF + seven DDS textures.
 - `Animated chains reupload` is not a dependency and requires no Vortex ordering rule against this mod.
-- Merchant-chest conflicts are checked specifically on `MerchantWhiterunEorlundChest [0010FDE6]`.
+- Vendor distribution uses CID instead of a merchant-chest override, avoiding normal plugin-record conflicts on Eorlund's chest.
+- CID dependency is VR-compatible and its runtime path must be verified in `ContainerItemDistributor.log` on the target install.
 
 ## Evidence rule
 A regression check is added only when the problem is reproduced by THIS repository.
