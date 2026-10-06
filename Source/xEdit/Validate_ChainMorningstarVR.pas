@@ -59,16 +59,18 @@ begin
 
   // The ESP must contain no merchant chest or leveled-list override.
   G := GroupBySignature(ModFile, 'CONT');
-  if Assigned(G) and (ElementCount(G) > 0) then begin
-    Fail('Unexpected CONT override found. Vendor distribution must be CID-only.');
-    Exit;
-  end;
+  if Assigned(G) then
+    if ElementCount(G) > 0 then begin
+      Fail('Unexpected CONT override found. Vendor distribution must be CID-only.');
+      Exit;
+    end;
 
   G := GroupBySignature(ModFile, 'LVLI');
-  if Assigned(G) and (ElementCount(G) > 0) then begin
-    Fail('Unexpected LVLI override found. Vendor distribution must be CID-only.');
-    Exit;
-  end;
+  if Assigned(G) then
+    if ElementCount(G) > 0 then begin
+      Fail('Unexpected LVLI override found. Vendor distribution must be CID-only.');
+      Exit;
+    end;
 
   AddMessage('PASS: ChainMorningstarVR.esp structural validation succeeded.');
   AddMessage('PASS: WEAP CMS_ChainMorningstar / Damage 44 / Weight 17 / Value 550.');
