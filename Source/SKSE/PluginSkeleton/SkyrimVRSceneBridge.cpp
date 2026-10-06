@@ -217,9 +217,11 @@ bool SkyrimVRSceneBridge::reacquireWeaponNodes()
         releaseWeaponNodes();
         return false;
     }
-    SKSE::log::info("ChainMorningstarVR: acquired {}-hand VR scene nodes (14 links + head); view={} slot={} root={} scale={}",
-        isLeftHand_ ? "left" : "right", firstPerson_ ? "first-person" : "VRIK third-person",
+    SKSE::log::info("ChainMorningstarVR: acquired {}-hand VR scene nodes ({} links + head); view={} slot={} root={} scale={}",
+        isLeftHand_ ? "left" : "right", kChainLinkCount, firstPerson_ ? "first-person" : "VRIK third-person",
         inventoryLeft_ ? "SHIELD" : "WEAPON", weaponRoot_->name.c_str(), anchor_->world.scale);
+    SKSE::log::info("ChainMorningstarVR: native weapon-blood surfaces fx={} lighting={} parent=CMS_HeadNode; visibility owned by game",
+        findUnder(head_.get(), "BloodFX") != nullptr, findUnder(head_.get(), "BloodLighting") != nullptr);
     diagnosticAnchor_ = toCms(anchor_->world.translate);
     if (++nativeGeneration_ == 0) ++nativeGeneration_;
     acquiredScale_ = anchor_->world.scale;
@@ -293,7 +295,13 @@ void SkyrimVRSceneBridge::releaseWeaponNodes()
         if (sound.soundID != RE::BSSoundHandle::kInvalidID) sound.Stop();
         sound = RE::BSSoundHandle{};
     }
+    for (auto& sound : impactSounds_) {
+        if (sound.soundID != RE::BSSoundHandle::kInvalidID) sound.Stop();
+        sound = RE::BSSoundHandle{};
+    }
     nextChainSound_ = 0;
+    nextImpactSound_ = 0;
+    impactSoundSamples_ = 0;
     ownerPlayerAddress_ = 0;
     ownerCellAddress_ = 0;
     head_.reset();
@@ -468,36 +476,54 @@ void SkyrimVRSceneBridge::queryChainContacts(const std::vector<ChainLinkSweep>& 
 }
 
 float SkyrimVRSceneBridge::consumeWorldContactImpulse() { return 0.0f; }
-void SkyrimVRSceneBridge::playChainSound(float intensity)
+void SkyrimVRSceneBridge::playChainSound(float intensity, bool heavyImpact)
 {
     if (!head_ || !currentHandStillOwnsAnchor() || !std::isfinite(intensity) || intensity <= 0.0f) return;
-    // Verified against the user's Skyrim.esm SNDR_0003D128 record: PHYChainSD.
-    // It chooses among four native physics-chain samples. No sound assets are bundled.
-    constexpr RE::FormID kPhysicsChainSoundID = 0x0003D128;
-    auto* descriptor = RE::TESForm::LookupByID<RE::BGSSoundDescriptorForm>(kPhysicsChainSoundID);
+    RE::BGSSoundDescriptorForm* descriptor = nullptr;
+    if (heavyImpact) {
+        // User's Skyrim.esm: MaterialHeavyMetal -> PHYGenericMetalHeavyImpactSet
+        // -> IPCT 0005CEFB, NAM1 (loud) 0005CEF9 / SNAM (quiet) 0005CEFA.
+        // Read the resolved record to respect sound replacers. HIGGS uses this
+        // same loud/quiet physics-impact convention (pinned hand.cpp).
+        if (auto* impact = RE::TESForm::LookupByID<RE::BGSImpactData>(0x0005CEFB))
+            descriptor = impact->sound2 ? impact->sound2 : impact->sound1;
+    } else {
+        // PHYChainSD selects from four native chain samples.
+        descriptor = RE::TESForm::LookupByID<RE::BGSSoundDescriptorForm>(0x0003D128);
+    }
     auto* audio = RE::BSAudioManager::GetSingleton();
     if (!descriptor || !audio) {
-        if (!warnedChainSound_) {
-            SKSE::log::warn("ChainMorningstarVR: native PHYChainSD or audio manager unavailable");
-            warnedChainSound_ = true;
+        auto& warned = heavyImpact ? warnedImpactSound_ : warnedChainSound_;
+        if (!warned) {
+            SKSE::log::warn("ChainMorningstarVR: native {} sound or audio manager unavailable",
+                heavyImpact ? "heavy-metal impact" : "chain");
+            warned = true;
         }
         return;
     }
 
     // Bound overlapping one-shots, and stop them explicitly on unequip/load.
-    auto& sound = chainSounds_[nextChainSound_];
-    nextChainSound_ = (nextChainSound_ + 1) % chainSounds_.size();
+    // Separate pools: fast rattles must not cut off an iron impact's decay.
+    auto& pool = heavyImpact ? impactSounds_ : chainSounds_;
+    auto& cursor = heavyImpact ? nextImpactSound_ : nextChainSound_;
+    auto& sound = pool[cursor];
+    cursor = (cursor + 1) % pool.size();
     if (sound.soundID != RE::BSSoundHandle::kInvalidID) sound.Stop();
     sound = RE::BSSoundHandle{};
     if (!audio->BuildSoundDataFromDescriptor(sound, descriptor, 0x10) ||
         sound.soundID == RE::BSSoundHandle::kInvalidID) return;
     sound.SetPosition(head_->world.translate);
-    sound.SetObjectToFollow(head_.get());
+    if (!heavyImpact) sound.SetObjectToFollow(head_.get());
     sound.SetVolume(std::clamp(intensity, 0.0f, 1.0f));
-    sound.Play();
+    const bool played = sound.Play();
+    if (heavyImpact && impactSoundSamples_ < 3) {
+        ++impactSoundSamples_;
+        SKSE::log::info("ChainMorningstarVR: heavy-metal impact sound descriptor={:08X} intensity={:.3f} playAccepted={}",
+            descriptor->GetFormID(), intensity, played);
+    }
 }
 
-void SkyrimVRSceneBridge::playChainRattle(float intensity) { playChainSound(intensity); }
-void SkyrimVRSceneBridge::playChainClank(float intensity) { playChainSound(intensity); }
+void SkyrimVRSceneBridge::playChainRattle(float intensity) { playChainSound(intensity, false); }
+void SkyrimVRSceneBridge::playChainClank(float intensity) { playChainSound(intensity, true); }
 
 } // namespace cms::skyrimvr

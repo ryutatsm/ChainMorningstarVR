@@ -11,7 +11,7 @@
 namespace cms {
 
 constexpr float kPi = 3.14159265358979323846f;
-constexpr float kHeadBroadphaseRadiusM = 0.24f;
+constexpr float kHeadBroadphaseRadiusM = 0.24f * kModelScale;
 constexpr float kHeadDamageRadiusM = kHeadBroadphaseRadiusM;
 
 struct LinkPose {
@@ -62,8 +62,8 @@ struct ChainSoundEvent {
 struct ChainSoundConfig {
     float rattleRelativeSpeedMps{0.85f};
     float rattleCooldownS{0.085f};
-    float clankImpulseThreshold{1.35f};
-    float clankCooldownS{0.16f};
+    float clankImpulseThreshold{3.0f}; // exclude resting gravity/solver chatter
+    float clankCooldownS{0.22f};
 };
 
 class ChainSoundGate {
@@ -79,7 +79,7 @@ public:
         rattleCooldown_ = std::max(0.0f, rattleCooldown_ - std::max(0.0f, dt));
         clankCooldown_ = std::max(0.0f, clankCooldown_ - std::max(0.0f, dt));
 
-        if (contactImpulse >= cfg_.clankImpulseThreshold && clankCooldown_ <= 0.0f) {
+        if (std::isfinite(contactImpulse) && contactImpulse >= cfg_.clankImpulseThreshold && clankCooldown_ <= 0.0f) {
             clankCooldown_ = cfg_.clankCooldownS;
             const float x = (contactImpulse - cfg_.clankImpulseThreshold) / (cfg_.clankImpulseThreshold * 2.0f);
             return {ChainSoundEventType::kHeavyClank, std::clamp(0.35f + x, 0.35f, 1.0f)};
@@ -215,11 +215,12 @@ private:
 
 inline constexpr std::string_view kChainAnchorNode = "CMS_ChainAnchor";
 inline constexpr std::string_view kHeadNode = "CMS_HeadNode";
-inline constexpr std::array<std::string_view,14> kLinkNodes = {
+inline constexpr std::array<std::string_view,kChainLinkCount> kLinkNodes = {
     "CMS_LinkNode_00", "CMS_LinkNode_01", "CMS_LinkNode_02", "CMS_LinkNode_03",
     "CMS_LinkNode_04", "CMS_LinkNode_05", "CMS_LinkNode_06", "CMS_LinkNode_07",
     "CMS_LinkNode_08", "CMS_LinkNode_09", "CMS_LinkNode_10", "CMS_LinkNode_11",
-    "CMS_LinkNode_12", "CMS_LinkNode_13"
+    "CMS_LinkNode_12", "CMS_LinkNode_13", "CMS_LinkNode_14", "CMS_LinkNode_15",
+    "CMS_LinkNode_16", "CMS_LinkNode_17", "CMS_LinkNode_18"
 };
 
 } // namespace cms

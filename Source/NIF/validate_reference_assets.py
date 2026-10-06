@@ -3,23 +3,24 @@ import argparse,json,struct,io
 from PIL import Image
 from pathlib import Path
 import numpy as np
+from weapon_dimensions import MODEL_SCALE as S, LINK_COUNT, FIRST_LINK, LINK_SPACING, HEAD_REACH
 
 def validate(build):
     path=build/'visual-preview/reference_mesh.cms';tokens=iter(path.read_text().split())
     def ints(n):return [int(next(tokens)) for _ in range(n)]
     def floats(n):return [float(next(tokens)) for _ in range(n)]
     assert next(tokens)=='CMSMESH' and int(next(tokens))==1
-    nn,nm,nh=ints(3);assert nn==17 and nh==15
+    nn,nm,nh=ints(3);assert nn==LINK_COUNT+3 and nh==15 and nm==LINK_COUNT+13
     nodes=[];meshes=[]
     for i in range(nn):
         name=next(tokens);parent=int(next(tokens));pos=floats(3);rot=np.array(floats(9)).reshape(3,3)
         assert parent<i and np.allclose(rot@rot.T,np.eye(3),atol=1e-6) and np.linalg.det(rot)>.999
         nodes.append((name,parent,pos,rot))
-    assert nodes[1][0]=='CMS_ChainAnchor' and np.allclose(nodes[1][2],[0,.4,0])
-    for i in range(14):
+    assert nodes[1][0]=='CMS_ChainAnchor' and np.allclose(nodes[1][2],[0,.4*S,0])
+    for i in range(LINK_COUNT):
         assert nodes[i+2][0]==f'CMS_LinkNode_{i:02d}' and nodes[i+2][1]==1
-        assert np.allclose(nodes[i+2][2],[0,0,.035+i*.84/13])
-    assert nodes[16][0]=='CMS_HeadNode' and np.allclose(nodes[16][2],[0,0,1.065])
+        assert np.allclose(nodes[i+2][2],[0,0,(FIRST_LINK+i*LINK_SPACING)*S])
+    assert nodes[LINK_COUNT+2][0]=='CMS_HeadNode' and np.allclose(nodes[LINK_COUNT+2][2],[0,0,HEAD_REACH*S])
     for i in range(nm):
         name=next(tokens);parent,material,nv,nt=ints(4);assert nv<65536 and nt<65536
         data=np.array(floats(8*nv)).reshape(nv,8);f=np.array(ints(3*nt)).reshape(nt,3);assert np.isfinite(data).all()
@@ -28,7 +29,7 @@ def validate(build):
         fn=np.cross(v[f[:,1]]-v[f[:,0]],v[f[:,2]]-v[f[:,0]])
         assert (np.linalg.norm(fn,axis=1)>1e-12).all(),name+' degenerate triangle'
         assert (np.sum(fn*n[f].mean(1),axis=1)>-1e-10).all(),name+' winding disagrees with normals'
-        if 2<=parent<=15:
+        if 2<=parent<LINK_COUNT+2:
             span=np.ptp(v@nodes[parent][3].T,axis=0)
             assert np.ptp(v,axis=0)[0]>np.ptp(v,axis=0)[1]*3,'Baked alternation would conflict with runtime roll'
             assert span[(parent-2)%2]>span[1-(parent-2)%2]*3,'Chain links not alternating'
@@ -39,8 +40,8 @@ def validate(build):
     for i in range(nh):
         nv,np_=ints(2);margin=float(next(tokens));v=np.array(floats(nv*3)).reshape(nv,3);planes=np.array(floats(np_*4)).reshape(np_,4)
         assert np.max(v@planes[:,:3].T+planes[:,3])<1e-7,'Vertex outside hull'
-        assert abs(np.max(np.linalg.norm(v,axis=1))-(.16 if i==0 else .24))<1e-6
-        assert margin==(.003 if i==0 else .002)
+        assert abs(np.max(np.linalg.norm(v,axis=1))-(.16 if i==0 else .24)*S)<1e-6
+        assert abs(margin-(.003 if i==0 else .002)*S)<1e-10
         hulls.append(v);hull_planes.append(planes)
     assert next(tokens,None) is None
     # Exact current collision direction contract including empty chain socket axis.
@@ -48,8 +49,10 @@ def validate(build):
     dirs=[[np.cos(i*np.pi/4+np.pi/8),0,np.sin(i*np.pi/4+np.pi/8)] for i in range(8)]
     dirs.extend([[r*np.cos(i*2*np.pi/3),y,r*np.sin(i*2*np.pi/3)] for y in [-.64,.64] for i in range(3)])
     for d,v in zip(dirs,hulls[1:]):
-        assert np.min(np.linalg.norm(v-np.array(d)*.24,axis=1))<1e-6,'Wrong spike direction'
+        assert np.min(np.linalg.norm(v-np.array(d)*.24*S,axis=1))<1e-6,'Wrong spike direction'
     manifest=json.loads((build/'visual-preview/asset_manifest.json').read_text())
+    assert manifest['dimensions']['model_scale']==S and manifest['dimensions']['chain_links']==LINK_COUNT
+    assert abs(manifest['dimensions']['anchor_to_head_m']-HEAD_REACH*S)<1e-9
     # Independently inspect the emitted curved shell, including texture-space
     # registration and topological closure. No older dragon contour is drawn.
     emblem=manifest['emblem']
@@ -71,13 +74,13 @@ def validate(build):
     assert front.shape==back.shape and np.allclose(front_v/front_r[:,None],back_v/back_r[:,None],atol=1e-8),'Plaque sides are not radial'
     assert front_r.min()>=emblem['front_base_radius_m']-1e-9
     assert front_r.max()<=emblem['front_base_radius_m']+emblem['maximum_image_relief_m']+1e-9
-    assert np.max(abs(back_r-emblem['back_radius_m']))<1e-9 and back_r.max()<.148,'Plaque back does not embed into forged sphere'
+    assert np.max(abs(back_r-emblem['back_radius_m']))<1e-9 and back_r.max()<.148*S,'Plaque back does not embed into forged sphere'
     # Even triangle interiors clear the maximum 160 mm core sphere. The front
     # mesh is actually curved, not a planar face with a bent border.
     centroid=front_v[front_tri].mean(axis=1)
     edge_mid=(front_v[front_tri]+np.roll(front_v[front_tri],-1,axis=1))*.5
-    assert min(np.linalg.norm(centroid,axis=1).min(),np.linalg.norm(edge_mid,axis=2).min())>.160,'Curved front intersects sphere between vertices'
-    assert np.ptp(front_v[:,1])>.06,'Emblem face is still planar'
+    assert min(np.linalg.norm(centroid,axis=1).min(),np.linalg.norm(edge_mid,axis=2).min())>.160*S,'Curved front intersects sphere between vertices'
+    assert np.ptp(front_v[:,1])>.06*S,'Emblem face is still planar'
     projected=front_v*(emblem['sphere_radius_m']/front_r[:,None])
     pixels=np.column_stack([projected[:,0]/emblem['scale_m_per_pixel']+emblem['center_pixel'][0],emblem['center_pixel'][1]-projected[:,2]/emblem['scale_m_per_pixel']])
     size=np.array(emblem['source_dimensions_px'])-1
@@ -109,7 +112,7 @@ def validate(build):
     for planes in hull_planes[1:]:
         signed=front[front_tri,:3]@planes[:,:3].T+planes[:,3]
         separation=signed.min(axis=1).max(axis=1)
-        assert separation.min()>.001,'A spike hull clips the textured emblem front'
+        assert separation.min()>.001*S,'A spike hull clips the textured emblem front'
         spike_clearance.append(float(separation.min()))
     print(f'EMBLEM_SPIKE_CLEARANCE_PASS all front triangles separated from14spikehulls by >= {min(spike_clearance)*1000:.3f}mm')
     import hashlib
@@ -126,14 +129,14 @@ def validate(build):
         feature_vertices[feature['name']]=match[0][3][start:end,:3]
     assert len(feature_vertices)==17,'Missing sculpted surfaces'
     wood=feature_vertices['rough_wood'];r=np.linalg.norm(wood[:,[0,2]],axis=1)
-    hand_r=np.mean(r[(wood[:,1]>.15)&(wood[:,1]<.20)])
-    chain_r=np.mean(r[(wood[:,1]>.32)&(wood[:,1]<.36)])
+    hand_r=np.mean(r[(wood[:,1]>.15*S)&(wood[:,1]<.20*S)])
+    chain_r=np.mean(r[(wood[:,1]>.32*S)&(wood[:,1]<.36*S)])
     assert hand_r>chain_r*1.10,'Handle must thicken towards hand'
     rows=[r[np.isclose(wood[:,1],yy)] for yy in np.unique(wood[:,1])]
-    assert np.median([np.ptp(row) for row in rows])>.002,'Wood is still a smooth cylinder'
+    assert np.median([np.ptp(row) for row in rows])>.002*S,'Wood is still a smooth cylinder'
     leather=feature_vertices['compressed_leather'];lr=np.linalg.norm(leather[:,[0,2]],axis=1)
     rows=[lr[np.isclose(leather[:,1],yy)] for yy in np.unique(leather[:,1])]
-    assert np.median([np.ptp(row) for row in rows])>.002,'Leather must have actual folds/compression'
+    assert np.median([np.ptp(row) for row in rows])>.002*S,'Leather must have actual folds/compression'
     core=feature_vertices['hammered_iron_core'];cr=np.linalg.norm(core,axis=1)
     core_data=feature_data['hammered_iron_core']
     for pole_v in [0.,1.]:
@@ -143,7 +146,7 @@ def validate(build):
         assert np.all(pole[:,3:6]==pole[0,3:6]),'Core pole normals vary by wedge'
         assert np.dot(pole[0,:3],pole[0,3:6])>0,'Core pole normal points inward'
     print('CORE_POLES_PASS each pole has one exact position and one shared outward normal')
-    assert np.ptp(cr)>.004,'Forged iron has no coarse geometric dents'
+    assert np.ptp(cr)>.004*S,'Forged iron has no coarse geometric dents'
     planes=hull_planes[0];assert np.max(core@planes[:,:3].T+planes[:,3])<1e-7
     for i in range(14):
         v=feature_vertices[f'battered_spike_{i:02d}'];core_planes=hull_planes[0];spike_planes=hull_planes[i+1]

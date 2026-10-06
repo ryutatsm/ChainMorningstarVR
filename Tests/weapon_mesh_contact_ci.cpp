@@ -11,12 +11,12 @@ Mat3 rotationZ(float a) { Mat3 r; r.m[0][0]=std::cos(a);r.m[0][1]=-std::sin(a);r
 int main() {
     assert(kHeadHulls.size()==15);
     assert(intersectHeadLocal(at({0,0,0})).hit);
-    assert(intersectHeadLocal(at({.14f,0,0})).hit);
+    assert(intersectHeadLocal(at({.14f*kModelScale,0,0})).hit);
     assert(!intersectHeadLocal(at({.3f,0,0})).hit);
     // Empty between spikes despite being inside the enclosing head radius.
-    assert(!intersectHeadLocal(at({0,.215f,0})).hit);
-    assert(!intersectHeadLocal(at({.217f,0,0})).hit);
-    const Vec3 spike{.923879533f*.215f,0,.382683432f*.215f};
+    assert(!intersectHeadLocal(at({0,.215f*kModelScale,0})).hit);
+    assert(!intersectHeadLocal(at({.217f*kModelScale,0,0})).hit);
+    const Vec3 spike{.923879533f*.215f*kModelScale,0,.382683432f*.215f*kModelScale};
     assert(intersectHeadLocal(at(spike)).hit);
     // Large triangle crosses the head although all three vertices are outside.
     assert(intersectHeadLocal(Triangle{{Vec3{0,-1,-1},Vec3{0,1,-1},Vec3{0,0,1}}}).hit);
@@ -36,7 +36,7 @@ int main() {
     assert(steps>300&&sweep(tri,a,b,origin,origin,steps).hit);
     // Native head rotation must be sampled as well as weapon motion.
     a={};b={};b.rotation=rotationY(.785398163f);
-    tri=at({.219f,0,0});
+    tri=at({.219f*kModelScale,0,0});
     assert(!intersect(tri,origin,a).hit&&!intersect(tri,origin,b).hit);
     steps=sweepSteps(origin,origin,a,b,.22f);
     assert(sweep(tri,origin,origin,a,b,steps).hit);
@@ -50,7 +50,7 @@ int main() {
     assert(std::fabs(mul(q,Vec3{1,0,0}).x)<.0001f);
     // World transforms plus actor scale are applied once, not twice.
     a={};a.scale=2;a.translation={11,15,-3};b=a;
-    assert(intersect(at({.14f,0,0}),a,b).hit);
+    assert(intersect(at({.14f*kModelScale,0,0}),a,b).hit);
     assert(!intersect(at({.3f,0,0}),a,b).hit);
     std::cout<<"WEAPON_MESH_CONTACT_PASS exact hulls, empty-space rejection, moving triangles, head/weapon rotations, lifecycle input bounds\n";
 }

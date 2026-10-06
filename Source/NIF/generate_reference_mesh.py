@@ -11,6 +11,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 from emblem_relief import create_relief
+from weapon_dimensions import MODEL_SCALE, LINK_COUNT, FIRST_LINK, LINK_SPACING, HEAD_REACH
 
 SU = 69.99125
 NODES = []
@@ -305,10 +306,10 @@ def build(texture_dir):
     root=node('CMS_ROOT',-1)
     anchor=node('CMS_ChainAnchor',root,(0,.4,0),[[1,0,0],[0,0,1],[0,-1,0]])
     links=[]
-    for i in range(14):
+    for i in range(LINK_COUNT):
         a=(i%2)*math.pi/2;rot=[[math.cos(a),-math.sin(a),0],[math.sin(a),math.cos(a),0],[0,0,1]]
-        links.append(node(f'CMS_LinkNode_{i:02d}',anchor,(0,0,.035+i*.84/13),rot))
-    head=node('CMS_HeadNode',anchor,(0,0,1.065))
+        links.append(node(f'CMS_LinkNode_{i:02d}',anchor,(0,0,FIRST_LINK+i*LINK_SPACING),rot))
+    head=node('CMS_HeadNode',anchor,(0,0,HEAD_REACH))
     sculpt_handle(root)
     # Ferrules follow the taper: broad pommel/hand end, narrow chain end.
     for y,r,L in [(-.145,.0485,.044),(.3725,.0365,.055)]:
@@ -370,6 +371,18 @@ def build(texture_dir):
         d,u,w=frame(d);points=[d*.24]
         for a in np.linspace(0,2*math.pi,12,endpoint=False): points.append(d*.154+.046*(math.cos(a)*u+math.sin(a)*w))
         hull(points,.002)
+    # Bake the requested 75% uniformly into all authored distances, including
+    # collision margins/planes. Live actor/VRIK scale remains applied once by
+    # the existing scene/native backend; no extra root scale is introduced.
+    for n in NODES:n['t']=(np.asarray(n['t'])*MODEL_SCALE).tolist()
+    for m in MESHES.values():m.v=(np.asarray(m.v)*MODEL_SCALE).tolist()
+    for h in COLLISION:
+        h['v']=(np.asarray(h['v'])*MODEL_SCALE).tolist()
+        for plane in h['planes']:plane[3]*=MODEL_SCALE
+        h['margin']*=MODEL_SCALE
+    for key,value in list(EMBLEM.items()):
+        if key.endswith('_m') or key=='scale_m_per_pixel':
+            EMBLEM[key]=(np.asarray(value)*MODEL_SCALE).tolist()
     return dirs
 
 def world_transform(i):
@@ -436,6 +449,8 @@ def write(out,texture_dir):
         r,t=world_transform(parent);vertices.extend(np.asarray(m.v)@r.T+t)
     v=np.asarray(vertices)
     manifest=dict(generator='reference_mesh_v3_curved_textured_emblem',visual_only_preview=True,head_directions=dirs,vertices=len(v),triangles=sum(len(m.f) for m in MESHES.values()),skyrim_units_per_meter=SU,bounds_m=[v.min(0).tolist(),v.max(0).tolist()],bounds_skyrim_units=[(v.min(0)*SU).tolist(),(v.max(0)*SU).tolist()],nodes=NODES,collision_hulls=len(COLLISION),sculpt_features=FEATURES,emblem=EMBLEM,reference_fidelity_limitations=['Single reference image has no rear/underside views; rear decoration is inferred.','The supplied full diamond emblem is mapped onto a curved closed plaque; small relief follows image luminance and is not a recovered sculpture.','Surface response requires Skyrim VR lighting verification.'])
+    manifest['dimensions']=dict(model_scale=MODEL_SCALE,chain_links=LINK_COUNT,added_links=LINK_COUNT-14,link_spacing_m=LINK_SPACING*MODEL_SCALE,anchor_to_head_m=HEAD_REACH*MODEL_SCALE)
+    manifest['blood']=dict(mode='vanilla weapon blood',parent='CMS_HeadNode',surfaces=['metal','spike','emblem'],normal_offset_m=.0003*MODEL_SCALE,nif_shapes=['BloodFX','BloodLighting'],activation='native bloody weapon hits only; no collision-triggered tint')
     (out/'asset_manifest.json').write_text(json.dumps(manifest,indent=2))
     print(json.dumps({k:v for k,v in manifest.items() if k not in ['nodes','head_directions','sculpt_features']},indent=2))
 

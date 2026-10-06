@@ -159,7 +159,8 @@ jobs:
           Requires HIGGS >= 1.6.0; PLANCK supplies NPC physics and melee damage.
           Chain links use swept capsule queries against world and NPC bodies without attack bodies or damage.
           Chain response is one-way: links bend and slide but do not push objects/NPCs.
-          Version 0.7.0 in-game behavior is unverified; 0.6.1 tracking/head motion was user-confirmed.
+          Version 0.8.0: 75% dimensions, 19 links, heavy iron impacts and native conforming weapon blood.
+          New behavior needs in-game testing; the user reported 0.7.0 working normally.
           "@ | Set-Content "$env:GITHUB_WORKSPACE\ci-artifact\BUILD_STATUS.txt"
 
       - name: Upload physics test artifact

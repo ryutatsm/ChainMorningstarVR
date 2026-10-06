@@ -14,7 +14,11 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 NIF_PATH = 'meshes/weapons/ChainMorningstarVR/ChainMorningstar.nif'
 TEXTURE_DIR = 'textures/weapons/ChainMorningstarVR'
-VANILLA_TEXTURES = {'textures/cubemaps/shinydull_e.dds'}
+VANILLA_TEXTURES = {'textures/cubemaps/shinydull_e.dds', 'textures/cubemaps/eyecubemap.dds',
+                    'textures/blood/bloodhitdecals01.dds', 'textures/blood/bloodhitdecals01add.dds',
+                    'textures/blood/bloodhitdecals01_n.dds'}
+sys.path.insert(0, str(ROOT / 'Source/NIF'))
+from weapon_dimensions import MODEL_SCALE, LINK_COUNT, HEAD_REACH
 
 
 def require(condition, message):
@@ -133,6 +137,8 @@ def main():
     cms_path = 'visual-preview/reference_mesh.cms'
     require(header in asset_provenance['source_files'] and 'HeadContactPlanes.hpp' in dll_records,
             'Native contact planes must be covered by both asset and DLL source provenance')
+    require('Source/SKSE/WeaponDimensions.hpp' in asset_provenance['source_files'] and
+            'WeaponDimensions.hpp' in dll_records, 'Shared dimensions missing from paired build provenance')
     require(cms_path in asset_provenance['output_files'], 'NIF collision source missing from asset provenance')
     subprocess.run([sys.executable, str(ROOT / 'Source/NIF/export_contact_planes.py'),
                     str(assets / cms_path), '--check'], check=True, cwd=ROOT)
@@ -152,7 +158,7 @@ def main():
             and struct.unpack_from('<H', dll, pe + 24)[0] == 0x20b,
             'DLL must be Windows PE x64')
     nif = files[NIF_PATH]
-    for name in ['CMS_ChainAnchor', 'CMS_HeadNode'] + [f'CMS_LinkNode_{i:02d}' for i in range(14)]:
+    for name in ['CMS_ChainAnchor', 'CMS_HeadNode', 'BloodFX', 'BloodLighting'] + [f'CMS_LinkNode_{i:02d}' for i in range(LINK_COUNT)]:
         require(name.encode() in nif, f'Required NIF node absent: {name}')
     custom, vanilla = texture_references(nif)
     actual = {path.relative_to(assets).as_posix().lower(): path for path in (assets / TEXTURE_DIR).glob('*.dds')}
@@ -168,6 +174,14 @@ def main():
         if name == NIF_PATH or name.lower().endswith('.dds'):
             require(asset_provenance['output_files'].get(name) == sha(data), f'Packaged asset absent from CI provenance: {name}')
     geometry = read_json(assets / 'visual-preview/asset_manifest.json')
+    require(geometry['dimensions']['model_scale'] == MODEL_SCALE and
+            geometry['dimensions']['chain_links'] == LINK_COUNT and
+            abs(geometry['dimensions']['anchor_to_head_m'] - HEAD_REACH * MODEL_SCALE) < 1e-8,
+            'Generated model dimensions differ from the runtime')
+    expected_bounds = ([math.floor(v) for v in geometry['bounds_skyrim_units'][0]] +
+                       [math.ceil(v) for v in geometry['bounds_skyrim_units'][1]])
+    require(esp['bounds'] == expected_bounds, 'ESP bounds do not match the resized model')
+    require({p.lower() for p in vanilla} == VANILLA_TEXTURES, 'Missing vanilla blood material dependencies')
     materials = read_json(assets / TEXTURE_DIR / 'material_generation.json')
     provenance = {
         'version': f'{version}-physics-test', 'source_commit': args.commit,
@@ -184,6 +198,9 @@ def main():
             'registered_attack_bodies': False, 'damage': False, 'equipment_drop': False,
             'response': 'one-way: chain bends/slides; no force applied to objects or NPCs'},
         'head_motion': {'mass_kg': 12, 'damping_per_90hz': .990, 'restitution': .025},
+        'dimensions': geometry['dimensions'], 'weapon_blood': geometry['blood'],
+        'head_impact_sound': {'impact_data': 'Skyrim.esm:0005CEFB', 'name': 'PHYGenericMetalHeavyImpact',
+            'selection': 'sound2 (loud), fallback sound1', 'minimum_impulse_kg_mps': 3.0, 'cooldown_s': .22},
         'physics_status': 'implemented test paths; Windows build validation is not in-game proof',
         'runtime_requirements': {'Skyrim VR': '1.4.15.0', 'SKSEVR': '2.0.12',
                                  'HIGGS': '1.6.0 or newer (interface001)',
@@ -196,13 +213,17 @@ def main():
     readme = f'''ChainMorningstarVR {version} — 物理・装備落下のテスト版
 ソース: {args.commit}
 
-0.7.0変更: 14個の鎖リンクに壁・床・物体・NPC剛体との衝突照会を追加。
+0.8.0変更: 柄・鎖・鉄球・棘・紋章と当たり判定を従来の75％へ縮小。
+鎖は5個追加して14→19個。同じ大きさ・間隔・物理と接触処理を追加分にも適用。
+鉄球が物体や人にぶつかると標準の重金属衝突音を再生。鎖音とは別の音です。
+鉄球・棘・紋章の表面に沿った血メッシュを追加。ゲーム標準の武器流血で表示されます。
+血が出ない接触、鎖だけの接触、壁への衝突から独自に血を生成する処理はありません。
 鎖だけの接触はダメージも装備落下の抽選も発生させません。
-鉄球の計算上の質量を8→12kgにし、減衰を強め、反発を抑えました。
-素材ごとに約3〜4割暗くし、反射を抑制。形状・紋章の曲面・表面の凹凸は維持。
+鉄球の12kg設定、低反発・減衰と、0.7.0の黒い素材・凹凸・曲面紋章を維持。
+同じ75％サイズの14リンク版より鎖が約24.2cm長くなります（VRIK等の倍率適用前）。
 
-0.6.1の手への追従・鉄球の動作はユーザー確認済みです。
-0.7.0の追加機能と戦闘・安定性は実機未確認です。正式リリースではありません。
+0.7.0についてユーザーから正常動作の報告があります。
+0.8.0の追加機能と戦闘・安定性は実機未確認です。正式リリースではありません。
 鉄球と棘の複合衝突形状をHIGGSの武器剛体へ設定し、物理ステップ直前に実位置へ
 反映します。接触情報を鎖のシミュレーションへ戻す処理を接続しました。
 敵の頭部／装備中の武器への確認済み接触から、対応する装備を1/3の確率で
@@ -231,11 +252,13 @@ FormID先頭はロード順で変わります。
 攻撃力やNPCの衝突はPLANCKの設定にも影響されます。
 
 今回の重点確認:
-1. 鉄球を離した状態で鎖の中ほどを壁の角・机の縁・敵の腕へ当て、曲がるか確認。
-2. 鎖だけを敵へ触れさせ、体力低下・装備落下が発生しないことを確認。
-3. 障害物から離すと鎖の引っ掛かりが解除されるか、静止中も接触に反応するか確認。
-4. 一度振って手を止め、軽い跳ね返りが減ったか確認。
-5. 同じ照明の場所で黒鉄・木・革が暗くなり、凹凸や擦れが見えるか確認。
+1. 装備して75％の大きさと19個の鎖を確認。追加分まで揺れ、球につながるか確認。
+2. 鉄球側の追加した鎖も机の縁・壁・敵の腕へ当て、曲がって離れるか確認。
+3. 鎖だけではダメージ・装備落下が起きないことを確認。
+4. 鉄球を壁・床・物体・敵に当て、重い金属音が鳴るか確認。床に置いた状態では連打しないこと。
+5. 敵への命中で血が出た後、球・棘・紋章に血が沿い、球の動きに追従するか確認。
+6. 血のない新品で壁へ当て、血が出ないことを確認。流血オフ設定では血は表示されません。
+7. 解除・再装備・メニュー・ロード・セル移動で動作と音に異常が出ないか確認。
 ログの Chain collision queries active と chainContacts は鎖処理の動作確認に使えます。
 
 確認結果とログは別添 ChainMorningstarVR-{version}-feedback-tools.zip で収集できます。

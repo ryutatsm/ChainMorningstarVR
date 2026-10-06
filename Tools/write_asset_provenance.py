@@ -25,6 +25,7 @@ def main():
     paths = subprocess.check_output([
         'git', 'ls-files', '-z', '--', 'Source/NIF', 'Source/Textures',
         'Source/SKSE/HeadContactPlanes.hpp',
+        'Source/SKSE/WeaponDimensions.hpp',
         'Tests/test_material_maps.py', 'Tools/write_asset_provenance.py',
         'Tools/package_visual_test.py', '.github/workflows/windows-nif-build.yml',
     ], cwd=root).decode('utf-8').split('\0')

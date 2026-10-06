@@ -47,8 +47,8 @@ int main()
 
     ChainSolver solver{};
     solver.reset({0,0,0}, {0,0,-1});
-    assert(solver.linkCount() == 14);
-    assert(nearf(solver.straightReachM(), 1.065f, 1.0e-5f));
+    assert(solver.linkCount() == 19);
+    assert(nearf(solver.straightReachM(), 1.0410576923f, 1.0e-5f));
 
     // Static gravity settling: constraints must remain tight.
     for (int i=0; i<180; ++i) solver.step90Hz({0,0,0});
@@ -146,9 +146,9 @@ int main()
     controller.onEquip({0,0,0},{0,0,-1});
     for(int i=0;i<10;++i) controller.update(1.0f/90.0f,{0,0,0});
     auto visual=controller.visualFrame();
-    assert(visual.links.size()==14);
+    assert(visual.links.size()==19);
     auto sweep=controller.headSweep();
-    assert(nearf(sweep.radiusM,0.24f,1.0e-6f));
+    assert(nearf(sweep.radiusM,0.24f*kModelScale,1.0e-6f));
     assert(!controller.update(nan,{0,0,0}));
     assert(controller.headSweep().speedMps==0.0f);
     assert(controller.update(1.0f/90.0f,{0,0,0}));
@@ -157,25 +157,25 @@ int main()
     sweep=controller.headSweep();
     assert(sweep.speedMps==0.0f && length(sweep.toM-sweep.fromM)==0.0f);
 
-    // New-build head geometry: 16 cm core + 14 explicit spikes, each reaching 24 cm.
+    // New-build head geometry: 12 cm core + 14 explicit spikes, each reaching 18 cm.
     HeadPose hp{};
     hp.centerM={0,0,0};
     hp.chainAxis={0,0,1};
     const auto compound=buildHeadCompoundFrame(hp);
     static_assert(kSpikeCount==14);
-    assert(nearf(compound.coreRadiusM,0.16f,1.0e-6f));
-    assert(nearf(compound.broadphaseRadiusM,0.24f,1.0e-6f));
+    assert(nearf(compound.coreRadiusM,0.16f*kModelScale,1.0e-6f));
+    assert(nearf(compound.broadphaseRadiusM,0.24f*kModelScale,1.0e-6f));
     for (const auto& sp:compound.spikes) {
-        assert(nearf(length(sp.tipM-compound.coreCenterM),0.24f,1.0e-5f));
-        assert(nearf(length(sp.baseCenterM-compound.coreCenterM),0.154f,1.0e-5f));
+        assert(nearf(length(sp.tipM-compound.coreCenterM),0.24f*kModelScale,1.0e-5f));
+        assert(nearf(length(sp.baseCenterM-compound.coreCenterM),0.154f*kModelScale,1.0e-5f));
     }
-    assert(nearf(supportDistanceAlongRay(compound,{1,0,0}),0.24f*kRimCos,1.0e-5f));
-    assert(nearf(supportDistanceAlongRay(compound,{-1,0,0}),0.24f*kRimCos,1.0e-5f));
-    assert(nearf(supportDistanceAlongRay(compound,{0,1,0}),0.16f,1.0e-5f));
-    assert(nearf(supportDistanceAlongRay(compound,{0,0,1}),0.24f*kRimCos,1.0e-5f));
+    assert(nearf(supportDistanceAlongRay(compound,{1,0,0}),0.24f*kModelScale*kRimCos,1.0e-5f));
+    assert(nearf(supportDistanceAlongRay(compound,{-1,0,0}),0.24f*kModelScale*kRimCos,1.0e-5f));
+    assert(nearf(supportDistanceAlongRay(compound,{0,1,0}),0.16f*kModelScale,1.0e-5f));
+    assert(nearf(supportDistanceAlongRay(compound,{0,0,1}),0.24f*kModelScale*kRimCos,1.0e-5f));
     for (Vec3 direction:kSpikeDirectionsLocal) {
         assert(nearf(length(direction),1.0f,1.0e-6f));
-        assert(nearf(supportDistanceAlongRay(compound,direction),0.24f,1.0e-5f));
+        assert(nearf(supportDistanceAlongRay(compound,direction),0.24f*kModelScale,1.0e-5f));
     }
 
     // A cone cannot inherit the base disk radius at its tip. This used to inflate

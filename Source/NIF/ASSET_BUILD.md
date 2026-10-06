@@ -50,21 +50,30 @@ python Source/NIF/render_reference_mesh.py --textures build/textures/weapons/Cha
 ## Retained contracts and changes
 
 - Root +Y remains the handle axis. Anchor local +Z maps to root +Y.
-- Handle: 56 cm, origin in the leather grip; anchor at root Y = 40 cm.
-- 14 alternating oval links, 84 cm first-to-last centre span.
-- Head centre: 106.5 cm from anchor; 16 cm core radius, 24 cm spike-tip radius.
+- Handle: 42 cm, origin in the leather grip; anchor at root Y = 30 cm.
+- 19 alternating oval links, 87.23077 cm first-to-last centre span.
+  All dimensions are 75% of the approved model, with five extra scaled links.
+  `Source/SKSE/WeaponDimensions.hpp` is read by both asset generation and runtime.
+- Head centre: 104.10577 cm from anchor; 12 cm core radius, 18 cm spike-tip radius.
 - Eight rim spikes are rotated 22.5 degrees to leave the chain socket clear.
   Six remaining spikes sit at local Y = +/-0.64 times their axis distance.
   The exact 14 directions also live in `HeadCompoundCore.hpp`.
-- The NIF still has `CMS_ChainAnchor`, `CMS_LinkNode_00` to `13`, `CMS_HeadNode`.
+- The NIF still has `CMS_ChainAnchor`, `CMS_LinkNode_00` to `18`, `CMS_HeadNode`.
 - Head collision: 15 convex pieces (core + 14 spikes), heavy-metal material,
-  8 kg authored rigid body. Socket/eyelets/decoration do not add damage hulls.
+  12 kg authored rigid body. Socket/eyelets/decoration do not add damage hulls.
 - Tapered wood, crossed leather cords, engraved collars, open pommel ring,
   modelled head socket, curved diamond plaque and image-derived relief replace the
   previous plain cylinders, spherical pommel and plain sphere.
 - Twenty-one 1024 x 1024 DXT5 textures each have all 11 mip levels. Eight
   materials have diffuse/normal maps; the five metals also have environment masks.
   Normal RGB is renormalized at every mip; alpha stores material specular.
+
+BloodFX and BloodLighting are generated from the actual core, spike and emblem
+surfaces, offset 0.225 mm along their normals and parented to CMS_HeadNode.
+Both start hidden and use the vanilla iron mace shader/alpha contract; native
+weapon-blood processing owns display and fading. The standard three blood DDS
+paths and EyeCubeMap are referenced from Skyrim, not redistributed. The GLB
+preview omits these initially hidden NIF-only passes.
 
 ## Verification and limits
 

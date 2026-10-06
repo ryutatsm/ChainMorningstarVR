@@ -3,20 +3,78 @@
 #include <NifFile.hpp>
 #include <bhk.hpp>
 #include <ExtraData.hpp>
+#include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
 #include <vector>
+#include "../SKSE/WeaponDimensions.hpp"
 using namespace nifly;
 constexpr float SU=69.99125f;
 constexpr uint32_t HeavyMetal=2229413539u;
 static void require(bool cond,const char* text){if(!cond)throw std::runtime_error(text);}
+
+struct BloodSurface {
+    std::vector<Vector3> vertices, normals;
+    std::vector<Vector2> uv;
+    std::vector<Triangle> triangles;
+    // Keep the exact forged dents, spike ridges and curved emblem geometry.
+    // A normal offset avoids a spherical shell bridging across spike valleys.
+    void append(const std::vector<Vector3>& v,const std::vector<Vector3>& n,
+                const std::vector<Vector2>& sourceUV,const std::vector<Triangle>& t) {
+        const size_t start=vertices.size();
+        require(start+v.size()<65536&&triangles.size()+t.size()<65536,"blood geometry exceeds NIF limits");
+        Vector2 lo(1e9f,1e9f),hi(-1e9f,-1e9f);
+        for(const auto& p:sourceUV){lo.u=std::min(lo.u,p.u);lo.v=std::min(lo.v,p.v);hi.u=std::max(hi.u,p.u);hi.v=std::max(hi.v,p.v);}
+        for(size_t i=0;i<v.size();++i){
+            vertices.push_back(v[i]+n[i]*(.0003f*cms::kModelScale*SU));normals.push_back(n[i]);
+            // Map each existing surface chart into the standard blood texture,
+            // retaining seams and avoiding clamped repeats of metal artwork.
+            uv.emplace_back(.05f+.9f*(sourceUV[i].u-lo.u)/std::max(hi.u-lo.u,1e-6f),
+                            .05f+.9f*(sourceUV[i].v-lo.v)/std::max(hi.v-lo.v,1e-6f));
+        }
+        for(const auto& f:t)triangles.emplace_back(uint16_t(start+f.p1),uint16_t(start+f.p2),uint16_t(start+f.p3));
+    }
+};
+
+static void addWeaponBlood(NifFile& nif,NiNode* head,const BloodSurface& blood) {
+    require(head&&!blood.vertices.empty(),"missing blood surface");
+    // Shader, alpha and hidden geometry flags inspected in the user's vanilla
+    // Skyrim VR ironmace.nif and steelmace.nif. Engine weapon-blood processing
+    // owns activation/fade; CMS never paints blood merely for touching a body.
+    for(bool lighting:{false,true}){
+        auto* shape=nif.CreateShapeFromData(lighting?"BloodLighting":"BloodFX",
+            &blood.vertices,&blood.triangles,&blood.uv,&blood.normals);
+        require(shape,"blood mesh create failed");nif.SetParentNode(shape,head);
+        shape->flags=524303; // same as native mace blood: initially APP_CULLED
+        if(lighting){
+            auto* sh=dynamic_cast<BSLightingShaderProperty*>(nif.GetShader(shape));require(sh,"blood lighting shader missing");
+            sh->shaderFlags1=2386559361u;sh->shaderFlags2=0;
+            sh->SetShaderType(BSLSP_ENVMAP);sh->textureClampMode=static_cast<TexClampMode>(3);
+            sh->alpha=1;sh->glossiness=500;sh->specularStrength=1.1f;sh->specularColor=Vector3(1,1,1);
+            std::string p="textures\\blood\\BloodHitDecals01Add.dds";nif.SetTextureSlot(shape,p,0);
+            p="textures\\blood\\BloodHitDecals01_n.dds";nif.SetTextureSlot(shape,p,1);
+            p="textures\\cubemaps\\EyeCubeMap.dds";nif.SetTextureSlot(shape,p,4);
+        }else{
+            auto sh=std::make_unique<BSEffectShaderProperty>();
+            sh->shaderFlags1=2348810240u;sh->shaderFlags2=SLSF2_WEAPON_BLODD;
+            sh->sourceTexture.get()="textures\\blood\\BloodHitDecals01.dds";
+            sh->textureClampMode=65283;sh->baseColor=Color4(1,1,1,1);sh->baseColorScale=1;
+            sh->falloffStartAngle=1;sh->falloffStopAngle=1;
+            sh->falloffStartOpacity=0;sh->falloffStopOpacity=0;sh->softFalloffDepth=100;
+            nif.GetHeader().ReplaceBlock(shape->ShaderPropertyRef()->index,std::move(sh));
+        }
+        auto alpha=std::make_unique<NiAlphaProperty>();alpha->flags=lighting?21005:21059;alpha->threshold=0;
+        nif.AssignAlphaProperty(shape,std::move(alpha));nif.CalcTangentsForShape(shape);
+    }
+}
+
 int main(int argc,char**argv) try {
     require(argc==3,"usage: export_reference_nif mesh.cms output.nif");
     std::ifstream in(argv[1]);require(bool(in),"missing input");
     std::string magic;int version,nnode,nmesh,nhull;in>>magic>>version>>nnode>>nmesh>>nhull;
-    require(magic=="CMSMESH"&&version==1&&nnode==17&&nhull==15,"unexpected geometry schema");
+    require(magic=="CMSMESH"&&version==1&&nnode==int(cms::kChainLinkCount)+3&&nhull==15,"unexpected geometry schema");
     NifFile nif; nif.Create(NiVersion::getSSE());auto&hdr=nif.GetHeader();
     auto replacement=std::make_unique<BSFadeNode>();*static_cast<NiNode*>(replacement.get())=*nif.GetRootNode();
     hdr.ReplaceBlock(nif.GetBlockID(nif.GetRootNode()),std::move(replacement));
@@ -37,6 +95,7 @@ int main(int argc,char**argv) try {
     auto prn=std::make_unique<NiStringExtraData>();prn->name.get()="Prn";prn->stringData.get()="WeaponMace";
     nif.AssignExtraData(root,std::move(prn));
     uint64_t totalVerts=0,totalTriangles=0;
+    BloodSurface blood;
     for(int i=0;i<nmesh;i++){
         std::string name;int parent,mat;size_t nv,nt;in>>name>>parent>>mat>>nv>>nt;
         require(nv<65536&&nt<65536&&parent>=0&&parent<nnode&&mat>=0&&mat<11,"invalid mesh");
@@ -44,6 +103,7 @@ int main(int argc,char**argv) try {
         for(size_t j=0;j<nv;j++){in>>v[j].x>>v[j].y>>v[j].z>>n[j].x>>n[j].y>>n[j].z>>uv[j].u>>uv[j].v;v[j]*=SU;uv[j].v=1-uv[j].v;}
         for(auto& tri:t){unsigned a,b,c;in>>a>>b>>c;require(a<nv&&b<nv&&c<nv,"bad index");tri=Triangle(a,b,c);}
         require(bool(in),"truncated mesh");auto*shape=nif.CreateShapeFromData(name,&v,&t,&uv,&n);require(shape,"mesh create failed");
+        if(nodes[parent]->name.get()=="CMS_HeadNode"&&(mat==0||mat==7||mat==10))blood.append(v,n,uv,t);
         nif.SetParentNode(shape,nodes[parent]);shape->flags=14;
         auto*sh=dynamic_cast<BSLightingShaderProperty*>(nif.GetShader(shape));require(sh,"missing shader");
         bool metal=mat!=1&&mat!=2&&mat!=5;
@@ -66,6 +126,7 @@ int main(int argc,char**argv) try {
         if(mat==3||mat==6){nif.SetColorsForShape(shape,std::vector<Color4>(nv,tint));sh->shaderFlags2|=SLSF2_VERTEX_COLORS;}
         nif.CalcTangentsForShape(shape);totalVerts+=nv;totalTriangles+=nt;
     }
+    addWeaponBlood(nif,nif.FindBlockByName<NiNode>("CMS_HeadNode"),blood);
     auto list=std::make_unique<bhkListShape>();list->SetMaterial(HeavyMetal);
     for(int i=0;i<nhull;i++){
         unsigned nv,np;float margin;in>>nv>>np>>margin;require(nv>=4&&nv<256&&np>=4&&np<256,"invalid convex hull");
@@ -87,10 +148,11 @@ int main(int argc,char**argv) try {
     body->translation=Vector4(headRest.translation.x/SU,headRest.translation.y/SU,headRest.translation.z/SU,0);
     body->rotation=QuaternionXYZW(-std::sqrt(.5f),0,0,std::sqrt(.5f));
     body->mass=12;body->friction=.74f;body->restitution=.025f;body->linearDamping=.20f;body->angularDamping=.3f;
-    body->inertiaMatrix[0]=body->inertiaMatrix[5]=body->inertiaMatrix[10]=.4f*8*.16f*.16f;
+    const float coreRadius=.16f*cms::kModelScale;
+    body->inertiaMatrix[0]=body->inertiaMatrix[5]=body->inertiaMatrix[10]=.4f*body->mass*coreRadius*coreRadius;
     body->collisionFilter.layer=5;body->collisionFilterCopy=body->collisionFilter;
     body->broadPhaseType=1;body->motionSystem=2;body->qualityType=4;body->solverDeactivation=2;
-    body->penetrationDepth=.01f;
+    body->penetrationDepth=.01f*cms::kModelScale;
     auto collision=std::make_unique<bhkCollisionObject>();collision->flags=129;collision->targetRef.index=nif.GetBlockID(root);collision->bodyRef.index=hdr.AddBlock(std::move(body));
     root->collisionRef.index=hdr.AddBlock(std::move(collision));
     require(nif.Save(argv[2])==0,"NIF save failed");
@@ -107,10 +169,26 @@ int main(int argc,char**argv) try {
     require(std::fabs(rb->translation.y-headRest.translation.y/SU)<1e-5f&&
         std::fabs(rb->rotation.x+std::sqrt(.5f))<1e-5f,"lost rest head collision transform");
     auto*cl=check.GetHeader().GetBlock<bhkListShape>(rb->shapeRef.index);require(cl&&cl->subShapeRefs.GetSize()==15,"lost compound hulls");
-    require(check.GetShapes().size()==size_t(nmesh),"lost geometry");
-    for(int i=0;i<14;i++){char name[40];snprintf(name,sizeof name,"CMS_LinkNode_%02d",i);auto*ln=check.FindBlockByName<NiNode>(name);require(ln,"lost chain node");}
-    std::cout<<"NIF_ROUNDTRIP_PASS nodes="<<check.GetNodes().size()<<" meshes="<<check.GetShapes().size()<<" vertices="<<totalVerts<<" triangles="<<totalTriangles<<" convex_hulls=15\n";
+    require(check.GetShapes().size()==size_t(nmesh)+2,"lost geometry/blood pair");
+    for(size_t i=0;i<cms::kChainLinkCount;i++){char name[40];snprintf(name,sizeof name,"CMS_LinkNode_%02u",unsigned(i));auto*ln=check.FindBlockByName<NiNode>(name);require(ln,"lost chain node");}
+    for(const auto* name:{"BloodFX","BloodLighting"}){
+        auto* shape=check.FindBlockByName<NiShape>(name);require(shape,"lost blood mesh");
+        require(check.GetParentNode(shape)==head&&(shape->flags&1),"blood must follow head and start hidden");
+        const auto* v=check.GetVertsForShape(shape);require(v&&v->size()==blood.vertices.size(),"lost blood vertices");
+        for(size_t i=0;i<v->size();++i)require(((*v)[i]-blood.vertices[i]).length()<.00001f,"blood no longer conforms to its source surface");
+        auto* alpha=check.GetAlphaProperty(shape);require(alpha&&alpha->threshold==0,"lost blood alpha property");
+        if(std::string(name)=="BloodFX"){
+            auto* sh=dynamic_cast<BSEffectShaderProperty*>(check.GetShader(shape));
+            require(sh&&sh->shaderFlags2==SLSF2_WEAPON_BLODD&&alpha->flags==21059,"lost native blood FX contract");
+        }else{
+            auto* sh=dynamic_cast<BSLightingShaderProperty*>(check.GetShader(shape));
+            require(sh&&sh->shaderFlags1==2386559361u&&alpha->flags==21005,"lost native blood lighting contract");
+        }
+    }
+    std::cout<<"NIF_ROUNDTRIP_PASS nodes="<<check.GetNodes().size()<<" meshes="<<check.GetShapes().size()<<" vertices="<<totalVerts+2*blood.vertices.size()<<" triangles="<<totalTriangles+2*blood.triangles.size()<<" convex_hulls=15\n";
     std::cout<<"WEAPON_ATTACHMENT_PASS Prn=WeaponMace root_collision=bhkRigidBodyT head_local_hulls=15\n";
+    std::cout<<"DIMENSIONS_PASS model_scale="<<cms::kModelScale<<" chain_links="<<cms::kChainLinkCount<<" anchor_to_head_m="<<cms::kStraightReachM<<"\n";
+    std::cout<<"WEAPON_BLOOD_PASS paired_native_shaders hidden=true parent=CMS_HeadNode vertices_each="<<blood.vertices.size()<<" triangles_each="<<blood.triangles.size()<<" conforming_normal_offset_m="<<.0003f*cms::kModelScale<<"\n";
     std::cout<<"IN_GAME_VALIDATION_PENDING: NIF parsing proves file structure, not Skyrim runtime stability.\n";
     return 0;
 }catch(const std::exception&e){std::cerr<<"NIF_BUILD_FAIL: "<<e.what()<<'\n';return 1;}

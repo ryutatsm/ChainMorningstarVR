@@ -273,7 +273,7 @@ bool NativePhysicsBackend::BeginSession(RE::NiAVObject* node,bool left,std::uint
     if(!isFinite(low)||!isFinite(high)||extent.x<=0||extent.y<=0||extent.z<=0)return false;
     // Bounds independently generated from the checked NIF's hull vertices +
     // convex radii. Require one uniform scale on all axes and a centered shape.
-    const Vec3 expected{.22373109f,.163f,.22373109f};
+    const Vec3 expected = Vec3{.22373109f,.163f,.22373109f} * kModelScale;
     const float sx=extent.x/expected.x,sy=extent.y/expected.y,sz=extent.z/expected.z;
     if(!std::isfinite(sx)||sx<.001f||sx>1000||std::fabs(sx-sy)>.02f*sx||std::fabs(sx-sz)>.02f*sx||length(high+low)>.002f*sx) {
         SKSE::log::warn("Native head shape rejected: mismatching hull bounds {} {} {}",extent.x,extent.y,extent.z);return false;

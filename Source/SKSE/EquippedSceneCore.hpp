@@ -20,7 +20,7 @@ EquippedChainGraph<Node> findEquippedChainGraph(Node* scene, bool inventoryLeft,
     result.anchor = find(result.slot, "CMS_ChainAnchor");
     if (!result.anchor) return result;
     result.model = parent(result.anchor);
-    // Require a direct model parent; the caller also checks all 14 links and head.
+    // Require a direct model parent; the caller also checks all configured links and head.
     if (!result.model || find(result.model, "CMS_ChainAnchor") != result.anchor) {
         result.model = nullptr;
         result.anchor = nullptr;

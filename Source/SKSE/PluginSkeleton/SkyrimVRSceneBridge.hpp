@@ -42,13 +42,13 @@ private:
     void writeNodeWorldPose(RE::NiAVObject* node, Vec3 centerWorldM, Vec3 localZWorld, float rollRadians);
     void runReadOnlyNativeMeleeProbe();
     bool currentHandStillOwnsAnchor() const;
-    void playChainSound(float intensity);
+    void playChainSound(float intensity, bool heavyImpact);
 
     RE::NiPointer<RE::NiAVObject> sceneRoot_{};
     RE::NiPointer<RE::NiAVObject> weaponSlot_{};
     RE::NiPointer<RE::NiAVObject> weaponRoot_{};
     RE::NiPointer<RE::NiAVObject> anchor_{};
-    std::array<RE::NiPointer<RE::NiAVObject>,14> links_{};
+    std::array<RE::NiPointer<RE::NiAVObject>,kChainLinkCount> links_{};
     RE::NiPointer<RE::NiAVObject> head_{};
     bool isLeftHand_{};
     bool inventoryLeft_{};
@@ -65,6 +65,7 @@ private:
     float nativePrepareCooldownS_{};
     float acquiredScale_{1.0f};
     bool warnedChainSound_{};
+    bool warnedImpactSound_{};
     bool readOnlyNativeMotionStateKnown_{};
     bool readOnlyNativeProbeRejectedWarned_{};
     bool readOnlyNativeEnableCollision_{};
@@ -73,7 +74,10 @@ private:
     std::uintptr_t ownerPlayerAddress_{};
     std::uintptr_t ownerCellAddress_{};
     std::array<RE::BSSoundHandle, 4> chainSounds_{};
+    std::array<RE::BSSoundHandle, 4> impactSounds_{};
     std::size_t nextChainSound_{};
+    std::size_t nextImpactSound_{};
+    unsigned impactSoundSamples_{};
 };
 
 } // namespace cms::skyrimvr

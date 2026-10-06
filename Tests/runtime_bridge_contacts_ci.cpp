@@ -43,7 +43,7 @@ struct ContactBridge final : cms::IGameBridge {
     float consumeWorldContactImpulse() override {events.emplace_back("impulse");return 0;}
     void queryChainContacts(const std::vector<cms::ChainLinkSweep>& sweeps,
                             std::vector<cms::ChainLinkContact>&) override {
-        assert(acquired && sweeps.size()==14);
+        assert(acquired && sweeps.size()==cms::kChainLinkCount);
         if (!chainQueries) firstLinkSweepStart=sweeps[7].fromM;
         ++chainQueries;
     }

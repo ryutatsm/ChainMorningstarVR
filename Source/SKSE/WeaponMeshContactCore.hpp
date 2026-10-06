@@ -27,7 +27,7 @@ inline Contact intersectHeadLocal(const Triangle& tri) {
         const auto value=[axis](Vec3 p) { return axis==0 ? p.x : axis==1 ? p.y : p.z; };
         float lo=value(tri.vertices[0]), hi=lo;
         for (int v=1; v<3; ++v) { lo=std::min(lo,value(tri.vertices[v])); hi=std::max(hi,value(tri.vertices[v])); }
-        if (lo>.241f || hi<-.241f) return out;
+        if (lo>(.241f * kModelScale) || hi<-(.241f * kModelScale)) return out;
     }
     for (const auto hull : kHeadHulls) {
         std::array<Vec3, 256> storageA, storageB;
@@ -118,8 +118,8 @@ inline int sweepSteps(const RigidTransform& weapon0,const RigidTransform& weapon
     const float ws=std::max(weapon0.scale,weapon1.scale),hs=std::max(head0.scale,head1.scale);
     const float movement=length(weapon1.translation-weapon0.translation)+length(head1.translation-head0.translation)+
         rotationAngle(weapon0.rotation,weapon1.rotation)*weaponRadius*ws+
-        rotationAngle(head0.rotation,head1.rotation)*.241f*hs+
-        std::fabs(weapon1.scale-weapon0.scale)*weaponRadius+std::fabs(head1.scale-head0.scale)*.241f;
+        rotationAngle(head0.rotation,head1.rotation)*(.241f * kModelScale)*hs+
+        std::fabs(weapon1.scale-weapon0.scale)*weaponRadius+std::fabs(head1.scale-head0.scale)*(.241f * kModelScale);
     if (!std::isfinite(movement)||movement>1.024f) return 0;
     return std::max(1,static_cast<int>(std::ceil(movement/.002f)));
 }

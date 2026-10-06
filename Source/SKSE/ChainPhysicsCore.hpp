@@ -1,5 +1,7 @@
 #pragma once
 
+#include "WeaponDimensions.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -94,20 +96,20 @@ public:
 };
 
 struct ChainConfig {
-    std::size_t linkCount{14};
-    float firstLinkCenterOffsetM{0.035f};
-    float linkCenterSpanM{0.840f};
-    float headCenterOffsetFromLastLinkM{0.190f};
+    std::size_t linkCount{kChainLinkCount};
+    float firstLinkCenterOffsetM{kFirstLinkOffsetM};
+    float linkCenterSpanM{kChainCenterSpanM};
+    float headCenterOffsetFromLastLinkM{kLastLinkHeadOffsetM};
 
     float linkMassKg{0.22f};
     float headMassKg{12.0f};
 
     float dampingPer90Hz{0.995f};
     float headDampingPer90Hz{0.990f};
-    // Capsule enclosing each oval link: 47.4 mm outer radius, 70.8 mm
-    // total half-length. The hole is intentionally solid for robust contact.
-    float linkCollisionRadiusM{0.0474f};
-    float linkCollisionHalfSegmentM{0.0234f};
+    // Same enclosing capsule for all 19 links, scaled with the authored mesh.
+    // The hole is intentionally solid for robust contact.
+    float linkCollisionRadiusM{0.0474f * kModelScale};
+    float linkCollisionHalfSegmentM{0.0234f * kModelScale};
     int solverIterations{96};
     Vec3 gravityMps2{0.0f, 0.0f, -9.80665f};
 };

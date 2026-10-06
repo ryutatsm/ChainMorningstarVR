@@ -55,6 +55,22 @@ static float gap(const ChainSolver& s,std::size_t link,const Plane& p,float scal
 }
 
 int main() {
+    // Every appended link, including the new terminal link, follows exactly
+    // the same query/response path. A wall touching only that link must bend
+    // it without generating any head damage/drop contact.
+    static_assert(kChainLinkCount==19);
+    for(std::size_t added=14;added<19;++added) {
+        ChainSolver longer;longer.reset({0,0,0});
+        TestWorld contact;
+        contact.planes={{{1,0,0},.025f,{},50+added,added,added}};
+        for(int tick=0;tick<90;++tick){
+            longer.step90Hz({0,0,0},&contact);
+            assert(gap(longer,added,contact.planes[0])>=-.001f);
+            assert(longer.activeContactCount()==0&&longer.lastContactPhysicsStep()==0);
+        }
+        assert(longer.linkPosition(added).x>.05f);
+        assert(isFinite(longer.headPosition())&&length(longer.headVelocity90Hz())<5);
+    }
     // Mid-chain contact bends the chain around a finite obstacle. It must
     // neither move the tracked hand nor create a head/attack contact sample.
     ChainSolver chain;
@@ -75,7 +91,7 @@ int main() {
             assert(isFinite(chain.linkVelocity90Hz(i)) && length(chain.linkVelocity90Hz(i))<20);
         }
     }
-    assert(chain.linkPosition(7).x>.07f && chain.linkPosition(7).y>.06f);
+    assert(chain.linkPosition(7).x>.025f+chain.config().linkCollisionRadiusM-.001f && chain.linkPosition(7).y>.015f+chain.config().linkCollisionRadiusM-.001f);
     // Once that finite obstacle is removed there is no cached infinite plane.
     corner.planes.clear();
     chain.step90Hz(anchor,&corner);
@@ -112,7 +128,7 @@ int main() {
     TestWorld small;small.scale=.85f;small.planes={{{1,0,0},0,{},5,7,7}};
     scaled.step90Hz(anchor,&small);
     assert(gap(scaled,7,small.planes[0],.85f)>=-.001f);
-    assert(scaled.linkPosition(7).x<.0474f);
+    assert(scaled.linkPosition(7).x<scaled.config().linkCollisionRadiusM);
 
     // Invalid native samples are rejected without poisoning the simulation.
     TestWorld malformed;malformed.invalid=true;

@@ -204,7 +204,7 @@ QueryResult Query(const WeaponSample& previous,const WeaponSample& current,const
             const float t=static_cast<float>(step)/static_cast<float>(steps);
             const auto w=interpolate(it->transform,mesh.transform,t),h=interpolate(head0,head1,t);
             // Broadphase only: entire geometry's actual vertex extent bounds.
-            if (length(w.translation-h.translation)>mesh.radius*w.scale+.241f*h.scale) continue;
+            if (length(w.translation-h.translation)>mesh.radius*w.scale+(.241f*kModelScale)*h.scale) continue;
             std::vector<Vec3> local;
             local.reserve(mesh.vertices.size());
             for (const auto v:mesh.vertices) local.push_back(worldToLocalPoint(h,localToWorldPoint(w,v)));
