@@ -203,7 +203,7 @@ def main():
                                 'native_contact_planes_match_nif_input': True,
                                 'text_line_endings': 'LF/CRLF normalized; binary input hashes exact'},
         'in_game_validated': False,
-        'runtime_evidence': read_json(ROOT / 'Docs/RUNTIME_EVIDENCE_100_RC1.json'),
+        'runtime_evidence': read_json(ROOT / 'Docs/RUNTIME_EVIDENCE_100_RC2.json'),
         'native_head_contacts': True, 'equipment_drop_connected': True,
         'chain_link_registered_bodies': False,
         'chain_link_collision_queries': {'enabled': True, 'shape': 'swept capsule per link',
@@ -213,7 +213,9 @@ def main():
         'display_name': 'チェーンドモーニングスター',
         'inventory_marker': {'rotation_milliradians': [4712, 0, 0], 'zoom': 1.0},
         'offhand_head_grip': {'input': 'physical left grip while right hand equips CMS',
-            'hold': 'two endpoints with native world contact priority', 'empty_left_hand_required': True},
+            'hold': 'two endpoints with native world contact priority', 'empty_left_hand_required': True,
+            'higgs_two_hand_conflict_fix': 'thread-local HIGGS Update CustomPick2 selection exclusion',
+            'higgs_settings_changed': False, 'physical_collision_filters_changed': False},
         'player_chain_contacts': {'source': '11 capsules from visible VRIK skeleton',
             'continuous_relative_sweep': True, 'registered_bodies': False, 'damage': False},
         'dimensions': geometry['dimensions'], 'weapon_blood': geometry['blood'],
@@ -237,7 +239,7 @@ def main():
     game_file_count = len(files)
     files['README_JA.txt'] = readme.encode('utf-8-sig')
     files['FINAL_CHECK_JA.txt'] = (ROOT / 'Docs/FINAL_CHECK_JA.txt').read_text(encoding='utf-8').encode('utf-8-sig')
-    files['RELEASE_STATUS.md'] = (ROOT / 'Docs/RELEASE_STATUS_100_RC1.md').read_bytes()
+    files['RELEASE_STATUS.md'] = (ROOT / 'Docs/RELEASE_STATUS_100_RC2.md').read_bytes()
     files['LICENSES/HIGGS_GPL-3.0.txt'] = (ROOT / 'Source/ThirdParty/HIGGS/LICENSE').read_bytes()
     files['THIRD_PARTY_NOTICES.txt'] = (
         'HIGGS interface declarations and documented native integration are adapted from HIGGS by adamhynek.\n'

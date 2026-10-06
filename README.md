@@ -1,6 +1,6 @@
 # ChainMorningstarVR
 
-**チェーンドモーニングスター — 1.0.0-rc1, Vortex-installable release candidate.**
+**チェーンドモーニングスター — 1.0.0-rc2, Vortex-installable release candidate.**
 Skyrim VR 1.4.15 / SKSEVR 2.0.12; requires HIGGS and PLANCK, with VRIK for
 non-damaging player-body chain contacts. One-hand mace: damage44, weight17, value550.
 
@@ -10,16 +10,17 @@ The inventory preview is upright and the weapon name is Japanese. The free left
 hand can request a ball hold while the right hand equips the weapon. Certified
 head/equipped-weapon impacts feed one unbiased 1/3 exact-instance equipment-drop draw.
 
-The user reported 0.9.0 working. Its supplied logs confirm native head attachment
-and player-body chain contacts; actual offhand holds and equipment-drop references
-were not recorded. This candidate fixes a controller-input teardown race and adds
-bounded grip diagnostics and runtime evidence summaries. It is not a declaration
-that all in-game release gates passed. HIGGS own-weapon selection can conservatively
-block offhand capture; see the release status for this unresolved compatibility item.
+The supplied rc1 feedback confirms two in-range/nearby grip attempts were rejected
+as `higgs-two-handing`: HIGGS selected the CMS ball as the other hand's weapon
+before CMS could arm. Rc2 excludes the active right-hand CMS filter signature
+only from HIGGS CustomPick2 selection queries during HIGGS Update. Actual physical
+collision comparisons and settings are untouched. Busy-hand checks remain.
+The regression fixture reproduces rc1's ownership ordering and verifies capture,
+release and unchanged physical-filter decisions. The target-machine retest is pending.
 
 - [日本語の導入・更新・操作](Docs/INSTALL_VR.md)
 - [最終確認票](Docs/FINAL_CHECK_JA.txt)
-- [Candidate changes, evidence and remaining gates](Docs/RELEASE_STATUS_100_RC1.md)
+- [Candidate changes, evidence and remaining gates](Docs/RELEASE_STATUS_100_RC2.md)
 - [Required release gates](Docs/RELEASE_GATE_NEW_BUILD.md)
 - [Current geometry and project baseline](Docs/PROJECT_BASELINE.md)
 - [Native physics design](Docs/NATIVE_BRIDGE_AUDIT_20261006.md)

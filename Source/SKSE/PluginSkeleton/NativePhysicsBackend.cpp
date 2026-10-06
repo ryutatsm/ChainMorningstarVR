@@ -7,6 +7,8 @@
 #include "NativeChainCollision.hpp"
 #include "PlanckBuildProbe.hpp"
 #include "PlayerUpdateHook.hpp"
+#include "VRFrameContext.hpp"
+#include "../OffhandSelectionCore.hpp"
 #include "../../ThirdParty/HIGGS/HiggsInterface001.hpp"
 #include <SKSE/SKSE.h>
 #include <atomic>
@@ -83,6 +85,7 @@ struct State {
     bool active{},left{}, poseValid{}, listenerAttached{};
     std::uint64_t generation{},step{};
     std::uint64_t chainSweeps{},chainContacts{};
+    unsigned selectionGuardReports{};
     float unitScale{1},shapeScale{1}, frameDt{1.0f/90};
     HeadPose pose{};
     std::chrono::steady_clock::time_point submitted{};
@@ -94,6 +97,14 @@ struct State {
     NativeHeadSnapshot snapshot{};
 };
 State& state() { static auto* s=new State; return *s; }
+// CompareFilterInfo can run on physics workers too. They see an inactive TLS
+// scope; no engine access, mutex or setting mutation occurs in this callback.
+thread_local OffhandSelectionScope selectionScope;
+cms::higgs::IHiggsInterface001::CollisionFilterComparisonResult selectionFilter(
+    void*,std::uint32_t a,std::uint32_t b) {
+    using Result=cms::higgs::IHiggsInterface001::CollisionFilterComparisonResult;
+    return selectionScope.ignore(a,b)?Result::Ignore:Result::Continue;
+}
 RE::hkpRigidBody* havokBody(RE::bhkRigidBody* b) {
     return b ? static_cast<RE::hkpRigidBody*>(b->referencedObject.get()) : nullptr;
 }
@@ -138,6 +149,7 @@ Listener& listener() {static auto* p=new Listener;return *p;}
 // stateMutex must be held. HIGGS may already have removed this body from its
 // world; Ni/hk references keep it alive. Never restore a shape another mod owns.
 void detach(State& s, bool alreadyWorldLocked=false) {
+    selectionScope.end();
     s.contactBody.store(nullptr);
     s.contactGeneration.store(0);
     NativeContactRouter::GetSingleton().EndSession();
@@ -252,6 +264,7 @@ bool NativePhysicsBackend::Initialize() {
     auto* api=static_cast<cms::higgs::IHiggsInterface001*>(message.getAPI(1));
     if(!api||api->GetBuildNumber()<1060000){SKSE::log::warn("Native physics requires HIGGS 1.6.0 or newer");return false;}
     s.api=api;s.api->AddPrePhysicsStepCallback(prePhysics);
+    s.api->AddCollisionFilterComparisonCallback(selectionFilter);
     RegisterHiggsFrameUpdate(*api);
     SKSE::log::info("Native physics HIGGS API registered; build={}",api->GetBuildNumber());return true;
 }
@@ -295,7 +308,7 @@ bool NativePhysicsBackend::BeginSession(RE::NiAVObject* node,bool left,std::uint
     SKSE::log::info("Native head prepared: fifteen convex hulls, sourceScale={} cloneScale={} visualScale={}",sx,scale,visualScale);return true;
 }
 void NativePhysicsBackend::EndSession() {
-    auto& s=state();std::lock_guard lock(s.stateMutex);s.active=false;s.poseValid=false;detach(s);s.shape.reset();s.expectedBody.reset();
+    auto& s=state();std::lock_guard lock(s.stateMutex);s.active=false;s.poseValid=false;detach(s);s.shape.reset();s.expectedBody.reset();s.selectionGuardReports=0;
 }
 void NativePhysicsBackend::SubmitPose(const HeadPose& pose,float dt) {
     auto& s=state();std::lock_guard lock(s.stateMutex);if(!s.active)return;
@@ -352,9 +365,41 @@ const char* NativePhysicsBackend::LeftHandBlockReason() const {
     if(s.api->IsDisabled(true))return "higgs-hand-disabled";
     if(s.api->IsHoldingObject(true))return "higgs-holding-object";
     if(s.api->IsTwoHanding())return "higgs-two-handing";
-    // The public API does not distinguish SelectedTwoHand from pulling and
-    // pending grabs. Do not guess that every non-held hand is free.
+    // Our selection-query filter prevents CMS from becoming SelectedTwoHand.
+    // Retain the public busy guard for pulling and pending foreign grabs.
     if(!s.api->CanGrabObject(true))return "higgs-not-grabbable";
     return nullptr;
+}
+
+void NativePhysicsBackend::BeginHiggsSelectionQueries() {
+    selectionScope.end();
+    auto& s=state();std::lock_guard lock(s.stateMutex);
+    if(!s.active||s.left||!s.api||!s.world||!s.body||!s.shape)return;
+    auto* ui=RE::UI::GetSingleton();
+    auto* player=RE::PlayerCharacter::GetSingleton();
+    auto* data=RE::TESDataHandler::GetSingleton();
+    auto* weapon=data?data->LookupForm<RE::TESObjectWEAP>(0x800,"ChainMorningstarVR.esp"):nullptr;
+    if(!ui||ui->GameIsPaused()||!player||!weapon||!player->IsWeaponDrawn()||
+       player->GetEquippedObject(InventoryLeftHand(false))!=weapon||
+       player->GetEquippedObject(InventoryLeftHand(true))||
+       s.api->IsDisabled(true)||s.api->IsHoldingObject(true)||s.api->IsHoldingObject(false)||
+       s.api->GetWeaponRigidBody(false)!=s.body.get()||
+       std::chrono::steady_clock::now()-s.submitted>std::chrono::milliseconds(200))return;
+    auto* body=havokBody(s.body.get());
+    if(!body||s.contactBody.load()!=body)return;
+    RE::BSReadLockGuard worldLock(s.world->worldLock);
+    if(body->world!=s.world->referencedObject.get()||
+       body->collidable.shape!=s.shape->referencedObject.get())return;
+    selectionScope.begin(body->collidable.broadPhaseHandle.collisionFilterInfo);
+}
+
+void NativePhysicsBackend::EndHiggsSelectionQueries() {
+    const auto rejected=selectionScope.end();
+    if(!rejected)return;
+    auto& s=state();std::lock_guard lock(s.stateMutex);
+    if(s.active&&s.selectionGuardReports<3) {
+        ++s.selectionGuardReports;
+        SKSE::log::info("CMS offhand selection guard: rejectedPickPairs={} scope=HIGGS-update right-CMS=true physics-filter-unchanged=true",rejected);
+    }
 }
 } // namespace cms::skyrimvr

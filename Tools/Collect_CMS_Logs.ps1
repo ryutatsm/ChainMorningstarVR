@@ -29,6 +29,7 @@ $summary = [ordered]@{
     player_body_contact_entries = 0
     offhand_held_entries = 0
     offhand_released_entries = 0
+    offhand_selection_guard_entries = 0
     offhand_rejected_reasons = [ordered]@{}
     certified_contact_outcomes = [ordered]@{}
     equipment_drop_references = 0
@@ -43,6 +44,7 @@ if ($summary.cms_log_present) {
     $summary.player_body_contact_entries = [regex]::Matches($cmsText, 'CMS player-body chain contact:').Count
     $summary.offhand_held_entries = [regex]::Matches($cmsText, 'CMS offhand head grip: held\b').Count
     $summary.offhand_released_entries = [regex]::Matches($cmsText, 'CMS offhand head grip: released\b').Count
+    $summary.offhand_selection_guard_entries = [regex]::Matches($cmsText, 'CMS offhand selection guard: rejectedPickPairs=[1-9][0-9]*\b').Count
     $summary.equipment_drop_references = [regex]::Matches($cmsText, 'CMS equipment drop: actor=[0-9A-Fa-f]+, item=[0-9A-Fa-f]+, reference=[0-9A-Fa-f]+,').Count
     foreach ($match in [regex]::Matches($cmsText, 'CMS offhand grip attempt: result=rejected reason=([^\s]+)')) {
         $key = $match.Groups[1].Value

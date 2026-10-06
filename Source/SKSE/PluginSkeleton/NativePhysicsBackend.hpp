@@ -37,6 +37,9 @@ public:
     [[nodiscard]] bool Available() const;
     // Null means available. Static text explains a conservative busy rejection.
     [[nodiscard]] const char* LeftHandBlockReason() const;
+    // Game-thread bracket for HIGGS's own selection queries, not physics.
+    void BeginHiggsSelectionQueries();
+    void EndHiggsSelectionQueries();
 };
 
 }  // namespace cms::skyrimvr
