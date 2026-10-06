@@ -65,9 +65,10 @@ begin
   SetElementEditValues(Dst, 'EDID', 'CMS_ChainMorningstar');
   SetElementEditValues(Dst, 'FULL', 'Chain Morningstar');
   SetElementEditValues(Dst, 'Model\MODL', 'weapons\ChainMorningstarVR\ChainMorningstar.nif');
-  SetElementEditValues(Dst, 'DATA\Value', '550');
-  SetElementEditValues(Dst, 'DATA\Weight', '17.000000');
-  SetElementEditValues(Dst, 'DATA\Damage', '44');
+  // Use native numeric values so Windows locale/decimal separators cannot affect the result.
+  SetElementNativeValues(Dst, 'DATA\Value', 550);
+  SetElementNativeValues(Dst, 'DATA\Weight', 17.0);
+  SetElementNativeValues(Dst, 'DATA\Damage', 44);
 
   CleanMasters(DstFile);
 
