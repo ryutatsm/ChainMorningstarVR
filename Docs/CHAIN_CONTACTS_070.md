@@ -34,6 +34,8 @@
 - カプセルのvtableはCommonLibの `VTABLE_hkpCapsuleShape[0]` を使用。
   所有する一時ABI記述子（0x50、16byte整列）のみを設定し、サイズと配置を静的検査。
   クエリ中だけ有効で、エンジンが保持・破棄するオブジェクトにはしない。
+  カプセル端点のWにも半径を設定し、球ベースの地形エージェントとGJKの両方に対応。
+  退化した軸は照会しない。
 - HIGGS commit `93bf67b1bc4c4a11a20ccaef0d5012781d0d7eee` の
   `include/RE/offsets.h` / `src/RE/offsets.cpp`: LinearCast `0xAB5EC0`、
   GetClosestPoints `0xAB62D0`、GetRefFromCollidable `0x3B4940`。

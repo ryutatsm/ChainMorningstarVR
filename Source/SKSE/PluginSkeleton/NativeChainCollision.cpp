@@ -170,6 +170,8 @@ void QueryNativeChainCollisions(RE::hkpWorld* world, const RE::hkpRigidBody* hea
     for (const auto& link : sweeps) {
         if (!isFinite(link.fromM) || !isFinite(link.toM) || !isFinite(link.fromAxis) ||
             !isFinite(link.toAxis) || !std::isfinite(link.radiusM) || !std::isfinite(link.halfSegmentM) ||
+            lengthSq(link.fromAxis) < 0.5f || lengthSq(link.fromAxis) > 1.5f ||
+            lengthSq(link.toAxis) < 0.5f || lengthSq(link.toAxis) > 1.5f ||
             link.radiusM <= 0 || link.radiusM > 0.6f || link.halfSegmentM <= 0 || link.halfSegmentM > 0.6f ||
             lengthSq(link.toM-link.fromM) > 4.0f) continue;
         // A capsule is axis-symmetric: choose the shorter sign-equivalent axis
@@ -179,8 +181,12 @@ void QueryNativeChainCollisions(RE::hkpWorld* world, const RE::hkpRigidBody* hea
         QueryCapsuleABI shape{};
         shape.vtable = REL::Relocation<std::uintptr_t>{RE::VTABLE_hkpCapsuleShape[0]}.address();
         shape.radius = radiusM * units;
-        shape.vertexA = hk(link.fromAxis * (-link.halfSegmentM * units));
-        shape.vertexB = hk(link.fromAxis * ( link.halfSegmentM * units));
+        // Havok capsule endpoints also encode their collision-sphere radius
+        // in W. XYZ alone is sufficient for GJK support but not for every
+        // sphere-based terrain agent. Keep both representations consistent.
+        const Vec3 end = link.fromAxis * (link.halfSegmentM * units);
+        shape.vertexA = RE::hkVector4(-end.x,-end.y,-end.z,shape.radius);
+        shape.vertexB = RE::hkVector4( end.x, end.y, end.z,shape.radius);
         RE::hkTransform transform{};
         transform.rotation.col0 = RE::hkVector4(1,0,0,0);
         transform.rotation.col1 = RE::hkVector4(0,1,0,0);
