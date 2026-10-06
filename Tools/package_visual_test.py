@@ -157,7 +157,11 @@ def main():
             and struct.unpack_from('<H', dll, pe + 4)[0] == 0x8664
             and struct.unpack_from('<H', dll, pe + 24)[0] == 0x20b,
             'DLL must be Windows PE x64')
+    japanese_name = 'チェーンドモーニングスター\0'.encode('utf-8')
+    require(b'FULL' + struct.pack('<H', len(japanese_name)) + japanese_name in files['ChainMorningstarVR.esp'],
+            'ESP Japanese display name is missing')
     nif = files[NIF_PATH]
+    require(b'BSInvMarker' in nif, 'NIF inventory marker is missing')
     for name in ['CMS_ChainAnchor', 'CMS_HeadNode', 'BloodFX', 'BloodLighting'] + [f'CMS_LinkNode_{i:02d}' for i in range(LINK_COUNT)]:
         require(name.encode() in nif, f'Required NIF node absent: {name}')
     custom, vanilla = texture_references(nif)
@@ -198,6 +202,12 @@ def main():
             'registered_attack_bodies': False, 'damage': False, 'equipment_drop': False,
             'response': 'one-way: chain bends/slides; no force applied to objects or NPCs'},
         'head_motion': {'mass_kg': 12, 'damping_per_90hz': .990, 'restitution': .025},
+        'display_name': 'チェーンドモーニングスター',
+        'inventory_marker': {'rotation_milliradians': [4712, 0, 0], 'zoom': 1.0},
+        'offhand_head_grip': {'input': 'physical left grip while right hand equips CMS',
+            'hold': 'two endpoints with native world contact priority', 'empty_left_hand_required': True},
+        'player_chain_contacts': {'source': '11 capsules from visible VRIK skeleton',
+            'continuous_relative_sweep': True, 'registered_bodies': False, 'damage': False},
         'dimensions': geometry['dimensions'], 'weapon_blood': geometry['blood'],
         'head_impact_sound': {'layers': [
             {'impact_data': 'Skyrim.esm:0009150E', 'name': 'PHYBodyMetalLargeImpact',
@@ -217,11 +227,17 @@ def main():
     readme = f'''ChainMorningstarVR {version} — 物理・装備落下のテスト版
 ソース: {args.commit}
 
-0.8.1変更: 衝突音を別の音へ変更。
+0.9.0変更:
+・表示名を「チェーンドモーニングスター」に変更。
+・商人／持ち物画面で、鉄球が上・柄が下になる縦向きの表示設定を追加。
+・右手に装備し、空の左手を鉄球へ近づけてグリップを押すと保持。離すと放す。
+・VRIKの胴・腕・脚・頭に追従する近似形状に、鎖が接触して曲がる処理を追加。
+
+0.8.1から継続: 衝突音を別の音へ変更。
 汎用の重金属音を、大型金属の衝突音＋鈍器で金属を叩く音の組み合わせに変更。
 大型金属音を主にし、金属の打撃音を控えめに重ねます。
 各音の準備・位置・音量・再生の受付結果をログへ記録します。
-新しい音の聞こえ方は実機未確認です。ゲームの音量・サウンド置換MODも影響します。
+0.8.1は正常に動作したと思うとの報告を受けています。今回の追加機能は実機確認が必要です。
 
 0.8.0から継続: 柄・鎖・鉄球・棘・紋章と当たり判定を従来の75％へ縮小。
 鎖は5個追加して14→19個。同じ大きさ・間隔・物理と接触処理を追加分にも適用。
@@ -232,8 +248,7 @@ def main():
 鉄球の12kg設定、低反発・減衰と、0.7.0の黒い素材・凹凸・曲面紋章を維持。
 同じ75％サイズの14リンク版より鎖が約24.2cm長くなります（VRIK等の倍率適用前）。
 
-0.8.0について正常に動いたと思うが金属音が聞こえづらい、との報告を受けています。
-今回のログで衝突音の再生受付成功9件を確認。0.8.1は音を差し替えたテスト版です。
+最新の0.8.1ログでは9回の衝突について2種類の音の準備・位置・音量・再生受付が成功しています。
 鉄球と棘の複合衝突形状をHIGGSの武器剛体へ設定し、物理ステップ直前に実位置へ
 反映します。接触情報を鎖のシミュレーションへ戻す処理を接続しました。
 敵の頭部／装備中の武器への確認済み接触から、対応する装備を1/3の確率で
@@ -246,12 +261,13 @@ def main():
 
 対象: Skyrim VR 1.4.15.0 / SKSEVR 2.0.12。
 物理機能にはHIGGS 1.6.0以上、NPCとの物理接触とダメージにはPLANCKが必要です。
+自分の人体への鎖衝突にはVRIKの表示スケルトンが必要です。
 依存MODが不足した状態は、物理機能の動作確認にはなりません。
 通常プレイと別のMODマネージャープロファイルで旧版を無効化してから、
 このZIPをVortex/MO2でインストールし、ChainMorningstarVR.espを有効にします。
 同名の古いDLL/NIF/テクスチャを混ぜず、SKSEVRで起動してください。
-エオルンド販売、またはコンソール help "Chain Morningstar" 4 で確認できます。
-FormID先頭はロード順で変わります。
+エオルンドが販売します。コンソールで取得する場合は player.additem XX000800 1。
+XXはVortexのプラグイン画面にあるChainMorningstarVR.espのロード順（16進2桁）です。
 
 片手だけに1本を装備し、右手と左手をそれぞれ確認してください。両手同時の2本は未対応。
 まず抜刀し、その場で腕だけを15秒動かして柄の追従と鎖の揺れを確認します。
@@ -262,8 +278,15 @@ FormID先頭はロード順で変わります。
 攻撃力やNPCの衝突はPLANCKの設定にも影響されます。
 
 今回の重点確認:
-最初に鉄球を硬い床・壁・物体に当て、0.8.0より金属音が明確になったか確認。
-床に置いたまま連打せず、鎖だけの接触では鉄球の衝突音が鳴らないことも確認。
+1. 商人／持ち物画面で日本語名と、鉄球が上・柄が下の表示を確認。
+2. 右手に装備し、左手は武器・盾・魔法・つかんだ物を外して空にする。
+3. 左手を鉄球に触れる位置まで近づけ、左グリップを押したまま動かす。
+4. 鉄球が左手に保持され、鎖が両手の間で垂れることを確認。グリップを離すと放す。
+5. 鎖の長さを超えて両手を離した場合や追跡が飛んだ場合は保持を解除する。
+   再びつかむには一度グリップを離して押し直す。壁に当たった鉄球は壁の外側を優先。
+6. VRIKの胴・腕・太ももへ鎖だけを当て、曲がり、離すと戻ることを確認。
+   人体との衝突は骨に追従するカプセル近似で、服や鎧の表面との完全一致ではない。
+7. 保持中のメニュー・納刀・ロード後、鉄球が手に固定されたまま残らないことを確認。
 
 継続確認:
 1. 装備して75％の大きさと19個の鎖を確認。追加分まで揺れ、球につながるか確認。
@@ -273,7 +296,8 @@ FormID先頭はロード順で変わります。
 5. 敵への命中で血が出た後、球・棘・紋章に血が沿い、球の動きに追従するか確認。
 6. 血のない新品で壁へ当て、血が出ないことを確認。流血オフ設定では血は表示されません。
 7. 解除・再装備・メニュー・ロード・セル移動で動作と音に異常が出ないか確認。
-ログの Chain collision queries active と chainContacts は鎖処理の動作確認に使えます。
+ログの CMS offhand head grip: held/released が保持、playerBodyContacts が人体接触の目印です。
+Chain collision queries active と chainContacts は従来の物体・NPCとの鎖処理の目印です。
 
 確認結果とログは別添 ChainMorningstarVR-{version}-feedback-tools.zip で収集できます。
 ゲーム終了後、解凍した Collect_CMS_Logs.cmd を実行してください。

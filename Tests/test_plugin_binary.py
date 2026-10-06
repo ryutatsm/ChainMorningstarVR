@@ -87,7 +87,7 @@ class PluginBinaryTests(unittest.TestCase):
         self.assertEqual(dst[b"WNAM"], struct.pack("<I", 0x1000801))
         self.assertEqual(dst[b"MODL"], stat[b"MODL"])
         self.assertEqual(dst[b"MODL"], b"weapons\\ChainMorningstarVR\\ChainMorningstar.nif\0")
-        self.assertEqual(dst[b"FULL"], b"Chain Morningstar\0")
+        self.assertEqual(dst[b"FULL"].decode("utf-8"), "チェーンドモーニングスター\0")
         self.assertEqual(struct.unpack("<IfH", dst[b"DATA"]), (550, 17.0, 44))
         self.assertEqual(dst[b"DNAM"][0], 4)
         self.assertEqual(stat[b"DNAM"], struct.pack("<fIB3x", 90, 0, 0))

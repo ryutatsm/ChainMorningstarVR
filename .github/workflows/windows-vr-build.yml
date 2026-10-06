@@ -159,7 +159,7 @@ jobs:
           Requires HIGGS >= 1.6.0; PLANCK supplies NPC physics and melee damage.
           Chain links use swept capsule queries against world and NPC bodies without attack bodies or damage.
           Chain response is one-way: links bend and slide but do not push objects/NPCs.
-          Version 0.8.1 replaces generic metal audio with paired large-metal-body and blunt-metal-strike cues.
+          Version 0.9.0 adds Japanese naming, upright inventory preview, offhand ball holding and VRIK body chain contacts.
           The user reported 0.8.0 working but its impact audio was hard to hear; the new mix needs in-game listening.
           "@ | Set-Content "$env:GITHUB_WORKSPACE\ci-artifact\BUILD_STATUS.txt"
 

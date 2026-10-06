@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(ChainMorningstarVR VERSION 0.8.1 LANGUAGES CXX)
+project(ChainMorningstarVR VERSION 0.9.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -18,6 +18,11 @@ add_commonlibsse_plugin(${PROJECT_NAME}
         PluginSkeleton.cpp
         SkyrimVRSceneBridge.cpp
         SkyrimVRSceneBridge.hpp
+        PlayerInteraction.cpp
+        OffhandInput.cpp
+        OffhandInput.hpp
+        ../OffhandGrabCore.hpp
+        ../PlayerBodyCollisionCore.hpp
         RuntimeService.cpp
         RuntimeService.hpp
         PlayerUpdateHook.cpp
@@ -61,7 +66,7 @@ target_precompile_headers(${PROJECT_NAME}
         PCH.h
 )
 
-target_compile_definitions(${PROJECT_NAME} PRIVATE CMS_VERSION_STRING="0.8.1-physics-test")
+target_compile_definitions(${PROJECT_NAME} PRIVATE CMS_VERSION_STRING="0.9.0-physics-test")
 if(CMS_ENABLE_READONLY_VRMELEE_PROBE)
     target_compile_definitions(${PROJECT_NAME} PRIVATE CMS_ENABLE_READONLY_VRMELEE_PROBE=1)
 else()

@@ -3,11 +3,14 @@
 Skyrim VR chain morningstar, under development. Audited against main commit
 `0777e257d64fcab908df03ff94e7a9af4ff1a0ee` on 2026-10-06.
 
-**0.8.1 impact-audio revision: Vortex-installable development build.**
-The user reported 0.8.0 working but its heavy metal cue was hard to hear, despite
-nine accepted playback requests at near-full volume in the feedback log.
-Version 0.8.1 replaces that cue with a dominant large-metal-body impact plus a
-quieter blunt-metal-strike layer. See [audio notes](Docs/IMPACT_AUDIO_081.md).
+**0.9.0 player interaction revision: Vortex-installable development build.**
+The user reported 0.8.1 working. Its feedback logs accepted both impact sound
+layers on nine logged impacts. This version adds the Japanese display name
+「チェーンドモーニングスター」, an upright inventory marker, left-grip holding of
+the ball while the right hand equips the weapon, and non-damaging chain contact
+with capsules following the visible VRIK body. See
+[player interaction notes](Docs/PLAYER_INTERACTION_090.md) for ownership,
+input, collision approximations and target checks.
 
 The user reported 0.7.0 working normally. Version 0.8.0 scales the approved
 model, node offsets, collision hulls and simulation dimensions to 75%, then
@@ -23,9 +26,11 @@ The HIGGS weapon body follows the simulated iron head using the NIF's actual
 Certified enemy head or equipped-weapon contacts enter a single 1/3 drop draw;
 weapon meshes without usable CPU geometry are conservatively skipped.
 Windows compilation and portable tests do not establish in-game compatibility.
-There are no registered chain rigid bodies, self-collisions or closed-loop
-wrapping constraints. Both-hands-at-once use is unsupported. See the installation
-guide for requirements and test limits. The new 0.8.1 mix needs in-game listening.
+There are no registered chain rigid bodies, link-to-link collisions or closed-loop
+wrapping constraints. Equipping two copies at once is unsupported. The free left
+hand can hold the ball of the right-hand weapon. Body contact requires VRIK and
+uses anatomical capsules rather than exact clothing geometry. The new 0.9.0
+features require target-machine verification; see the installation guide.
 
 The current appearance revision curves the emblem plaque around the iron ball
 and uses the supplied texture images for the corresponding weapon parts.

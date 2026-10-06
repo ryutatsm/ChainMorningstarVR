@@ -87,6 +87,12 @@ int main(int argc,char**argv) try {
         else{require(parent<i,"invalid node parent");n=nif.AddNode(name,x,nodes[parent]);}
         n->flags=14;nodes.push_back(n);
     }
+    // Inventory camera looks along +Y, with +Z up. The weapon runs along +Y.
+    // BSInvMarker stores clockwise milliradians: -4.712 rad maps +Y to +Z.
+    // Extra data affects only inventory previews, never the equipped transform.
+    auto inv=std::make_unique<BSInvMarker>();inv->name.get()="INV";
+    inv->rotationX=4712;inv->rotationY=0;inv->rotationZ=0;inv->zoom=1.0f;
+    nif.AssignExtraData(root,std::move(inv));
     auto bsx=std::make_unique<BSXFlags>();bsx->name.get()="BSX";
     bsx->integerData=BSX_HAVOK|BSX_DYNAMIC|BSX_ARTICULATED|BSX_NEEDS_TRANSFORM_UPDATES;
     nif.AssignExtraData(root,std::move(bsx));
@@ -162,6 +168,10 @@ int main(int argc,char**argv) try {
     for(auto* extra:check.GetChildren<NiStringExtraData>(check.GetRootNode(),true))
         if(extra->name.get()=="Prn"){require(extra->stringData.get()=="WeaponMace","incorrect weapon attachment");++prnCount;}
     require(prnCount==1,"missing/duplicate root Prn attachment");
+    const auto markers=check.GetChildren<BSInvMarker>(check.GetRootNode(),true);
+    require(markers.size()==1&&markers[0]->name.get()=="INV"&&
+        markers[0]->rotationX==4712&&markers[0]->rotationY==0&&
+        markers[0]->rotationZ==0&&markers[0]->zoom==1.0f,"lost inventory orientation");
     require(head->collisionRef.index==0xFFFFFFFFu,"visual head must not own a competing native body");
     auto*co=check.GetHeader().GetBlock<bhkCollisionObject>(check.GetRootNode()->collisionRef.index);require(co,"lost root collision");
     require(co->targetRef.index==check.GetBlockID(check.GetRootNode()),"collision must target weapon root");
@@ -187,6 +197,7 @@ int main(int argc,char**argv) try {
     }
     std::cout<<"NIF_ROUNDTRIP_PASS nodes="<<check.GetNodes().size()<<" meshes="<<check.GetShapes().size()<<" vertices="<<totalVerts+2*blood.vertices.size()<<" triangles="<<totalTriangles+2*blood.triangles.size()<<" convex_hulls=15\n";
     std::cout<<"WEAPON_ATTACHMENT_PASS Prn=WeaponMace root_collision=bhkRigidBodyT head_local_hulls=15\n";
+    std::cout<<"INVENTORY_MARKER_PASS rotation=4712,0,0 zoom=1 head_up_handle_down\n";
     std::cout<<"DIMENSIONS_PASS model_scale="<<cms::kModelScale<<" chain_links="<<cms::kChainLinkCount<<" anchor_to_head_m="<<cms::kStraightReachM<<"\n";
     std::cout<<"WEAPON_BLOOD_PASS paired_native_shaders hidden=true parent=CMS_HeadNode vertices_each="<<blood.vertices.size()<<" triangles_each="<<blood.triangles.size()<<" conforming_normal_offset_m="<<.0003f*cms::kModelScale<<"\n";
     std::cout<<"IN_GAME_VALIDATION_PENDING: NIF parsing proves file structure, not Skyrim runtime stability.\n";

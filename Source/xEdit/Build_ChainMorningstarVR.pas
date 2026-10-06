@@ -137,7 +137,7 @@ begin
   SetElementEditValues(FirstPersonDst, 'Model\MODL', 'weapons\ChainMorningstarVR\ChainMorningstar.nif');
 
   SetElementEditValues(Dst, 'EDID', 'CMS_ChainMorningstar');
-  SetElementEditValues(Dst, 'FULL', 'Chain Morningstar');
+  SetElementEditValues(Dst, 'FULL', 'チェーンドモーニングスター');
   SetElementEditValues(Dst, 'Model\MODL', 'weapons\ChainMorningstarVR\ChainMorningstar.nif');
   SetElementEditValues(Dst, 'WNAM', IntToHex(GetLoadOrderFormID(FirstPersonDst), 8));
   SetCMSBounds(Dst);
@@ -162,7 +162,7 @@ begin
   AddMessage('PASS: WNAM links to new CMS_ChainMorningstarFirstPerson [00000801], not SteelMace.');
   AddMessage('PASS: No merchant chest or leveled-list override was created.');
   AddMessage('Vendor: ChainMorningstarVR.dll injects one item into Eorlund merchant stock at DataLoaded.');
-  AddMessage('Test spawn after saving: help "Chain Morningstar" 4');
+  AddMessage('Test spawn after saving: help "CMS_ChainMorningstar" 4');
 end;
 
 end.

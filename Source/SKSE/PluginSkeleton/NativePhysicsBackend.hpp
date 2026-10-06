@@ -35,6 +35,7 @@ public:
                             std::vector<ChainLinkContact>& contacts);
     [[nodiscard]] NativeHeadSnapshot Snapshot() const;
     [[nodiscard]] bool Available() const;
+    [[nodiscard]] bool CanUseLeftHand() const;
 };
 
 }  // namespace cms::skyrimvr

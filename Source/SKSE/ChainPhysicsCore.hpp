@@ -72,6 +72,13 @@ struct Particle {
     float invMass{1.0f};
 };
 
+// Optional second endpoint, in world metres. Native head contacts still win
+// over the hand target; holding must never push the ball through scenery.
+struct HeadHoldTarget {
+    Vec3 positionM{};
+    bool active{};
+};
+
 // Query-only collision data. These links are never Havok attack bodies and
 // never enter the head contact / damage / equipment-drop pipeline.
 struct ChainLinkSweep {
@@ -140,7 +147,8 @@ public:
         reset(anchor, direction);
     }
 
-    void step90Hz(Vec3 anchor, IChainCollisionQuery* query = nullptr) {
+    void step90Hz(Vec3 anchor, IChainCollisionQuery* query = nullptr,
+                  HeadHoldTarget hold = {}) {
         constexpr float dt = 1.0f / 90.0f;
         if (!isFinite(anchor)) return;
         if (!initialized_) reset(anchor);
@@ -172,8 +180,20 @@ public:
         points_[0].previous = oldAnchor;
         points_[0].position = anchor;
 
+        const bool held = hold.active && isFinite(hold.positionM) &&
+            length(hold.positionM-anchor) <= straightReachM()+0.01f;
+        const Vec3 oldHead = headPosition();
+        const float headMass = points_.back().invMass;
+        if (held) {
+            points_.back().invMass = 0.0f;
+            points_.back().position = hold.positionM;
+            points_.back().previous = oldHead;
+            projectHeadOutsideContacts();
+        }
+
         for (std::size_t i = 1; i < points_.size(); ++i) {
             Particle& p = points_[i];
+            if (p.invMass == 0.0f) continue;
             const float damp = i + 1 == points_.size() ?
                 cfg_.headDampingPer90Hz : cfg_.dampingPer90Hz;
             const Vec3 velocity = (p.position - p.previous) * damp;
@@ -199,7 +219,9 @@ public:
         // Restitution belongs to applyWorldContacts(), once per native sample.
         Vec3 velocity = headVelocity90Hz();
         constrainContactVelocity(velocity);
+        if (held && lengthSq(velocity)>64.0f) velocity = normalized(velocity)*8.0f;
         points_.back().previous = points_.back().position - velocity * dt;
+        points_.back().invMass = headMass;
     }
 
     void clearWorldContacts() {
@@ -591,9 +613,11 @@ public:
         solver_.reset(anchor, direction);
         lastInputAnchor_ = anchor;
         hasInputAnchor_ = true;
+        lastHold_ = {};
     }
 
-    int update(float frameDt, Vec3 anchor, IChainCollisionQuery* query = nullptr) {
+    int update(float frameDt, Vec3 anchor, IChainCollisionQuery* query = nullptr,
+               HeadHoldTarget hold = {}) {
         // Invalid tracking/time samples must never poison the persistent simulation.
         if (!std::isfinite(frameDt) || !isFinite(anchor)) return 0;
         frameDt = std::clamp(frameDt, 0.0f, 0.05f);
@@ -603,6 +627,7 @@ public:
         }
         if (frameDt <= 0.0f) {
             lastInputAnchor_ = anchor;
+            lastHold_ = {};
             return 0;
         }
 
@@ -613,10 +638,13 @@ public:
         accumulator_ += frameDt;
 
         int steps = 0;
+        const Vec3 holdStart = lastHold_.active ? lastHold_.positionM : solver_.headPosition();
         double sampleTimeInFrame = h - accumulatorAtFrameStart;
         while (accumulator_ >= h && steps < 5) {
             const float alpha = static_cast<float>(std::clamp(sampleTimeInFrame / frameDt, 0.0, 1.0));
-            solver_.step90Hz(lerp(lastInputAnchor_, anchor, alpha), query);
+            HeadHoldTarget sampled = hold;
+            if (hold.active) sampled.positionM = lerp(holdStart, hold.positionM, alpha);
+            solver_.step90Hz(lerp(lastInputAnchor_, anchor, alpha), query, sampled);
             accumulator_ -= h;
             sampleTimeInFrame += h;
             ++steps;
@@ -624,6 +652,7 @@ public:
 
         if (steps == 5 && accumulator_ >= h) accumulator_ = 0.0f;
         lastInputAnchor_ = anchor;
+        lastHold_ = hold;
         return steps;
     }
 
@@ -634,6 +663,7 @@ public:
 private:
     ChainSolver solver_;
     Vec3 lastInputAnchor_{};
+    HeadHoldTarget lastHold_{};
     double accumulator_{};
     bool hasInputAnchor_{};
 };

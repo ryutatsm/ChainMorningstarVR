@@ -6,6 +6,7 @@
 #include "PlanckBuildProbe.hpp"
 #include "EorlundVendor.hpp"
 #include "NativePhysicsBackend.hpp"
+#include "OffhandInput.hpp"
 
 namespace {
 
@@ -85,6 +86,7 @@ SKSEPluginLoad(const SKSE::LoadInterface* skse)
         CMS_VERSION_STRING, probeMode);
 
     const bool registered = messaging->RegisterListener(onSKSEMessage);
+    cms::skyrimvr::RegisterOffhandInput(skse);
     SKSE::log::info("SKSE message listener registration: {}", registered ? "OK" : "FAILED");
     return registered;
 }

@@ -346,4 +346,9 @@ NativeHeadSnapshot NativePhysicsBackend::Snapshot() const {
 bool NativePhysicsBackend::Available() const {
     auto& s=state();std::lock_guard lock(s.stateMutex);return s.api!=nullptr;
 }
+bool NativePhysicsBackend::CanUseLeftHand() const {
+    auto& s=state();std::lock_guard lock(s.stateMutex);
+    return s.active&&!s.left&&s.api&&!s.api->IsDisabled(true)&&
+        !s.api->IsHoldingObject(true)&&!s.api->IsTwoHanding()&&s.api->CanGrabObject(true);
+}
 } // namespace cms::skyrimvr

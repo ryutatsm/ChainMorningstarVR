@@ -286,6 +286,7 @@ bool SkyrimVRSceneBridge::currentHandStillOwnsAnchor() const
 
 void SkyrimVRSceneBridge::releaseWeaponNodes()
 {
+    resetPlayerInteraction();
     NativePhysicsBackend::GetSingleton().EndSession();
     WeaponMeshContact::GetSingleton().Reset();
     nativePrepared_ = false;
@@ -448,9 +449,10 @@ void SkyrimVRSceneBridge::submitNativePose(const HeadPose& pose, const HeadSweep
             length(toCms(anchor_->world.translate) - diagnosticAnchor_) / kSkyrimUnitsPerMeter);
         diagnosticsTime_ += frameDt;
         if (diagnosticsTime_ >= 5.0f) {
-            SKSE::log::info("CMS tracking sample: hand={} anchorTravelM={:.3f} headSpeedMps={:.3f} nativePrepared={} colliderReady={} physicsStep={} chainSweeps={} chainContacts={}",
+            SKSE::log::info("CMS tracking sample: hand={} anchorTravelM={:.3f} headSpeedMps={:.3f} nativePrepared={} colliderReady={} physicsStep={} chainSweeps={} chainContacts={} playerBodyContacts={} offhandHeld={}",
                 isLeftHand_ ? "left" : "right", diagnosticMaxTravelM_, sweep.speedMps,
-                nativePrepared_, snapshot.ready, snapshot.physicsStep,snapshot.chainSweeps,snapshot.chainContacts);
+                nativePrepared_, snapshot.ready, snapshot.physicsStep,snapshot.chainSweeps,snapshot.chainContacts,
+                playerBodyContacts_,offhandGrab_.held());
             ++diagnosticSamples_;
             diagnosticsTime_ = 0;
         }
@@ -471,8 +473,18 @@ std::vector<HeadWorldContact> SkyrimVRSceneBridge::consumeWorldContacts()
 void SkyrimVRSceneBridge::queryChainContacts(const std::vector<ChainLinkSweep>& sweeps,
                                             std::vector<ChainLinkContact>& contacts)
 {
-    if (currentHandStillOwnsAnchor())
-        NativePhysicsBackend::GetSingleton().QueryChainContacts(sweeps,contacts);
+    if (!currentHandStillOwnsAnchor()) return;
+    const auto before=contacts.size();
+    queryPlayerBodyContacts(sweeps,playerCapsules_,playerBodyDt_,contacts);
+    playerBodyContacts_+=contacts.size()-before;
+    if (contacts.size()>before&&bodyContactSamples_<3) {
+        ++bodyContactSamples_;
+        SKSE::log::info("CMS player-body chain contact: samples={} total={} damage=false",contacts.size()-before,playerBodyContacts_);
+    }
+    // The player's motion is swept once per render sample. Subsequent fixed
+    // steps/reconciliation queries use the current capsules, not repeated motion.
+    for (auto& b:playerCapsules_) {b.previousA=b.a;b.previousB=b.b;}
+    NativePhysicsBackend::GetSingleton().QueryChainContacts(sweeps,contacts);
 }
 
 float SkyrimVRSceneBridge::consumeWorldContactImpulse() { return 0.0f; }

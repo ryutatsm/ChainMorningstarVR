@@ -150,7 +150,8 @@ public:
         return chain_.solver().applyWorldContacts(contacts);
     }
 
-    bool update(float frameDt, Vec3 anchorWorldSU, IChainCollisionQuery* query = nullptr) {
+    bool update(float frameDt, Vec3 anchorWorldSU, IChainCollisionQuery* query = nullptr,
+                HeadHoldTarget hold = {}) {
         if (!equipped_) return false;
         if (!std::isfinite(frameDt) || !isFinite(anchorWorldSU)) {
             previousHeadM_ = chain_.solver().headPosition();
@@ -167,7 +168,7 @@ public:
             sound_.reset();
         } else {
             if (hasPreviousHead_) previousHeadM_ = chain_.solver().headPosition();
-            const int steps = chain_.update(frameDt, anchorM, query);
+            const int steps = chain_.update(frameDt, anchorM, query, hold);
             lastSimulatedDt_ = static_cast<float>(steps) * (1.0f / 90.0f);
         }
         lastAnchorM_ = anchorM;

@@ -48,7 +48,7 @@ begin
     Exit;
   end;
 
-  if GetElementEditValues(WeaponRec, 'FULL') <> 'Chain Morningstar' then begin
+  if GetElementEditValues(WeaponRec, 'FULL') <> 'チェーンドモーニングスター' then begin
     Fail('FULL name mismatch.');
     Exit;
   end;

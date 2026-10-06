@@ -17,6 +17,7 @@ public:
         updateNativeMeleeHeadProxy(sweep);
     }
     virtual std::vector<HeadWorldContact> consumeWorldContacts() { return {}; }
+    virtual HeadHoldTarget updatePlayerInteraction(const HeadPose&, Vec3, float) { return {}; }
     virtual float consumeWorldContactImpulse() = 0;
     virtual void playChainRattle(float intensity) = 0;
     virtual void playChainClank(float intensity) = 0;
@@ -67,7 +68,9 @@ public:
             if (!active_) return;
         }
         const float contactImpulse = controller_.applyWorldContacts(bridge_.consumeWorldContacts());
-        if (!controller_.update(teleported ? 0.0f : frameDt, anchor, &bridge_)) return;
+        const auto hold = bridge_.updatePlayerInteraction(controller_.visualFrame().head,
+            anchor*kMetersPerSkyrimUnit, frameDt);
+        if (!controller_.update(teleported ? 0.0f : frameDt, anchor, &bridge_, hold)) return;
         const VisualFrame frame = controller_.visualFrame();
         bridge_.applyVisualFrame(frame);
         bridge_.submitNativePose(frame.head, controller_.headSweep(), frameDt);

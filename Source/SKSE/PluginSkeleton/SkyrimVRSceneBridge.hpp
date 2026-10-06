@@ -6,6 +6,8 @@
 #include "../GameBridgeContract.hpp"
 #include "../SceneTransformCore.hpp"
 #include "../NativeMeleeDataProbeCore.hpp"
+#include "../OffhandGrabCore.hpp"
+#include "../PlayerBodyCollisionCore.hpp"
 
 namespace cms::skyrimvr {
 
@@ -23,6 +25,7 @@ public:
     bool updateNativeMeleeHeadProxy(const HeadSweep& sweep) override;
     void submitNativePose(const HeadPose& pose, const HeadSweep& sweep, float frameDt) override;
     std::vector<HeadWorldContact> consumeWorldContacts() override;
+    HeadHoldTarget updatePlayerInteraction(const HeadPose& head, Vec3 anchorM, float dt) override;
     void queryChainContacts(const std::vector<ChainLinkSweep>& sweeps,
                             std::vector<ChainLinkContact>& contacts) override;
     [[nodiscard]] float chainCollisionScale() const override { return acquiredScale_; }
@@ -43,6 +46,7 @@ private:
     void runReadOnlyNativeMeleeProbe();
     bool currentHandStillOwnsAnchor() const;
     void playChainSound(float intensity, bool heavyImpact);
+    void resetPlayerInteraction();
 
     RE::NiPointer<RE::NiAVObject> sceneRoot_{};
     RE::NiPointer<RE::NiAVObject> weaponSlot_{};
@@ -79,6 +83,12 @@ private:
     std::size_t nextChainSound_{};
     std::size_t nextImpactSound_{};
     unsigned impactSoundSamples_{};
+    OffhandGrabState offhandGrab_{};
+    std::vector<BodyCapsule> playerCapsules_{};
+    float playerBodyDt_{1.0f/90.0f};
+    bool reportedPlayerBody_{};
+    unsigned grabSamples_{}, bodyContactSamples_{};
+    std::uint64_t playerBodyContacts_{};
 };
 
 } // namespace cms::skyrimvr

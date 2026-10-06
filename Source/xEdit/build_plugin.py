@@ -132,7 +132,7 @@ def build_plugin(weapon: Record, chest: Record, bounds: tuple[int, ...]) -> byte
     if len(bounds) != 6 or any(bounds[i] >= bounds[i + 3] for i in range(3)):
         raise ValueError("Bounds must be xmin ymin zmin xmax ymax zmax")
     bound_bytes = struct.pack("<6h", *bounds)
-    replacements = {b"EDID": b"CMS_ChainMorningstar\0", b"FULL": b"Chain Morningstar\0",
+    replacements = {b"EDID": b"CMS_ChainMorningstar\0", b"FULL": "チェーンドモーニングスター\0".encode("utf-8"),
                     b"MODL": MODEL, b"OBND": bound_bytes,
                     b"WNAM": struct.pack("<I", FIRST_PERSON_ID),
                     b"DATA": struct.pack("<IfH", 550, 17.0, 44)}
