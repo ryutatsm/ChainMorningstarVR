@@ -30,13 +30,24 @@ CID scans Data\*_CID.ini files. The target is Eorlund's merchant chest base cont
 item is resolved by the weapon's EditorID.
 
 ## xEdit build stage
-Copy these files into the xEdit/SSEEdit installation's Edit Scripts folder:
+Use current xEdit in Skyrim VR mode. Recommended: xEdit 4.1.5f or later.
+Correct VR mode is selected by either renaming the executable to TES5VREdit.exe or launching
+xEdit with -TES5VR. The first startup/log line must identify TES5VREdit / Skyrim VR mode.
+
+Before building, make sure no existing ChainMorningstarVR.esp is present in the active Data path.
+Back up and remove/rename any old file with that exact name so AddNewFileName can create a clean plugin.
+
+Copy these files into the xEdit installation's Edit Scripts folder:
 
 - Build_ChainMorningstarVR.pas
 - Validate_ChainMorningstarVR.pas
 
-Run Build_ChainMorningstarVR with Skyrim.esm loaded. Save ChainMorningstarVR.esp.
-Then run Validate_ChainMorningstarVR and xEdit Check for Errors.
+For the build pass, load only Skyrim.esm. The build script reads SteelMace [00013988] directly and
+does not need any other mod loaded. Run Build_ChainMorningstarVR and save ChainMorningstarVR.esp.
+
+For the validation pass, restart TES5VREdit and select only ChainMorningstarVR.esp; xEdit will
+automatically select Skyrim.esm because it is the plugin's required master. Then run
+Validate_ChainMorningstarVR and xEdit Check for Errors.
 
 Required validator result:
 - WEAP CMS_ChainMorningstar
