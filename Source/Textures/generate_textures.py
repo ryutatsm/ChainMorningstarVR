@@ -79,4 +79,5 @@ leather[:,:,2]=12+12*height_l+2*wear
 save_rgb(leather,'cms_leather_d.png')
 Image.fromarray(normal_from_height(height_l,4.8),'RGB').save(OUT/'cms_leather_n.png')
 
-print('CMS_TEXTURE_SOURCE_OK', OUT)\n# CI verification branch marker.
+print('CMS_TEXTURE_SOURCE_OK', OUT)
+# CI verification branch marker.
