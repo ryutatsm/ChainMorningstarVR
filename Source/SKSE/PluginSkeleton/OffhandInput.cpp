@@ -1,6 +1,4 @@
 #include "OffhandInput.hpp"
-#include <array>
-#include <atomic>
 #include <chrono>
 #include <cstddef>
 
@@ -23,8 +21,7 @@ struct VRInterface {
 };
 static_assert(offsetof(VRInterface,registerController)==0x18);
 constexpr std::uint64_t gripMask=1ull<<2;
-std::array<std::atomic<std::uint64_t>,64> samples{};
-std::atomic<std::uint64_t> armState{};
+GripCaptureState capture;
 bool registered{};
 std::uint64_t nowMs() {
     return static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -40,15 +37,11 @@ std::uint32_t leftDevice() {
     return reinterpret_cast<Fn>(vtable[0x0D])(object,0);
 }
 void controller(std::uint32_t index,ControllerState* input,std::uint32_t size,bool& accepted) {
-    if (index>=samples.size()||!input||size<sizeof(ControllerState)) return;
-    const auto now=nowMs(),old=samples[index].load(),arm=armState.load();
+    if (!input||size<sizeof(ControllerState)) return;
     const bool down=accepted&&(input->pressed&gripMask)!=0;
-    const bool fresh=now-(old>>8)<150;
-    const bool armed=(arm&255)==index+1&&now-(arm>>8)<150;
     // Once claimed, consume only this grip until release, even if stretch or
     // obstruction made CMS let go. Never leak a mid-press into HIGGS two-hand.
-    const bool claimed=down&&((fresh&&(old&2)) || (armed&&!(old&1)));
-    samples[index].store((now<<8)|(down?1:0)|(claimed?2:0));
+    const bool claimed=capture.sample(index,down,nowMs());
     if (claimed) {input->pressed&=~gripMask;input->touched&=~gripMask;}
 }
 }
@@ -65,18 +58,13 @@ void RegisterOffhandInput(const SKSE::LoadInterface* skse) {
 }
 GripInput ReadLeftGrip() {
     if (!registered) return {};
-    const auto device=leftDevice();
-    if (device>=samples.size()) return {};
-    const auto value=samples[device].load();
-    return {value!=0&&nowMs()-(value>>8)<150,(value&1)!=0,(value&2)!=0};
+    return capture.read(leftDevice(),nowMs());
 }
 void ArmLeftGrip(bool arm) {
-    if (!registered||!arm) {armState.store(0);return;}
-    const auto device=leftDevice();
-    armState.store(device<samples.size() ? (nowMs()<<8)|(device+1) : 0);
+    if (!registered) {capture.reset();return;}
+    capture.arm(leftDevice(),arm,nowMs());
 }
 void ResetOffhandInput() {
-    armState.store(0);
-    for (auto& sample:samples) sample.fetch_and(~std::uint64_t{2});
+    capture.reset();
 }
 } // namespace cms::skyrimvr

@@ -25,6 +25,7 @@ constexpr BodyPart bodyParts[]={
 void SkyrimVRSceneBridge::resetPlayerInteraction() {
     ResetOffhandInput();offhandGrab_.reset();playerCapsules_.clear();
     playerBodyContacts_=0;reportedPlayerBody_=false;grabSamples_=bodyContactSamples_=0;
+    gripAttemptSamples_=0;gripWasDown_=false;
 }
 
 HeadHoldTarget SkyrimVRSceneBridge::updatePlayerInteraction(const HeadPose& head,Vec3 anchorM,float dt) {
@@ -65,9 +66,10 @@ HeadHoldTarget SkyrimVRSceneBridge::updatePlayerInteraction(const HeadPose& head
     }
 
     auto* hand=findUnder(sceneRoot_.get(),"NPC L Hand [LHnd]");
-    const bool freeHand=!isLeftHand_&&hand&&
-        !player->GetEquippedObject(InventoryLeftHand(true))&&
-        NativePhysicsBackend::GetSingleton().CanUseLeftHand();
+    const char* blocked=isLeftHand_?"weapon-in-left-hand":!hand?"left-hand-node-missing":
+        player->GetEquippedObject(InventoryLeftHand(true))?"left-hand-equipped":
+        NativePhysicsBackend::GetSingleton().LeftHandBlockReason();
+    const bool freeHand=blocked==nullptr;
     RigidTransform palm{};
     if (hand) {
         palm.translation=toCms(hand->world.translate)*kMetersPerSkyrimUnit;
@@ -88,6 +90,14 @@ HeadHoldTarget SkyrimVRSceneBridge::updatePlayerInteraction(const HeadPose& head
         palm,head.centerM,anchorM,radius,kStraightReachM,dt);
     const bool nearHead=freeHand&&isFinite(palm.translation)&&
         length(palm.translation-head.centerM)<=radius+.06f;
+    if(input.fresh&&input.down&&!gripWasDown_&&gripAttemptSamples_<16) {
+        ++gripAttemptSamples_;
+        SKSE::log::info("CMS offhand grip attempt: result={} reason={} distanceM={} captured={}",
+            hold.active?"held":"rejected",hold.active?"ready":blocked?blocked:
+            !nearHead?"outside-head-reach":!input.captured?"press-not-armed":"pose-or-chain-limit",
+            hand?length(palm.translation-head.centerM):-1.f,input.captured);
+    }
+    gripWasDown_=input.down;
     // Arm a fresh press only. Captured holds keep the grip until released.
     ArmLeftGrip(freeHand&&(hold.active||(nearHead&&!input.down)));
     if (wasHeld!=hold.active&&grabSamples_<12) {

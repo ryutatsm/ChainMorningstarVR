@@ -88,6 +88,8 @@ private:
     float playerBodyDt_{1.0f/90.0f};
     bool reportedPlayerBody_{};
     unsigned grabSamples_{}, bodyContactSamples_{};
+    unsigned gripAttemptSamples_{};
+    bool gripWasDown_{};
     std::uint64_t playerBodyContacts_{};
 };
 

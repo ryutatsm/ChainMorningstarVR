@@ -1,53 +1,35 @@
-# ChainMorningstarVR — audited baseline
+# ChainMorningstarVR — current audited baseline
 
-This is the independent ChainMorningstarVR project. Do not mix historical
-symptoms or assets from the earlier ChainedMorningstarVR implementation into its
-runtime evidence. User-provided unmodified vanilla records in ReferenceBundle
-are primary inputs, not an older mod implementation.
-
+This is the independent ChainMorningstarVR project. Do not mix runtime evidence
+or assets from the older ChainedMorningstarVR project.
 Audited main: `0777e257d64fcab908df03ff94e7a9af4ff1a0ee` (2026-10-06).
-Current work: `astra/zero-base-audit-v050`, 0.6.0 physics test.
+Current work: `astra/zero-base-audit-v050`, 1.0.0-rc1. Main remains unchanged.
 
-## Requirements
+One-hand mace: damage44, weight17, value550; Japanese name
+「チェーンドモーニングスター」; Eorlund sale; physical chain without chain damage;
+actual head/spike contact; one unbiased 1/3 draw for the corresponding worn
+enemy headgear/weapon instance on each eligible distinct contact episode.
 
-Skyrim VR; one-hand mace; damage44, weight17, value550; Eorlund sale; faithful
-reference appearance; physical chain with chain sounds; head/spike actual
-contact damage; enemy head/weapon contact drops the corresponding equipment
-with 1/3 probability per distinct impact.
+## Current geometry and physics
 
-## Current geometry contract
+- Approved design scaled to 75%, then five links added: 19 total.
+- Handle42cm; first-to-last link-centre span87.230769cm; spacing4.846154cm.
+- Core diameter24cm; spike envelope radius18cm; anchor-to-head reach104.105769cm.
+- VRIK/body scale applies in addition to these authored dimensions.
+- Fourteen spike directions plus core yield 15 convex collision hulls.
+- Curved emblem, dark supplied material processing, native blood surfaces retained.
+- 12kg head, 90Hz solver; swept non-damaging chain capsules; eleven VRIK body capsules.
+- Two fixed endpoints while the empty physical left hand holds the right-hand ball.
+- Chain contacts are one-way, without link-to-link collisions or closed-loop wrapping.
 
-- Handle56cm; 14 links; first-to-last link-centre span84cm.
-- Iron core diameter32cm; spike tips at radius24cm.
-- Head centre straight reach from anchor106.5cm.
-- Fourteen spike directions shared by mesh/core; 24cm envelope is broadphase,
-  never a substitute for actual narrowphase shape.
-- The supplied diamond emblem is mapped once across a curved plaque with shallow
-  image-correlated relief. Its front follows the ball curvature; the backing is
-  embedded in the ball. Supplied material images are processed per part.
-- These are authored dimensions retained from the audited source. The supplied
-  image has no physical scale ruler, so exact real-world scale cannot be derived
-  from it alone. In-game size still requires user visual verification.
+## Evidence and constraints
 
-## Evidence boundaries
+User reports and received logs through 0.9.0 establish working observations,
+not blanket proof of every gate or of the new candidate. See
+RELEASE_STATUS_100_RC1.md and RUNTIME_EVIDENCE_100_RC1.json for exact boundaries.
+RELEASE_GATE_NEW_BUILD.md is unchanged; pending observations remain pending.
 
-Earlier CI passes establish only earlier commits' build status. Earlier target
-logs mentioned in the handoff were not attached in this turn and are not proof
-of this build's runtime behavior. The audited source at `4639e0cc` passed Windows
-DLL and asset builds (runs `37420567376`, `37420567388`). The 0.5.2 contour revision
-at `da283957c76f4f1c2a0a2539d1ecb7f9ada8fad8` also passed Windows DLL and asset
-builds (runs `37425555050`, `37425555046`). The approved 0.5.3 appearance is retained. The 0.6.0 native physics revision
-must pass the same gates at its own commit. No in-game pass is claimed.
-Local portable core tests, source-schema audit and generated asset checks are
-recorded separately from runtime gates.
-
-The former native-proxy-test mode is removed. A plausible read-only layout or
-PLANCK version cannot authorize native writes. See NATIVE_BRIDGE_AUDIT_20261006.md
-for the replacement design and source audit. The 0.6.0 implementation uses the
-HIGGS API body, exact head compound, contact feedback and instance-aware drops;
-see PHYSICS_TEST_060.md for remaining runtime gates.
-
-The redundant Conan workflow was retired after its JFrog package host returned
-an HTML landing page instead of Conan API JSON. The pinned vcpkg Windows build
-remains the supported compile gate; this was a dependency-service failure,
-not a successful second build.
+The obsolete native-proxy-test mode remains removed. No PlayerCharacter
+collision-node writes are permitted. The HIGGS-owned head compound, certified
+contact router and synchronous exact-instance inventory removal remain in place.
+Source/dependency revisions and complete output hashes accompany every package.

@@ -10,7 +10,7 @@ $documents = [Environment]::GetFolderPath('MyDocuments')
 $logRoot = Join-Path $documents 'My Games\Skyrim VR'
 $logFiles = @('SKSE\ChainMorningstarVR.log', 'SKSE\sksevr.log', 'SKSE\higgs_vr.log', 'SKSE\activeragdoll.log', 'Logs\Script\Papyrus.0.log')
 $report = [System.Collections.Generic.List[string]]::new()
-$report.Add('ChainMorningstarVR 0.6.0 physics-test feedback')
+$report.Add('ChainMorningstarVR feedback (version read from the collected log)')
 $report.Add("Collected: $timestamp")
 foreach ($relative in $logFiles) {
     $source = Join-Path $logRoot $relative
@@ -19,6 +19,44 @@ foreach ($relative in $logFiles) {
         $report.Add("LOG FOUND: $relative")
     } else { $report.Add("LOG MISSING: $relative") }
 }
+$cmsLog = Join-Path $stage 'ChainMorningstarVR.log'
+$summary = [ordered]@{
+    cms_log_present = (Test-Path -LiteralPath $cmsLog -PathType Leaf)
+    cms_version = $null
+    evidence_scope = 'Counts are sampled log entries, not complete event totals. Zero means not observed; it is not proof of failure or success.'
+    warning_or_error_lines = 0
+    native_head_attachments = 0
+    player_body_contact_entries = 0
+    offhand_held_entries = 0
+    offhand_released_entries = 0
+    offhand_rejected_reasons = [ordered]@{}
+    certified_contact_outcomes = [ordered]@{}
+    equipment_drop_references = 0
+    release_gates_passed = $false
+}
+if ($summary.cms_log_present) {
+    $cmsText = [IO.File]::ReadAllText($cmsLog)
+    $versions = [regex]::Matches($cmsText, 'ChainMorningstarVR ([0-9][^\s]*) loading:')
+    if ($versions.Count) { $summary.cms_version = $versions[$versions.Count - 1].Groups[1].Value }
+    $summary.warning_or_error_lines = [regex]::Matches($cmsText, '\[(warn|warning|error|critical)\]').Count
+    $summary.native_head_attachments = [regex]::Matches($cmsText, 'Native head attached:').Count
+    $summary.player_body_contact_entries = [regex]::Matches($cmsText, 'CMS player-body chain contact:').Count
+    $summary.offhand_held_entries = [regex]::Matches($cmsText, 'CMS offhand head grip: held\b').Count
+    $summary.offhand_released_entries = [regex]::Matches($cmsText, 'CMS offhand head grip: released\b').Count
+    $summary.equipment_drop_references = [regex]::Matches($cmsText, 'CMS equipment drop: actor=[0-9A-Fa-f]+, item=[0-9A-Fa-f]+, reference=[0-9A-Fa-f]+,').Count
+    foreach ($match in [regex]::Matches($cmsText, 'CMS offhand grip attempt: result=rejected reason=([^\s]+)')) {
+        $key = $match.Groups[1].Value
+        if (-not $summary.offhand_rejected_reasons.Contains($key)) { $summary.offhand_rejected_reasons[$key] = 0 }
+        $summary.offhand_rejected_reasons[$key]++
+    }
+    foreach ($match in [regex]::Matches($cmsText, 'CMS certified contact:[^\r\n]*outcome=([^\s]+)')) {
+        $key = $match.Groups[1].Value
+        if (-not $summary.certified_contact_outcomes.Contains($key)) { $summary.certified_contact_outcomes[$key] = 0 }
+        $summary.certified_contact_outcomes[$key]++
+    }
+}
+$report.Add("CMS version in log: $($summary.cms_version)")
+$summary | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $stage 'runtime_summary.json') -Encoding UTF8
 if ($GameDirectory) {
     $files = @('SkyrimVR.exe', 'Data\ChainMorningstarVR.esp', 'Data\SKSE\Plugins\ChainMorningstarVR.dll', 'Data\meshes\weapons\ChainMorningstarVR\ChainMorningstar.nif')
     foreach ($relative in $files) {

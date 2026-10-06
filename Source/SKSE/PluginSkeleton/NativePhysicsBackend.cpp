@@ -346,9 +346,15 @@ NativeHeadSnapshot NativePhysicsBackend::Snapshot() const {
 bool NativePhysicsBackend::Available() const {
     auto& s=state();std::lock_guard lock(s.stateMutex);return s.api!=nullptr;
 }
-bool NativePhysicsBackend::CanUseLeftHand() const {
+const char* NativePhysicsBackend::LeftHandBlockReason() const {
     auto& s=state();std::lock_guard lock(s.stateMutex);
-    return s.active&&!s.left&&s.api&&!s.api->IsDisabled(true)&&
-        !s.api->IsHoldingObject(true)&&!s.api->IsTwoHanding()&&s.api->CanGrabObject(true);
+    if(!s.active||s.left||!s.api)return "right-weapon-backend-unavailable";
+    if(s.api->IsDisabled(true))return "higgs-hand-disabled";
+    if(s.api->IsHoldingObject(true))return "higgs-holding-object";
+    if(s.api->IsTwoHanding())return "higgs-two-handing";
+    // The public API does not distinguish SelectedTwoHand from pulling and
+    // pending grabs. Do not guess that every non-held hand is free.
+    if(!s.api->CanGrabObject(true))return "higgs-not-grabbable";
+    return nullptr;
 }
 } // namespace cms::skyrimvr

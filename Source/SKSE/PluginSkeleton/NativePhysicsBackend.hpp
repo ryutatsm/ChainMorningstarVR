@@ -35,7 +35,8 @@ public:
                             std::vector<ChainLinkContact>& contacts);
     [[nodiscard]] NativeHeadSnapshot Snapshot() const;
     [[nodiscard]] bool Available() const;
-    [[nodiscard]] bool CanUseLeftHand() const;
+    // Null means available. Static text explains a conservative busy rejection.
+    [[nodiscard]] const char* LeftHandBlockReason() const;
 };
 
 }  // namespace cms::skyrimvr

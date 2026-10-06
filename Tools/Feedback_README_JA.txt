@@ -1,18 +1,18 @@
-ChainMorningstarVR 0.6.0 ログ収集ツール 修正版r2
+ChainMorningstarVR ログ収集ツール
 
-このZIPは好きなフォルダーへ解凍して使います。MOD本体の再インストールは不要です。
-
-1. Skyrim VRを終了します。テスト後は、ログ収集が終わるまで再起動しないでください。
-2. ZIPを「すべて展開」で解凍します。CMDとPS1は同じフォルダーに置いてください。
-3. 解凍先のCollect_CMS_Logs.cmdをダブルクリックします。
+1. Skyrim VRを終了します。収集が終わるまでゲームを再起動しないでください。
+2. このZIPを「すべて展開」で解凍します。CMDとPS1は同じフォルダーに置きます。
+3. Collect_CMS_Logs.cmdをダブルクリックします。管理者権限は不要です。
 4. Created: ...CMS-feedback-日時.zip と表示されたら完了です。
-5. 同じフォルダーにできたCMS-feedback-日時.zipを会話へ添付してください。
+5. 同じフォルダーにできたZIPと、確認した動作・問題を会話へ添付してください。
 
-修正内容：起動時の保存先引数に末尾の引用符が混入し、
-「New-Item：パスに無効な文字が含まれています」となる問題を修正しました。
-ゲームデータとセーブは変更しません。管理者として実行する必要はありません。
+ゲームとセーブは変更しません。ログをコピーしてZIPにまとめます。
+collection.txtには収集状況、runtime_summary.jsonにはログ内の実際のMODバージョン、
+左手保持・拒否理由、装備落下などの記録を集計します。
+ゼロは「記録を見つけていない」という意味です。正常動作や故障の確定ではありません。
+記録は回数制限があるため、集計は実際の全発生回数ではありません。
 
-まだエラーが出る場合は、その画面を送ってください。
-手動でログを取り出す場合は、Windowsキー+Rで shell:Personal を開き、
-My Games → Skyrim VR → SKSE にあるChainMorningstarVR.logを添付してください。
+エラーが出た場合は、その画面を送ってください。
+手動で取り出すなら、Windowsキー+Rで shell:Personal を開き、
+My Games → Skyrim VR → SKSE のChainMorningstarVR.logを添付してください。
 見つかればsksevr.log、higgs_vr.log、activeragdoll.logも添付してください。

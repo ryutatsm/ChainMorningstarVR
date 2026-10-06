@@ -1,47 +1,37 @@
 # ChainMorningstarVR
 
-Skyrim VR chain morningstar, under development. Audited against main commit
-`0777e257d64fcab908df03ff94e7a9af4ff1a0ee` on 2026-10-06.
+**チェーンドモーニングスター — 1.0.0-rc1, Vortex-installable release candidate.**
+Skyrim VR 1.4.15 / SKSEVR 2.0.12; requires HIGGS and PLANCK, with VRIK for
+non-damaging player-body chain contacts. One-hand mace: damage44, weight17, value550.
 
-**0.9.0 player interaction revision: Vortex-installable development build.**
-The user reported 0.8.1 working. Its feedback logs accepted both impact sound
-layers on nine logged impacts. This version adds the Japanese display name
-「チェーンドモーニングスター」, an upright inventory marker, left-grip holding of
-the ball while the right hand equips the weapon, and non-damaging chain contact
-with capsules following the visible VRIK body. See
-[player interaction notes](Docs/PLAYER_INTERACTION_090.md) for ownership,
-input, collision approximations and target checks.
+The approved dark reference model is scaled to 75% with 19 physical links,
+a heavy 12kg head, spatial metal impacts, curved emblem and native blood surfaces.
+The inventory preview is upright and the weapon name is Japanese. The free left
+hand can request a ball hold while the right hand equips the weapon. Certified
+head/equipped-weapon impacts feed one unbiased 1/3 exact-instance equipment-drop draw.
 
-The user reported 0.7.0 working normally. Version 0.8.0 scales the approved
-model, node offsets, collision hulls and simulation dimensions to 75%, then
-adds five matching links (14 → 19). Every link uses the existing non-damaging
-swept capsule contacts. The 12 kg head and dark material finish are retained.
-Head impacts play the paired metal cues separately from chain rattles.
-Two initially hidden native blood passes follow the actual ball, spikes and
-curved emblem; the game's weapon-blood processing controls their display.
-See [the implementation and validation notes](Docs/SIZE_CHAIN_BLOOD_080.md).
-The [0.6.1 attachment fix](Docs/ATTACHMENT_FIX_061.md) remains in place.
-The HIGGS weapon body follows the simulated iron head using the NIF's actual
-15 convex collision hulls. Native head contacts feed back into the chain solver.
-Certified enemy head or equipped-weapon contacts enter a single 1/3 drop draw;
-weapon meshes without usable CPU geometry are conservatively skipped.
-Windows compilation and portable tests do not establish in-game compatibility.
-There are no registered chain rigid bodies, link-to-link collisions or closed-loop
-wrapping constraints. Equipping two copies at once is unsupported. The free left
-hand can hold the ball of the right-hand weapon. Body contact requires VRIK and
-uses anatomical capsules rather than exact clothing geometry. The new 0.9.0
-features require target-machine verification; see the installation guide.
+The user reported 0.9.0 working. Its supplied logs confirm native head attachment
+and player-body chain contacts; actual offhand holds and equipment-drop references
+were not recorded. This candidate fixes a controller-input teardown race and adds
+bounded grip diagnostics and runtime evidence summaries. It is not a declaration
+that all in-game release gates passed. HIGGS own-weapon selection can conservatively
+block offhand capture; see the release status for this unresolved compatibility item.
 
-The current appearance revision curves the emblem plaque around the iron ball
-and uses the supplied texture images for the corresponding weapon parts.
-Preview renders show the generated model; Skyrim VR lighting remains unverified.
-
-- [Audit and implementation status](Docs/AUDIT_20261006_JA.md)
-- [Build and target-test status](Docs/INSTALL_VR.md)
+- [日本語の導入・更新・操作](Docs/INSTALL_VR.md)
+- [最終確認票](Docs/FINAL_CHECK_JA.txt)
+- [Candidate changes, evidence and remaining gates](Docs/RELEASE_STATUS_100_RC1.md)
 - [Required release gates](Docs/RELEASE_GATE_NEW_BUILD.md)
-- [Native physics backend design](Docs/NATIVE_BRIDGE_AUDIT_20261006.md)
+- [Current geometry and project baseline](Docs/PROJECT_BASELINE.md)
+- [Native physics design](Docs/NATIVE_BRIDGE_AUDIT_20261006.md)
 - [Equipment-drop integration](Docs/EQUIPMENT_DROP_INTEGRATION.md)
 
-Do not install historical packages or enable the removed `native-proxy-test`
-experiment based on an older handoff. The source tree is authoritative; unused
-embedded source ZIPs were removed.
+Build using `Source/SKSE/PluginSkeleton` preset `vr-physics-test` (name retained for
+compatibility). Pinned Windows workflows build the DLL and actual NIF/DDS assets
+from one commit. `Tools/package_visual_test.py` verifies paired provenance and
+creates the candidate ZIP and feedback tools. Portable behavior tests run in CI.
+
+Only one weapon is simulated at a time. Chain contacts bend/slide without pushing
+the other body, self-collision or wrapping constraints. Body contacts use anatomical
+capsules. Weapon meshes without usable CPU geometry are conservatively skipped.
+Historical `ChainedMorningstarVR` packages and the removed native-proxy experiment
+are not this project. The working branch does not merge or replace main.

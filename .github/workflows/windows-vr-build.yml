@@ -105,21 +105,23 @@ jobs:
           cmake --version
           ninja --version
 
-      - name: Configure physics test build
+      - name: Configure release candidate
         working-directory: ${{ env.PLUGIN_SRC }}
         run: cmake --preset vr-physics-test
 
-      - name: Compile physics test DLL
+      - name: Compile release candidate DLL
         working-directory: ${{ env.PLUGIN_SRC }}
         run: cmake --build --preset vr-physics-test
 
-      - name: Stage physics test DLL and checksum
+      - name: Stage release candidate DLL and checksum
         id: stage
         run: |
           $projectText = Get-Content "$env:PLUGIN_SRC\CMakeLists.txt" -Raw
           $versionMatch = [regex]::Match($projectText, 'project\(ChainMorningstarVR VERSION ([0-9.]+)')
           if (-not $versionMatch.Success) { throw "CMake version missing" }
-          $cmsVersion = $versionMatch.Groups[1].Value
+          $labelMatch = [regex]::Match($projectText, 'set\(CMS_BUILD_LABEL "\$\{PROJECT_VERSION\}(-[a-z0-9]+)"\)')
+          if (-not $labelMatch.Success) { throw "CMake build label missing" }
+          $cmsVersion = $versionMatch.Groups[1].Value + $labelMatch.Groups[1].Value
           "version=$cmsVersion" >> $env:GITHUB_OUTPUT
           $builtDll = Get-ChildItem "$env:PLUGIN_SRC\build\vr-physics-test" -Recurse -Filter ChainMorningstarVR.dll | Select-Object -First 1
           if (-not $builtDll) { throw "Physics test ChainMorningstarVR.dll not found" }
@@ -152,20 +154,22 @@ jobs:
           ConvertTo-Json -InputObject @($thirdPartyHashes) -Depth 3 |
             Set-Content "$env:GITHUB_WORKSPACE\ci-artifact\DLL_THIRD_PARTY_SHA256.json"
           @"
-          ChainMorningstarVR $cmsVersion physics test -- NOT A RELEASE
+          ChainMorningstarVR $cmsVersion release candidate -- RUNTIME GATES PENDING
           Commit: $env:GITHUB_SHA
           HIGGS head-compound collision and solver contact feedback are connected.
           Enemy head/weapon contacts feed the one-in-three worn-instance drop policy.
           Requires HIGGS >= 1.6.0; PLANCK supplies NPC physics and melee damage.
           Chain links use swept capsule queries against world and NPC bodies without attack bodies or damage.
           Chain response is one-way: links bend and slide but do not push objects/NPCs.
-          Version 0.9.0 adds Japanese naming, upright inventory preview, offhand ball holding and VRIK body chain contacts.
-          The user reported 0.8.0 working but its impact audio was hard to hear; the new mix needs in-game listening.
+          Retains Japanese naming, upright inventory preview, offhand ball holding and VRIK body chain contacts.
+          Input reset is serialized against controller polling; grip rejection reasons are logged.
+          User reported 0.9.0 working; its logs confirm native head attachment and player-body chain contacts.
+          Actual offhand holds and equipment-drop references were not present in that feedback.
           "@ | Set-Content "$env:GITHUB_WORKSPACE\ci-artifact\BUILD_STATUS.txt"
 
-      - name: Upload physics test artifact
+      - name: Upload release candidate artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ChainMorningstarVR-v${{ steps.stage.outputs.version }}-physics-test-dll
+          name: ChainMorningstarVR-v${{ steps.stage.outputs.version }}-dll
           path: ci-artifact
           if-no-files-found: error

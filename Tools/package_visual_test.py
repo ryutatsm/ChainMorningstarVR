@@ -1,4 +1,4 @@
-"""Package one matched Windows physics test build; in-game behavior is unverified."""
+"""Package a matched Windows release candidate with explicit runtime evidence limits."""
 from pathlib import Path, PurePosixPath
 import argparse
 import hashlib
@@ -107,7 +107,13 @@ def main():
     args = parser.parse_args()
     require(re.fullmatch(r'[0-9a-f]{40}', args.commit), 'A full lowercase source commit is required')
     cmake = (ROOT / 'Source/SKSE/PluginSkeleton/CMakeLists.txt').read_text()
-    version = re.search(r'project\(ChainMorningstarVR VERSION ([0-9.]+)', cmake).group(1)
+    project_version = re.search(r'project\(ChainMorningstarVR VERSION ([0-9.]+)', cmake).group(1)
+    suffix = re.search(r'set\(CMS_BUILD_LABEL \"\$\{PROJECT_VERSION\}(-[a-z0-9]+)\"\)', cmake).group(1)
+    version = project_version + suffix
+    require(subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip() == args.commit,
+            'Package commit differs from current checkout')
+    require(not subprocess.check_output(['git', 'status', '--porcelain', '--untracked-files=no'], cwd=ROOT),
+            'Tracked source files must be committed before packaging')
     require(args.version is None or args.version == version, '--version differs from the CMake project')
     win, assets = args.windows_dir, args.windows_dir / 'assets'
     asset_provenance = read_json(assets / 'ASSET_BUILD_PROVENANCE.json')
@@ -119,7 +125,7 @@ def main():
         require(sha((assets / path).read_bytes()) == expected, f'Windows asset hash mismatch: {relative}')
     dll_status = (win / 'BUILD_STATUS.txt').read_text(encoding='utf-8-sig')
     require(f'Commit: {args.commit}' in dll_status and f' {version} ' in dll_status, 'Windows DLL commit/version mismatch')
-    require('physics test -- NOT A RELEASE' in dll_status, 'DLL artifact is not the physics test build')
+    require('release candidate -- RUNTIME GATES PENDING' in dll_status, 'DLL artifact is not the release candidate')
     dll_sources = read_json(win / 'DLL_SOURCE_SHA256.json')
     dll_records = {item['path']: item['sha256'] for item in dll_sources}
     dll_root = ROOT / 'Source/SKSE'
@@ -188,7 +194,7 @@ def main():
     require({p.lower() for p in vanilla} == VANILLA_TEXTURES, 'Missing vanilla blood material dependencies')
     materials = read_json(assets / TEXTURE_DIR / 'material_generation.json')
     provenance = {
-        'version': f'{version}-physics-test', 'source_commit': args.commit,
+        'version': version, 'release_channel': 'candidate', 'source_commit': args.commit,
         'repository': 'https://github.com/ryutatsm/ChainMorningstarVR',
         'windows_dll_run': args.dll_run, 'windows_asset_run': args.asset_run,
         'windows_dll_artifact': args.dll_artifact, 'windows_asset_artifact': args.asset_artifact,
@@ -196,7 +202,9 @@ def main():
                                 'third_party_files': third_party_source_count,
                                 'native_contact_planes_match_nif_input': True,
                                 'text_line_endings': 'LF/CRLF normalized; binary input hashes exact'},
-        'in_game_validated': False, 'native_head_contacts': True, 'equipment_drop_connected': True,
+        'in_game_validated': False,
+        'runtime_evidence': read_json(ROOT / 'Docs/RUNTIME_EVIDENCE_100_RC1.json'),
+        'native_head_contacts': True, 'equipment_drop_connected': True,
         'chain_link_registered_bodies': False,
         'chain_link_collision_queries': {'enabled': True, 'shape': 'swept capsule per link',
             'registered_attack_bodies': False, 'damage': False, 'equipment_drop': False,
@@ -215,7 +223,7 @@ def main():
             {'impact_data': 'Skyrim.esm:0004BB53', 'name': 'WPNBluntVsMetalImpact',
              'selection': 'sound1, fallback sound2', 'volume': '0.48 + 0.18 * intensity'}],
             'overlapping_impact_pairs': 4, 'minimum_impulse_kg_mps': 3.0, 'cooldown_s': .22},
-        'physics_status': 'implemented test paths; Windows build validation is not in-game proof',
+        'physics_status': 'release candidate; see bundled release status for pending target checks',
         'runtime_requirements': {'Skyrim VR': '1.4.15.0', 'SKSEVR': '2.0.12',
                                  'HIGGS': '1.6.0 or newer (interface001)',
                                  'PLANCK': 'required for NPC physical contacts and melee damage'},
@@ -224,91 +232,12 @@ def main():
         'custom_texture_count': len(custom), 'vanilla_texture_dependencies': sorted(vanilla),
         'files': {name: {'bytes': len(data), 'sha256': sha(data)} for name, data in files.items()},
     }
-    readme = f'''ChainMorningstarVR {version} — 物理・装備落下のテスト版
-ソース: {args.commit}
-
-0.9.0変更:
-・表示名を「チェーンドモーニングスター」に変更。
-・商人／持ち物画面で、鉄球が上・柄が下になる縦向きの表示設定を追加。
-・右手に装備し、空の左手を鉄球へ近づけてグリップを押すと保持。離すと放す。
-・VRIKの胴・腕・脚・頭に追従する近似形状に、鎖が接触して曲がる処理を追加。
-
-0.8.1から継続: 衝突音を別の音へ変更。
-汎用の重金属音を、大型金属の衝突音＋鈍器で金属を叩く音の組み合わせに変更。
-大型金属音を主にし、金属の打撃音を控えめに重ねます。
-各音の準備・位置・音量・再生の受付結果をログへ記録します。
-0.8.1は正常に動作したと思うとの報告を受けています。今回の追加機能は実機確認が必要です。
-
-0.8.0から継続: 柄・鎖・鉄球・棘・紋章と当たり判定を従来の75％へ縮小。
-鎖は5個追加して14→19個。同じ大きさ・間隔・物理と接触処理を追加分にも適用。
-鉄球が物体や人にぶつかると標準の重金属衝突音を再生。鎖音とは別の音です。
-鉄球・棘・紋章の表面に沿った血メッシュを追加。ゲーム標準の武器流血で表示されます。
-血が出ない接触、鎖だけの接触、壁への衝突から独自に血を生成する処理はありません。
-鎖だけの接触はダメージも装備落下の抽選も発生させません。
-鉄球の12kg設定、低反発・減衰と、0.7.0の黒い素材・凹凸・曲面紋章を維持。
-同じ75％サイズの14リンク版より鎖が約24.2cm長くなります（VRIK等の倍率適用前）。
-
-最新の0.8.1ログでは9回の衝突について2種類の音の準備・位置・音量・再生受付が成功しています。
-鉄球と棘の複合衝突形状をHIGGSの武器剛体へ設定し、物理ステップ直前に実位置へ
-反映します。接触情報を鎖のシミュレーションへ戻す処理を接続しました。
-敵の頭部／装備中の武器への確認済み接触から、対応する装備を1/3の確率で
-外して落とす処理を接続しています。接触が続く間の重複抽選を抑制します。
-鎖は接触に合わせて曲がり、滑る方式です。鎖から物体やNPCを押す力は加えません。
-鎖の輪は穴を埋めたカプセル近似で、リンク同士の衝突や物体への巻き付け拘束はありません。
-
-球面に沿った紋章と、提供画像から加工した各部位の材質を引き継いでいます。
-片手メイス、攻撃44・重量17・価値550。エオルンドの商品追加を実装。
-
-対象: Skyrim VR 1.4.15.0 / SKSEVR 2.0.12。
-物理機能にはHIGGS 1.6.0以上、NPCとの物理接触とダメージにはPLANCKが必要です。
-自分の人体への鎖衝突にはVRIKの表示スケルトンが必要です。
-依存MODが不足した状態は、物理機能の動作確認にはなりません。
-通常プレイと別のMODマネージャープロファイルで旧版を無効化してから、
-このZIPをVortex/MO2でインストールし、ChainMorningstarVR.espを有効にします。
-同名の古いDLL/NIF/テクスチャを混ぜず、SKSEVRで起動してください。
-エオルンドが販売します。コンソールで取得する場合は player.additem XX000800 1。
-XXはVortexのプラグイン画面にあるChainMorningstarVR.espのロード順（16進2桁）です。
-
-片手だけに1本を装備し、右手と左手をそれぞれ確認してください。両手同時の2本は未対応。
-まず抜刀し、その場で腕だけを15秒動かして柄の追従と鎖の揺れを確認します。
-次に床・壁で鉄球が止まるか、敵の胴への命中で装備が落ちないか、頭／装備武器への
-独立した命中でのみ該当装備が落ちるかを確認します。1/3は各独立接触の確率で、
-3回ごとに必ず1回という意味ではありません。武器の空白部分への近接は命中に含めません。
-装備解除、メニュー、ロード、セル移動後に古い接触が再利用されないことも確認します。
-攻撃力やNPCの衝突はPLANCKの設定にも影響されます。
-
-今回の重点確認:
-1. 商人／持ち物画面で日本語名と、鉄球が上・柄が下の表示を確認。
-2. 右手に装備し、左手は武器・盾・魔法・つかんだ物を外して空にする。
-3. 左手を鉄球に触れる位置まで近づけ、左グリップを押したまま動かす。
-4. 鉄球が左手に保持され、鎖が両手の間で垂れることを確認。グリップを離すと放す。
-5. 鎖の長さを超えて両手を離した場合や追跡が飛んだ場合は保持を解除する。
-   再びつかむには一度グリップを離して押し直す。壁に当たった鉄球は壁の外側を優先。
-6. VRIKの胴・腕・太ももへ鎖だけを当て、曲がり、離すと戻ることを確認。
-   人体との衝突は骨に追従するカプセル近似で、服や鎧の表面との完全一致ではない。
-7. 保持中のメニュー・納刀・ロード後、鉄球が手に固定されたまま残らないことを確認。
-
-継続確認:
-1. 装備して75％の大きさと19個の鎖を確認。追加分まで揺れ、球につながるか確認。
-2. 鉄球側の追加した鎖も机の縁・壁・敵の腕へ当て、曲がって離れるか確認。
-3. 鎖だけではダメージ・装備落下が起きないことを確認。
-4. 鉄球を壁・床・物体・敵に当て、重い金属音が鳴るか確認。床に置いた状態では連打しないこと。
-5. 敵への命中で血が出た後、球・棘・紋章に血が沿い、球の動きに追従するか確認。
-6. 血のない新品で壁へ当て、血が出ないことを確認。流血オフ設定では血は表示されません。
-7. 解除・再装備・メニュー・ロード・セル移動で動作と音に異常が出ないか確認。
-ログの CMS offhand head grip: held/released が保持、playerBodyContacts が人体接触の目印です。
-Chain collision queries active と chainContacts は従来の物体・NPCとの鎖処理の目印です。
-
-確認結果とログは別添 ChainMorningstarVR-{version}-feedback-tools.zip で収集できます。
-ゲーム終了後、解凍した Collect_CMS_Logs.cmd を実行してください。
-
-Windows DLLとNIF/DDSは上記コミットのCI成果物を使用。
-ESPはユーザー提供の原本を検証して生成。全ファイルのSHA-256は同梱。
-Windows DLL CI: https://github.com/ryutatsm/ChainMorningstarVR/actions/runs/{args.dll_run}
-Windows NIF CI: https://github.com/ryutatsm/ChainMorningstarVR/actions/runs/{args.asset_run}
-'''
+    readme = (ROOT / 'Docs/INSTALL_VR.md').read_text(encoding='utf-8')
+    readme += f'\nソース: {args.commit}\nWindows DLL CI: https://github.com/ryutatsm/ChainMorningstarVR/actions/runs/{args.dll_run}\nWindows NIF CI: https://github.com/ryutatsm/ChainMorningstarVR/actions/runs/{args.asset_run}\n'
     game_file_count = len(files)
-    files['README_Physics_Test_JA.txt'] = readme.encode('utf-8-sig')
+    files['README_JA.txt'] = readme.encode('utf-8-sig')
+    files['FINAL_CHECK_JA.txt'] = (ROOT / 'Docs/FINAL_CHECK_JA.txt').read_text(encoding='utf-8').encode('utf-8-sig')
+    files['RELEASE_STATUS.md'] = (ROOT / 'Docs/RELEASE_STATUS_100_RC1.md').read_bytes()
     files['LICENSES/HIGGS_GPL-3.0.txt'] = (ROOT / 'Source/ThirdParty/HIGGS/LICENSE').read_bytes()
     files['THIRD_PARTY_NOTICES.txt'] = (
         'HIGGS interface declarations and documented native integration are adapted from HIGGS by adamhynek.\n'
@@ -319,7 +248,7 @@ Windows NIF CI: https://github.com/ryutatsm/ChainMorningstarVR/actions/runs/{arg
     files['BUILD_PROVENANCE.json'] = (json.dumps(provenance, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
     files['SHA256SUMS.txt'] = ''.join(f'{sha(data)}  {name}\n' for name, data in sorted(files.items())).encode('utf-8')
     args.out.mkdir(parents=True, exist_ok=True)
-    archive = args.out / f'ChainMorningstarVR-{version}-physics-test.zip'
+    archive = args.out / f'ChainMorningstarVR-{version}.zip'
     write_zip(archive, files)
     feedback = args.out / f'ChainMorningstarVR-{version}-feedback-tools.zip'
     feedback_files = {name: (ROOT / 'Tools' / name).read_bytes() for name in ['Collect_CMS_Logs.cmd', 'Collect_CMS_Logs.ps1']}

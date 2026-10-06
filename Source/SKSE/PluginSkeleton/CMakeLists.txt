@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(ChainMorningstarVR VERSION 0.9.0 LANGUAGES CXX)
+project(ChainMorningstarVR VERSION 1.0.0 LANGUAGES CXX)
+set(CMS_BUILD_LABEL "${PROJECT_VERSION}-rc1")
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -22,6 +23,7 @@ add_commonlibsse_plugin(${PROJECT_NAME}
         OffhandInput.cpp
         OffhandInput.hpp
         ../OffhandGrabCore.hpp
+        ../GripCaptureCore.hpp
         ../PlayerBodyCollisionCore.hpp
         RuntimeService.cpp
         RuntimeService.hpp
@@ -66,7 +68,7 @@ target_precompile_headers(${PROJECT_NAME}
         PCH.h
 )
 
-target_compile_definitions(${PROJECT_NAME} PRIVATE CMS_VERSION_STRING="0.9.0-physics-test")
+target_compile_definitions(${PROJECT_NAME} PRIVATE CMS_VERSION_STRING="${CMS_BUILD_LABEL}")
 if(CMS_ENABLE_READONLY_VRMELEE_PROBE)
     target_compile_definitions(${PROJECT_NAME} PRIVATE CMS_ENABLE_READONLY_VRMELEE_PROBE=1)
 else()
