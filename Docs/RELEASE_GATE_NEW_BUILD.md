@@ -12,6 +12,9 @@ A release archive must pass all checks below on the target Skyrim VR installatio
 - Damage 44.
 - Weight 17.
 - Value 550.
+- Model path is `weapons\\ChainMorningstarVR\\ChainMorningstar.nif`.
+- Eorlund Gray-Mane vendor path is `MerchantWhiterunEorlundChest [CONT:0010FDE6]`, count 1.
+- Generated ESP passes `Validate_ChainMorningstarVR.pas` and xEdit `Check for Errors`.
 
 ## Visual/NIF
 - Correct ~2x blueprint scale.
@@ -21,6 +24,8 @@ A release archive must pass all checks below on the target Skyrim VR installatio
 - 32 cm iron core and 8 cm spikes.
 - CMS_ChainAnchor, CMS_LinkNode_00..13, CMS_HeadNode survive NIF round-trip.
 - Metal diffuse/normal/specular/environment maps resolve and no purple textures.
+- Seven authored DDS files are 1024x1024 DXT5 with 11 mip levels and pass decode-check.
+- Normal-map alpha is authored per material (not opaque 255) to avoid plastic/wet specular response.
 - Iron ball reads as rough forged steel, not smooth plastic.
 
 ## Physics/runtime
@@ -40,6 +45,11 @@ A release archive must pass all checks below on the target Skyrim VR installatio
 - Save/load, death/reload, fast travel and cell transition without stale-node CTD.
 - Ten-minute combat stress test without progressive frame-time loss or leaked nodes.
 - Vortex install/deploy/purge/redeploy leaves no orphan files.
+
+## Compatibility / packaging
+- The release archive is self-contained: ESP + SKSE DLL + NIF + seven DDS textures.
+- `Animated chains reupload` is not a dependency and requires no Vortex ordering rule against this mod.
+- Merchant-chest conflicts are checked specifically on `MerchantWhiterunEorlundChest [0010FDE6]`.
 
 ## Evidence rule
 A regression check is added only when the problem is reproduced by THIS repository.
