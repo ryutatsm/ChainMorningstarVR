@@ -7,3 +7,5 @@ namespace cms::skyrimvr {
 bool EnsureEorlundSellsChainMorningstar();
 
 } // namespace cms::skyrimvr
+
+// verification-only branch marker
