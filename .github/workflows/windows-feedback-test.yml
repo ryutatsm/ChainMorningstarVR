@@ -1,0 +1,29 @@
+name: Windows feedback collector regression
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "Tools/Collect_CMS_Logs.*"
+      - "Tools/Feedback_README_JA.txt"
+      - "Tests/test_feedback_collector.ps1"
+      - ".github/workflows/windows-feedback-test.yml"
+  pull_request:
+    paths:
+      - "Tools/Collect_CMS_Logs.*"
+      - "Tools/Feedback_README_JA.txt"
+      - "Tests/test_feedback_collector.ps1"
+      - ".github/workflows/windows-feedback-test.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  collector:
+    runs-on: windows-2022
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exercise CMD launcher with Windows PowerShell 5.1
+        shell: pwsh
+        run: ./Tests/test_feedback_collector.ps1
