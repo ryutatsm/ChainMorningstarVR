@@ -479,47 +479,73 @@ float SkyrimVRSceneBridge::consumeWorldContactImpulse() { return 0.0f; }
 void SkyrimVRSceneBridge::playChainSound(float intensity, bool heavyImpact)
 {
     if (!head_ || !currentHandStillOwnsAnchor() || !std::isfinite(intensity) || intensity <= 0.0f) return;
-    RE::BGSSoundDescriptorForm* descriptor = nullptr;
+    intensity = std::clamp(intensity, 0.0f, 1.0f);
+    struct Layer {
+        RE::BGSSoundDescriptorForm* descriptor{};
+        const char* name{};
+        float volume{};
+    };
+    std::array<Layer, 2> layers{};
+    const std::size_t layerCount = heavyImpact ? 2 : 1;
     if (heavyImpact) {
-        // User's Skyrim.esm: MaterialHeavyMetal -> PHYGenericMetalHeavyImpactSet
-        // -> IPCT 0005CEFB, NAM1 (loud) 0005CEF9 / SNAM (quiet) 0005CEFA.
-        // Read the resolved record to respect sound replacers. HIGGS uses this
-        // same loud/quiet physics-impact convention (pinned hand.cpp).
-        if (auto* impact = RE::TESForm::LookupByID<RE::BGSImpactData>(0x0005CEFB))
-            descriptor = impact->sound2 ? impact->sound2 : impact->sound1;
+        // 0.8.0 logs accept PHYGenericMetalHeavy at full volume but the user
+        // cannot distinguish it. Use two DIFFERENT cues, grounded in the user's
+        // Skyrim.esm records: large metal body (loud NAM1 0009150C) and blunt
+        // metal strike (SNAM 0003C826). Only descriptors are played: no impact
+        // effect, sparks, damage or world object is spawned by this audio path.
+        layers[0] = {nullptr, "large-metal-body", .75f + .25f * intensity};
+        layers[1] = {nullptr, "blunt-metal-strike", .48f + .18f * intensity};
+        if (auto* impact = RE::TESForm::LookupByID<RE::BGSImpactData>(0x0009150E))
+            layers[0].descriptor = impact->sound2 ? impact->sound2 : impact->sound1;
+        if (auto* impact = RE::TESForm::LookupByID<RE::BGSImpactData>(0x0004BB53))
+            layers[1].descriptor = impact->sound1 ? impact->sound1 : impact->sound2;
     } else {
         // PHYChainSD selects from four native chain samples.
-        descriptor = RE::TESForm::LookupByID<RE::BGSSoundDescriptorForm>(0x0003D128);
+        layers[0] = {RE::TESForm::LookupByID<RE::BGSSoundDescriptorForm>(0x0003D128), "chain", intensity};
     }
     auto* audio = RE::BSAudioManager::GetSingleton();
-    if (!descriptor || !audio) {
-        auto& warned = heavyImpact ? warnedImpactSound_ : warnedChainSound_;
-        if (!warned) {
-            SKSE::log::warn("ChainMorningstarVR: native {} sound or audio manager unavailable",
-                heavyImpact ? "heavy-metal impact" : "chain");
-            warned = true;
-        }
+    auto& warned = heavyImpact ? warnedImpactSound_ : warnedChainSound_;
+    if (!audio) {
+        if (!warned) SKSE::log::warn("ChainMorningstarVR: audio manager unavailable");
+        warned = true;
         return;
     }
 
-    // Bound overlapping one-shots, and stop them explicitly on unequip/load.
-    // Separate pools: fast rattles must not cut off an iron impact's decay.
-    auto& pool = heavyImpact ? impactSounds_ : chainSounds_;
+    // Four paired impacts can decay independently of the four chain rattles.
+    // An absent/failed layer still occupies its slot, preserving pair lifetime.
+    // Release stops every handle on unequip, load, pause or teleport.
+    auto* pool = heavyImpact ? impactSounds_.data() : chainSounds_.data();
+    const auto poolSize = heavyImpact ? impactSounds_.size() : chainSounds_.size();
     auto& cursor = heavyImpact ? nextImpactSound_ : nextChainSound_;
-    auto& sound = pool[cursor];
-    cursor = (cursor + 1) % pool.size();
-    if (sound.soundID != RE::BSSoundHandle::kInvalidID) sound.Stop();
-    sound = RE::BSSoundHandle{};
-    if (!audio->BuildSoundDataFromDescriptor(sound, descriptor, 0x10) ||
-        sound.soundID == RE::BSSoundHandle::kInvalidID) return;
-    sound.SetPosition(head_->world.translate);
-    if (!heavyImpact) sound.SetObjectToFollow(head_.get());
-    sound.SetVolume(std::clamp(intensity, 0.0f, 1.0f));
-    const bool played = sound.Play();
-    if (heavyImpact && impactSoundSamples_ < 3) {
-        ++impactSoundSamples_;
-        SKSE::log::info("ChainMorningstarVR: heavy-metal impact sound descriptor={:08X} intensity={:.3f} playAccepted={}",
-            descriptor->GetFormID(), intensity, played);
+    const bool logImpact = heavyImpact && impactSoundSamples_ < 3;
+    if (logImpact) ++impactSoundSamples_;
+    const auto position = head_->world.translate;
+    for (std::size_t i = 0; i < layerCount; ++i) {
+        const auto& layer = layers[i];
+        auto& sound = pool[cursor];
+        cursor = (cursor + 1) % poolSize;
+        if (sound.soundID != RE::BSSoundHandle::kInvalidID) sound.Stop();
+        sound = RE::BSSoundHandle{};
+        const bool built = layer.descriptor &&
+            audio->BuildSoundDataFromDescriptor(sound, layer.descriptor, 0x10) &&
+            sound.soundID != RE::BSSoundHandle::kInvalidID;
+        bool positioned = false, volumeSet = false, played = false;
+        if (built) {
+            positioned = sound.SetPosition(position);
+            if (!heavyImpact) sound.SetObjectToFollow(head_.get());
+            volumeSet = sound.SetVolume(layer.volume);
+            played = sound.Play();
+        }
+        if ((!built || !positioned || !volumeSet || !played) && !warned) {
+            SKSE::log::warn("ChainMorningstarVR: sound request incomplete layer={} build={} position={} volume={} play={}",
+                layer.name, built, positioned, volumeSet, played);
+            warned = true;
+        }
+        if (logImpact) {
+            SKSE::log::info("ChainMorningstarVR: heavy-metal impact layer={} descriptor={:08X} volume={:.3f} buildAccepted={} positionAccepted={} volumeAccepted={} playAccepted={}",
+                layer.name, layer.descriptor ? layer.descriptor->GetFormID() : 0,
+                layer.volume, built, positioned, volumeSet, played);
+        }
     }
 }
 

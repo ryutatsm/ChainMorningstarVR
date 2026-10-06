@@ -3,12 +3,17 @@
 Skyrim VR chain morningstar, under development. Audited against main commit
 `0777e257d64fcab908df03ff94e7a9af4ff1a0ee` on 2026-10-06.
 
-**0.8.0 size/chain/impact/blood test: Vortex-installable development build.**
+**0.8.1 impact-audio revision: Vortex-installable development build.**
+The user reported 0.8.0 working but its heavy metal cue was hard to hear, despite
+nine accepted playback requests at near-full volume in the feedback log.
+Version 0.8.1 replaces that cue with a dominant large-metal-body impact plus a
+quieter blunt-metal-strike layer. See [audio notes](Docs/IMPACT_AUDIO_081.md).
+
 The user reported 0.7.0 working normally. Version 0.8.0 scales the approved
 model, node offsets, collision hulls and simulation dimensions to 75%, then
 adds five matching links (14 → 19). Every link uses the existing non-damaging
 swept capsule contacts. The 12 kg head and dark material finish are retained.
-Head impacts play Skyrim's heavy-metal sound separately from chain rattles.
+Head impacts play the paired metal cues separately from chain rattles.
 Two initially hidden native blood passes follow the actual ball, spikes and
 curved emblem; the game's weapon-blood processing controls their display.
 See [the implementation and validation notes](Docs/SIZE_CHAIN_BLOOD_080.md).
@@ -20,7 +25,7 @@ weapon meshes without usable CPU geometry are conservatively skipped.
 Windows compilation and portable tests do not establish in-game compatibility.
 There are no registered chain rigid bodies, self-collisions or closed-loop
 wrapping constraints. Both-hands-at-once use is unsupported. See the installation
-guide for requirements and test limits. The new 0.8.0 behavior needs in-game testing.
+guide for requirements and test limits. The new 0.8.1 mix needs in-game listening.
 
 The current appearance revision curves the emblem plaque around the iron ball
 and uses the supplied texture images for the corresponding weapon parts.

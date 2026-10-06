@@ -199,8 +199,12 @@ def main():
             'response': 'one-way: chain bends/slides; no force applied to objects or NPCs'},
         'head_motion': {'mass_kg': 12, 'damping_per_90hz': .990, 'restitution': .025},
         'dimensions': geometry['dimensions'], 'weapon_blood': geometry['blood'],
-        'head_impact_sound': {'impact_data': 'Skyrim.esm:0005CEFB', 'name': 'PHYGenericMetalHeavyImpact',
-            'selection': 'sound2 (loud), fallback sound1', 'minimum_impulse_kg_mps': 3.0, 'cooldown_s': .22},
+        'head_impact_sound': {'layers': [
+            {'impact_data': 'Skyrim.esm:0009150E', 'name': 'PHYBodyMetalLargeImpact',
+             'selection': 'sound2 (loud), fallback sound1', 'volume': '0.75 + 0.25 * intensity'},
+            {'impact_data': 'Skyrim.esm:0004BB53', 'name': 'WPNBluntVsMetalImpact',
+             'selection': 'sound1, fallback sound2', 'volume': '0.48 + 0.18 * intensity'}],
+            'overlapping_impact_pairs': 4, 'minimum_impulse_kg_mps': 3.0, 'cooldown_s': .22},
         'physics_status': 'implemented test paths; Windows build validation is not in-game proof',
         'runtime_requirements': {'Skyrim VR': '1.4.15.0', 'SKSEVR': '2.0.12',
                                  'HIGGS': '1.6.0 or newer (interface001)',
@@ -213,7 +217,13 @@ def main():
     readme = f'''ChainMorningstarVR {version} — 物理・装備落下のテスト版
 ソース: {args.commit}
 
-0.8.0変更: 柄・鎖・鉄球・棘・紋章と当たり判定を従来の75％へ縮小。
+0.8.1変更: 衝突音を別の音へ変更。
+汎用の重金属音を、大型金属の衝突音＋鈍器で金属を叩く音の組み合わせに変更。
+大型金属音を主にし、金属の打撃音を控えめに重ねます。
+各音の準備・位置・音量・再生の受付結果をログへ記録します。
+新しい音の聞こえ方は実機未確認です。ゲームの音量・サウンド置換MODも影響します。
+
+0.8.0から継続: 柄・鎖・鉄球・棘・紋章と当たり判定を従来の75％へ縮小。
 鎖は5個追加して14→19個。同じ大きさ・間隔・物理と接触処理を追加分にも適用。
 鉄球が物体や人にぶつかると標準の重金属衝突音を再生。鎖音とは別の音です。
 鉄球・棘・紋章の表面に沿った血メッシュを追加。ゲーム標準の武器流血で表示されます。
@@ -222,8 +232,8 @@ def main():
 鉄球の12kg設定、低反発・減衰と、0.7.0の黒い素材・凹凸・曲面紋章を維持。
 同じ75％サイズの14リンク版より鎖が約24.2cm長くなります（VRIK等の倍率適用前）。
 
-0.7.0についてユーザーから正常動作の報告があります。
-0.8.0の追加機能と戦闘・安定性は実機未確認です。正式リリースではありません。
+0.8.0について正常に動いたと思うが金属音が聞こえづらい、との報告を受けています。
+今回のログで衝突音の再生受付成功9件を確認。0.8.1は音を差し替えたテスト版です。
 鉄球と棘の複合衝突形状をHIGGSの武器剛体へ設定し、物理ステップ直前に実位置へ
 反映します。接触情報を鎖のシミュレーションへ戻す処理を接続しました。
 敵の頭部／装備中の武器への確認済み接触から、対応する装備を1/3の確率で
@@ -252,6 +262,10 @@ FormID先頭はロード順で変わります。
 攻撃力やNPCの衝突はPLANCKの設定にも影響されます。
 
 今回の重点確認:
+最初に鉄球を硬い床・壁・物体に当て、0.8.0より金属音が明確になったか確認。
+床に置いたまま連打せず、鎖だけの接触では鉄球の衝突音が鳴らないことも確認。
+
+継続確認:
 1. 装備して75％の大きさと19個の鎖を確認。追加分まで揺れ、球につながるか確認。
 2. 鉄球側の追加した鎖も机の縁・壁・敵の腕へ当て、曲がって離れるか確認。
 3. 鎖だけではダメージ・装備落下が起きないことを確認。

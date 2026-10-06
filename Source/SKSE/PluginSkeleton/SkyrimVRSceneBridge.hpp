@@ -74,7 +74,8 @@ private:
     std::uintptr_t ownerPlayerAddress_{};
     std::uintptr_t ownerCellAddress_{};
     std::array<RE::BSSoundHandle, 4> chainSounds_{};
-    std::array<RE::BSSoundHandle, 4> impactSounds_{};
+    // Four overlapping impacts, each with a body and a metal-strike layer.
+    std::array<RE::BSSoundHandle, 8> impactSounds_{};
     std::size_t nextChainSound_{};
     std::size_t nextImpactSound_{};
     unsigned impactSoundSamples_{};
