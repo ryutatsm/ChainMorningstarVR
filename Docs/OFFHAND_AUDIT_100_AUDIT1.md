@@ -107,3 +107,23 @@ presence is not evidence of a conflict. No other mod settings were changed.
 
 The old release-gate document remains required. This investigation neither
 certifies the pending equipment-drop observations nor runs xEdit or the game.
+
+## Build verification record
+
+Windows runtime source commit: `d285f2bf3b01d3dede52e2d3172b6cec9aac57e7`.
+The follow-up audit tightens only the portable floor test and this record;
+no DLL source is changed. The slack-chain floor case fails when floor feedback
+is deliberately removed, and passes with feedback, so chain tension alone
+cannot produce a false pass.
+
+- [Windows DLL build](https://github.com/ryutatsm/ChainMorningstarVR/actions/runs/37502503343): passed; no C++ compiler warnings/errors found in the build log.
+- [Windows collector regression](https://github.com/ryutatsm/ChainMorningstarVR/actions/runs/37502503255): passed, including legacy unknown reasons and new durations.
+- [Portable core tests](https://github.com/ryutatsm/ChainMorningstarVR/actions/runs/37502502959): passed.
+- [Vendor contract](https://github.com/ryutatsm/ChainMorningstarVR/actions/runs/37502503177): passed.
+- [NIF/textures build](https://github.com/ryutatsm/ChainMorningstarVR/actions/runs/37502502969): passed.
+- Downloaded DLL artifact `11430327011`: archive SHA-256 `12f50297a35e90c8cbbd9e917dca370876be499a323230da4e8fc26b78810a41`.
+- DLL: 675840 bytes, SHA-256 `83c1c8b4fe081c72369c0705506869010b9c2d5ac142b3d71f8707c2a430c422`.
+- Verified CRC, x64 PE header, investigation version/status, all 49 runtime-source hashes and third-party hashes against the checkout.
+
+**Release remains blocked.** These results do not replace the target-machine
+continuous-hold and release-reason evidence described above.

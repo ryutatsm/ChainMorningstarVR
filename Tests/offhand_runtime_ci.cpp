@@ -136,6 +136,12 @@ int main() {
     for(int i=0;i<100;++i)bridge.tick(driver,.02f,false);
     bridge.approach(driver,.02f);bridge.tick(driver,.02f,true);
     assert(bridge.grab.held());
+    // Put slack in the chain so reach projection cannot impersonate a floor.
+    for(int i=0;i<15;++i) {
+        bridge.palm.translation.z+=.02f;
+        bridge.tick(driver,.02f,true);
+        assert(bridge.grab.held());
+    }
     const float restingZ=bridge.native.centerM.z;
     bridge.floor=true;bridge.floorZ=restingZ-kHeadBroadphaseRadiusM*bridge.scale;
     bridge.body=true;
@@ -145,6 +151,7 @@ int main() {
         assert(bridge.grab.held());
         assert(bridge.native.centerM.z>=restingZ-1e-4f);
     }
+    assert(bridge.hold.positionM.z<restingZ-.01f); // hand actually pushes below the floor
     assert(bridge.chainContacts>0);
     // A long polling outage really releases; normal stable input did not.
     bridge.poll=false;
