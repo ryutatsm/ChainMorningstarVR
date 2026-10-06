@@ -45,15 +45,15 @@ begin
     Fail('FULL name mismatch.');
     Exit;
   end;
-  if GetElementEditValues(WeaponRec, 'DATA\Damage') <> '44' then begin
+  if GetElementNativeValues(WeaponRec, 'DATA\Damage') <> 44 then begin
     Fail('Damage is not 44.');
     Exit;
   end;
-  if Abs(StrToFloat(GetElementEditValues(WeaponRec, 'DATA\Weight')) - 17.0) > 0.001 then begin
+  if Abs(GetElementNativeValues(WeaponRec, 'DATA\Weight') - 17.0) > 0.001 then begin
     Fail('Weight is not 17.');
     Exit;
   end;
-  if GetElementEditValues(WeaponRec, 'DATA\Value') <> '550' then begin
+  if GetElementNativeValues(WeaponRec, 'DATA\Value') <> 550 then begin
     Fail('Value is not 550.');
     Exit;
   end;
