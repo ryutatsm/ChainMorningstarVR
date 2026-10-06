@@ -41,11 +41,21 @@ private:
     bool currentHandStillOwnsAnchor() const;
     void playChainSound(float intensity);
 
-    RE::NiPointer<RE::NiAVObject> meleeRoot_{};
+    RE::NiPointer<RE::NiAVObject> sceneRoot_{};
+    RE::NiPointer<RE::NiAVObject> weaponSlot_{};
+    RE::NiPointer<RE::NiAVObject> weaponRoot_{};
     RE::NiPointer<RE::NiAVObject> anchor_{};
     std::array<RE::NiPointer<RE::NiAVObject>,14> links_{};
     RE::NiPointer<RE::NiAVObject> head_{};
     bool isLeftHand_{};
+    bool inventoryLeft_{};
+    bool firstPerson_{};
+    bool acquiredLeftMode_{};
+    std::uint32_t lastAcquireFailure_{};
+    float diagnosticsTime_{};
+    unsigned diagnosticSamples_{};
+    Vec3 diagnosticAnchor_{};
+    float diagnosticMaxTravelM_{};
     std::uint64_t nativeGeneration_{};
     bool nativePrepared_{};
     std::uint8_t nativePrepareRetries_{};

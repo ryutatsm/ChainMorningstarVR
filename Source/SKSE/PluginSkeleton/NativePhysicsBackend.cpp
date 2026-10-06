@@ -5,6 +5,7 @@
 #include "NativeContactRouter.hpp"
 #include "NativeWorldSweep.hpp"
 #include "PlanckBuildProbe.hpp"
+#include "PlayerUpdateHook.hpp"
 #include "../../ThirdParty/HIGGS/HiggsInterface001.hpp"
 #include <SKSE/SKSE.h>
 #include <atomic>
@@ -239,7 +240,7 @@ bool NativePhysicsBackend::Initialize() {
     auto& s=state();std::lock_guard lock(s.stateMutex);if(s.api)return true;
     if(!REL::Module::IsVR()||REL::Module::get().version()!=REL::Version{1,4,15,0})return false;
     if(!GetDetectedPlanckBuildNumber()) {
-        SKSE::log::warn("Native physics unavailable: PLANCK API missing; visual chain remains available");return false;
+        SKSE::log::warn("Native physics unavailable: PLANCK API missing; CMS simulation will not start");return false;
     }
     struct Message {void*(*getAPI)(unsigned int){};} message;
     auto* messaging=SKSE::GetMessagingInterface();
@@ -249,15 +250,17 @@ bool NativePhysicsBackend::Initialize() {
     auto* api=static_cast<cms::higgs::IHiggsInterface001*>(message.getAPI(1));
     if(!api||api->GetBuildNumber()<1060000){SKSE::log::warn("Native physics requires HIGGS 1.6.0 or newer");return false;}
     s.api=api;s.api->AddPrePhysicsStepCallback(prePhysics);
+    RegisterHiggsFrameUpdate(*api);
     SKSE::log::info("Native physics HIGGS API registered; build={}",api->GetBuildNumber());return true;
 }
 bool NativePhysicsBackend::BeginSession(RE::NiAVObject* node,bool left,std::uint64_t generation) {
     EndSession();auto& s=state();std::lock_guard lock(s.stateMutex);
-    if(!s.api||!node||!generation||!node->collisionObject)return false;
+    if(!s.api||!node||!generation)return false;
+    if(!node->collisionObject) {SKSE::log::warn("Native head unavailable: equipped CMS_ROOT has no root collision; verify 0.6.1 NIF deployment");return false;}
     auto* collision=node->collisionObject->AsBhkNiCollisionObject();
     auto* sourceBody=collision&&collision->body?collision->body->AsBhkRigidBody():nullptr;
     auto* native=havokBody(sourceBody);auto* source=native?native->collidable.shape:nullptr;
-    if(!source||!source->userData||source->type!=RE::hkpShapeType::kList) {SKSE::log::warn("Native head unavailable: CMS_HeadNode has no list collision shape");return false;}
+    if(!source||!source->userData||source->type!=RE::hkpShapeType::kList) {SKSE::log::warn("Native head unavailable: CMS_ROOT has no list collision shape");return false;}
     const auto* list=static_cast<const RE::hkpListShape*>(source);
     if(list->childInfo.size()!=15 || list->numDisabledChildren!=0)return false;
     for(const auto& child:list->childInfo)if(!child.shape||child.shape->type!=RE::hkpShapeType::kConvexVertices)return false;

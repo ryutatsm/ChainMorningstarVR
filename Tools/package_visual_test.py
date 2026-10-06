@@ -192,6 +192,9 @@ def main():
     readme = f'''ChainMorningstarVR {version} — 物理・装備落下のテスト版
 ソース: {args.commit}
 
+0.6.1修正: 足元固定の原因となるPrn欠落、武器ノード取得先、衝突ルートを修正。
+手の位置が決まった後のHIGGS/VRIKコールバックで鎖を更新します。
+
 Skyrim VR実機での起動・戦闘・安定性は未確認です。正式リリースではありません。
 鉄球と棘の複合衝突形状をHIGGSの武器剛体へ設定し、物理ステップ直前に実位置へ
 反映します。接触情報を鎖のシミュレーションへ戻す処理を接続しました。
@@ -212,7 +215,8 @@ Skyrim VR実機での起動・戦闘・安定性は未確認です。正式リ�
 FormID先頭はロード順で変わります。
 
 片手だけに1本を装備し、右手と左手をそれぞれ確認してください。両手同時の2本は未対応。
-床・壁で鉄球が止まるか、敵の胴への命中で装備が落ちないか、頭／装備武器への
+まず抜刀し、その場で腕だけを15秒動かして柄の追従と鎖の揺れを確認します。
+次に床・壁で鉄球が止まるか、敵の胴への命中で装備が落ちないか、頭／装備武器への
 独立した命中でのみ該当装備が落ちるかを確認します。1/3は各独立接触の確率で、
 3回ごとに必ず1回という意味ではありません。武器の空白部分への近接は命中に含めません。
 装備解除、メニュー、ロード、セル移動後に古い接触が再利用されないことも確認します。
@@ -242,7 +246,7 @@ Windows NIF CI: https://github.com/ryutatsm/ChainMorningstarVR/actions/runs/{arg
     write_zip(archive, files)
     feedback = args.out / f'ChainMorningstarVR-{version}-feedback-tools.zip'
     feedback_files = {name: (ROOT / 'Tools' / name).read_bytes() for name in ['Collect_CMS_Logs.cmd', 'Collect_CMS_Logs.ps1']}
-    feedback_files['README_JA.txt'] = 'ゲーム終了後に解凍したCollect_CMS_Logs.cmdを実行。ゲームデータとセーブは変更しません。\n'.encode('utf-8-sig')
+    feedback_files['README_JA.txt'] = (ROOT / 'Tools/Feedback_README_JA.txt').read_text(encoding='utf-8-sig').encode('utf-8-sig')
     write_zip(feedback, feedback_files)
     print(json.dumps({'archive': str(archive), 'bytes': archive.stat().st_size,
                       'sha256': sha(archive.read_bytes()), 'game_files': game_file_count,

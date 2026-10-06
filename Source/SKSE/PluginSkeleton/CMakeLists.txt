@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(ChainMorningstarVR VERSION 0.6.0 LANGUAGES CXX)
+project(ChainMorningstarVR VERSION 0.6.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -37,6 +37,8 @@ add_commonlibsse_plugin(${PROJECT_NAME}
         WeaponMeshContact.cpp
         WeaponMeshContact.hpp
         ../ContactEpisodeCore.hpp
+        ../EquippedSceneCore.hpp
+        VRFrameContext.hpp
         ../HeadContactPlanes.hpp
         ../WeaponMeshContactCore.hpp
         ../../ThirdParty/HIGGS/HiggsInterface001.hpp
@@ -56,7 +58,7 @@ target_precompile_headers(${PROJECT_NAME}
         PCH.h
 )
 
-target_compile_definitions(${PROJECT_NAME} PRIVATE CMS_VERSION_STRING="0.6.0-physics-test")
+target_compile_definitions(${PROJECT_NAME} PRIVATE CMS_VERSION_STRING="0.6.1-physics-test")
 if(CMS_ENABLE_READONLY_VRMELEE_PROBE)
     target_compile_definitions(${PROJECT_NAME} PRIVATE CMS_ENABLE_READONLY_VRMELEE_PROBE=1)
 else()

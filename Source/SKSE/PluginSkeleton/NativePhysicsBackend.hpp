@@ -26,7 +26,7 @@ class NativePhysicsBackend {
 public:
     static NativePhysicsBackend& GetSingleton();
     bool Initialize();  // SKSE PostPostLoad, after HIGGS's PostLoad API registration.
-    bool BeginSession(RE::NiAVObject* headNode, bool leftHand, std::uint64_t generation);
+    bool BeginSession(RE::NiAVObject* weaponRoot, bool leftHand, std::uint64_t generation);
     void EndSession();
     void SubmitPose(const HeadPose& pose, float frameDeltaS);
     std::vector<HeadWorldContact> ConsumeContacts();

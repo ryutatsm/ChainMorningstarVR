@@ -29,8 +29,13 @@ int main(int argc,char**argv) try {
         else{require(parent<i,"invalid node parent");n=nif.AddNode(name,x,nodes[parent]);}
         n->flags=14;nodes.push_back(n);
     }
-    auto bsx=std::make_unique<BSXFlags>();bsx->name.get()="BSX";bsx->integerData=BSX_HAVOK|BSX_NEEDS_TRANSFORM_UPDATES;
+    auto bsx=std::make_unique<BSXFlags>();bsx->name.get()="BSX";
+    bsx->integerData=BSX_HAVOK|BSX_DYNAMIC|BSX_ARTICULATED|BSX_NEEDS_TRANSFORM_UPDATES;
     nif.AssignExtraData(root,std::move(bsx));
+    // Vanilla iron/steel mace root metadata. Without Prn the engine may attach
+    // the equipped model at the player root (feet), never the weapon hand.
+    auto prn=std::make_unique<NiStringExtraData>();prn->name.get()="Prn";prn->stringData.get()="WeaponMace";
+    nif.AssignExtraData(root,std::move(prn));
     uint64_t totalVerts=0,totalTriangles=0;
     for(int i=0;i<nmesh;i++){
         std::string name;int parent,mat;size_t nv,nt;in>>name>>parent>>mat>>nv>>nt;
@@ -71,23 +76,41 @@ int main(int argc,char**argv) try {
         HavokFilter f;f.layer=5;list->filters.push_back(f);
     }
     require(bool(in),"truncated hulls");
-    auto body=std::make_unique<bhkRigidBody>();body->shapeRef.index=hdr.AddBlock(std::move(list));
+    // The engine and HIGGS expect a body on the weapon ROOT. A transformed
+    // body keeps all fifteen hulls in head-local coordinates, with its authored
+    // offset at the iron ball. CMS clones the shape and drives it independently.
+    MatTransform headRest;require(nif.GetNodeTransformToGlobal("CMS_HeadNode",headRest),"missing head transform");
+    const Matrix3 expectedHeadRotation(1,0,0, 0,0,1, 0,-1,0);
+    for(int r=0;r<3;r++)for(int c=0;c<3;c++)
+        require(std::fabs(headRest.rotation[r][c]-expectedHeadRotation[r][c])<1e-5f,"unexpected head rest basis");
+    auto body=std::make_unique<bhkRigidBodyT>();body->shapeRef.index=hdr.AddBlock(std::move(list));
+    body->translation=Vector4(headRest.translation.x/SU,headRest.translation.y/SU,headRest.translation.z/SU,0);
+    body->rotation=QuaternionXYZW(-std::sqrt(.5f),0,0,std::sqrt(.5f));
     body->mass=8;body->friction=.74f;body->restitution=.08f;body->linearDamping=.12f;body->angularDamping=.2f;
     body->inertiaMatrix[0]=body->inertiaMatrix[5]=body->inertiaMatrix[10]=.4f*8*.16f*.16f;
     body->collisionFilter.layer=5;body->collisionFilterCopy=body->collisionFilter;
     body->broadPhaseType=1;body->motionSystem=2;body->qualityType=4;body->solverDeactivation=2;
     body->penetrationDepth=.01f;
-    auto collision=std::make_unique<bhkCollisionObject>();collision->flags=129;collision->targetRef.index=nif.GetBlockID(nodes[16]);collision->bodyRef.index=hdr.AddBlock(std::move(body));
-    nodes[16]->collisionRef.index=hdr.AddBlock(std::move(collision));
+    auto collision=std::make_unique<bhkCollisionObject>();collision->flags=129;collision->targetRef.index=nif.GetBlockID(root);collision->bodyRef.index=hdr.AddBlock(std::move(body));
+    root->collisionRef.index=hdr.AddBlock(std::move(collision));
     require(nif.Save(argv[2])==0,"NIF save failed");
     NifFile check;require(check.Load(argv[2])==0,"roundtrip load failed");require(check.IsSSECompatible()&&!check.HasUnknown(),"invalid Skyrim SE/VR NIF");
     auto*head=check.FindBlockByName<NiNode>("CMS_HeadNode");require(head,"lost head node");
-    auto*co=check.GetHeader().GetBlock<bhkCollisionObject>(head->collisionRef.index);require(co,"lost collision");
-    auto*rb=check.GetHeader().GetBlock<bhkRigidBody>(co->bodyRef.index);require(rb,"lost body");
+    unsigned prnCount=0;
+    for(auto* extra:check.GetChildren<NiStringExtraData>(check.GetRootNode(),true))
+        if(extra->name.get()=="Prn"){require(extra->stringData.get()=="WeaponMace","incorrect weapon attachment");++prnCount;}
+    require(prnCount==1,"missing/duplicate root Prn attachment");
+    require(head->collisionRef.index==0xFFFFFFFFu,"visual head must not own a competing native body");
+    auto*co=check.GetHeader().GetBlock<bhkCollisionObject>(check.GetRootNode()->collisionRef.index);require(co,"lost root collision");
+    require(co->targetRef.index==check.GetBlockID(check.GetRootNode()),"collision must target weapon root");
+    auto*rb=check.GetHeader().GetBlock<bhkRigidBodyT>(co->bodyRef.index);require(rb,"lost transformed root body");
+    require(std::fabs(rb->translation.y-headRest.translation.y/SU)<1e-5f&&
+        std::fabs(rb->rotation.x+std::sqrt(.5f))<1e-5f,"lost rest head collision transform");
     auto*cl=check.GetHeader().GetBlock<bhkListShape>(rb->shapeRef.index);require(cl&&cl->subShapeRefs.GetSize()==15,"lost compound hulls");
     require(check.GetShapes().size()==size_t(nmesh),"lost geometry");
     for(int i=0;i<14;i++){char name[40];snprintf(name,sizeof name,"CMS_LinkNode_%02d",i);auto*ln=check.FindBlockByName<NiNode>(name);require(ln,"lost chain node");}
     std::cout<<"NIF_ROUNDTRIP_PASS nodes="<<check.GetNodes().size()<<" meshes="<<check.GetShapes().size()<<" vertices="<<totalVerts<<" triangles="<<totalTriangles<<" convex_hulls=15\n";
+    std::cout<<"WEAPON_ATTACHMENT_PASS Prn=WeaponMace root_collision=bhkRigidBodyT head_local_hulls=15\n";
     std::cout<<"IN_GAME_VALIDATION_PENDING: NIF parsing proves file structure, not Skyrim runtime stability.\n";
     return 0;
 }catch(const std::exception&e){std::cerr<<"NIF_BUILD_FAIL: "<<e.what()<<'\n';return 1;}

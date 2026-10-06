@@ -1,4 +1,5 @@
 #include "EquipmentDrop.hpp"
+#include "VRFrameContext.hpp"
 
 #include <SKSE/SKSE.h>
 #include <cmath>
@@ -112,7 +113,7 @@ EquipmentDropResult TryDropForConfirmedImpact(const ConfirmedEquipmentImpact& re
     // weapon is equipped. The caller's source-body proof is still required.
     if (!player || !target || target.get() == player || !cmsWeapon ||
         evidence.sourceHand > 1 || request.sourceWeapon != cmsWeapon->GetFormID() ||
-        player->GetEquippedObject(evidence.sourceHand == 1) != cmsWeapon ||
+        player->GetEquippedObject(InventoryLeftHand(evidence.sourceHand == 1)) != cmsWeapon ||
         evidence.targetActor != target->GetFormID() || !finitePosition) {
         evidence.verifiedIronBallContact = false;
         result.decision = g_policy.evaluate(evidence, random);

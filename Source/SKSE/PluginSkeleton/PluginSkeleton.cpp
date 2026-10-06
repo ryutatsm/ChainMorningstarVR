@@ -3,7 +3,6 @@
 #include <spdlog/sinks/basic_file_sink.h>
 
 #include "RuntimeService.hpp"
-#include "PlayerUpdateHook.hpp"
 #include "PlanckBuildProbe.hpp"
 #include "EorlundVendor.hpp"
 #include "NativePhysicsBackend.hpp"
@@ -84,11 +83,6 @@ SKSEPluginLoad(const SKSE::LoadInterface* skse)
     SKSE::log::info(
         "ChainMorningstarVR {} loading: PHYSICS TEST; HIGGS head backend requested; equipment drop requires certified contact; in-game verification=PENDING; VRMeleeData probe={}",
         CMS_VERSION_STRING, probeMode);
-
-    if (!cms::skyrimvr::InstallPlayerUpdateHook()) {
-        SKSE::log::critical("PlayerCharacter VR Update hook installation failed.");
-        return false;
-    }
 
     const bool registered = messaging->RegisterListener(onSKSEMessage);
     SKSE::log::info("SKSE message listener registration: {}", registered ? "OK" : "FAILED");

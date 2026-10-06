@@ -1,46 +1,34 @@
 #include "PlayerUpdateHook.hpp"
-
+#include "RuntimeService.hpp"
+#include "VRFrameContext.hpp"
+#include "../../ThirdParty/HIGGS/HiggsInterface001.hpp"
+#include <SKSE/SKSE.h>
 #include <algorithm>
 #include <cmath>
-#include <cstdint>
-#include <RE/Skyrim.h>
-#include <SKSE/SKSE.h>
-
-#include "RuntimeService.hpp"
 
 namespace cms::skyrimvr {
 namespace {
-
-struct PlayerUpdateHook {
-    static void Thunk(RE::PlayerCharacter* self, float delta)
-    {
-        func(self, delta);
-        if (!std::isfinite(delta)) return;
-        const float safeDelta = std::clamp(delta, 0.0f, 0.100f);
-        RuntimeService::GetSingleton().tick(safeDelta);
-    }
-
-    static inline REL::Relocation<decltype(Thunk)> func;
-};
-
-} // namespace
-
-bool InstallPlayerUpdateHook()
+void AfterTrackedHandsUpdate()
 {
-    static bool installed = false;
-    if (installed) return true;
-    if (!REL::Module::IsVR()) {
-        SKSE::log::critical("ChainMorningstarVR: refused PlayerUpdate hook outside Skyrim VR");
-        return false;
+    static bool reported = false;
+    if (!reported) {
+        SKSE::log::info("CMS frame callback alive: post-VRIK/post-HIGGS");
+        reported = true;
     }
-
-    constexpr std::size_t kActorUpdateVRVtableSlot = 0x0AF;
-    REL::Relocation<std::uintptr_t> playerVtable{ RE::VTABLE_PlayerCharacter[0] };
-    PlayerUpdateHook::func = playerVtable.write_vfunc(kActorUpdateVRVtableSlot, PlayerUpdateHook::Thunk);
-    installed = true;
-    SKSE::log::info("ChainMorningstarVR: installed PlayerCharacter::Update VR frame hook at vtable slot 0x{:X}",
-                    kActorUpdateVRVtableSlot);
-    return true;
+    const float delta = VRFrameDelta();
+    if (std::isfinite(delta))
+        RuntimeService::GetSingleton().tick(std::clamp(delta, 0.0f, 0.100f));
+}
 }
 
+void RegisterHiggsFrameUpdate(cms::higgs::IHiggsInterface001& api)
+{
+    static bool registered = false;
+    if (registered) return;
+    // HIGGS hooks.cpp PostVRIKPCUpdateHook updates the skeleton and both
+    // hands before invoking this callback. No competing vtable patch.
+    api.AddPostVrikPostHiggsCallback(AfterTrackedHandsUpdate);
+    registered = true;
+    SKSE::log::info("CMS frame callback registered: post-VRIK/post-HIGGS");
+}
 } // namespace cms::skyrimvr

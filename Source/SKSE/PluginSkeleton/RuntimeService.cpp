@@ -6,7 +6,8 @@
 namespace cms::skyrimvr {
 
 RuntimeService::RuntimeService() : driver_(bridge_) {}
-RuntimeService& RuntimeService::GetSingleton() { static RuntimeService s; return s; }
+// Retained engine NiPointers must not destruct after the engine heap shuts down.
+RuntimeService& RuntimeService::GetSingleton() { static auto* s = new RuntimeService; return *s; }
 
 void RuntimeService::tick(float frameDt)
 {

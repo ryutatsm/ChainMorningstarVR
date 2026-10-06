@@ -3,7 +3,9 @@
 Skyrim VR chain morningstar, under development. Audited against main commit
 `0777e257d64fcab908df03ff94e7a9af4ff1a0ee` on 2026-10-06.
 
-**0.6.0 physics test: Vortex-installable development build.**
+**0.6.1 attachment/physics test: Vortex-installable development build.**
+The 0.6.1 build fixes missing Prn=WeaponMace, acquires the visible weapon slot,
+and updates after HIGGS/VRIK. See [the attachment audit](Docs/ATTACHMENT_FIX_061.md).
 The HIGGS weapon body follows the simulated iron head using the NIF's actual
 15 convex collision hulls. Native head contacts feed back into the chain solver.
 Certified enemy head or equipped-weapon contacts enter a single 1/3 drop draw;

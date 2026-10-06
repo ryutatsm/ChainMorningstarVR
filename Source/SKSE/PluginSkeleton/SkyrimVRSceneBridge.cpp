@@ -3,6 +3,8 @@
 #include "NativePhysicsBackend.hpp"
 #include "NativeContactRouter.hpp"
 #include "WeaponMeshContact.hpp"
+#include "VRFrameContext.hpp"
+#include "../EquippedSceneCore.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -158,30 +160,48 @@ bool SkyrimVRSceneBridge::reacquireWeaponNodes()
     releaseWeaponNodes();
     auto* player=RE::PlayerCharacter::GetSingleton();
     if (!player || !player->IsWeaponDrawn() || !player->GetParentCell()) return false;
-    auto* vr=player->GetVRNodeData();
-    if (!vr) return false;
-
-    struct Candidate { RE::NiAVObject* root; bool left; };
-    const Candidate candidates[] = {
-        {vr->RightMeleeWeaponOffsetNode.get(), false},
-        {vr->LeftMeleeWeaponOffsetNode.get(), true}
-    };
-
-    for (const auto& c : candidates) {
-        if (!c.root) continue;
-        auto* candidateAnchor=findUnder(c.root,kChainAnchorNode);
-        if (!candidateAnchor) continue;
-        meleeRoot_.reset(c.root);
+    auto* data = RE::TESDataHandler::GetSingleton();
+    auto* cmsWeapon = data ? data->LookupForm<RE::TESObjectWEAP>(0x800, "ChainMorningstarVR.esp") : nullptr;
+    if (!cmsWeapon) return false;
+    // Same visible skeleton and WEAPON/SHIELD slots as HIGGS Hand::GetWeaponNode.
+    // MeleeWeaponOffsetNode is a collision offset, not the equipped model root.
+    const bool firstPerson = GetModuleHandle("vrik.dll") == nullptr;
+    auto* scene = player->Get3D(firstPerson);
+    std::uint32_t failure = scene ? 1u : 2u;
+    bool equipped = false;
+    for (bool inventoryLeft : {false, true}) {
+        if (player->GetEquippedObject(inventoryLeft) != cmsWeapon) continue;
+        equipped = true;
+        const auto graph = findEquippedChainGraph(scene, inventoryLeft,
+            [this](RE::NiAVObject* node, std::string_view name){ return findUnder(node, name); },
+            [](RE::NiAVObject* node) -> RE::NiAVObject* { return node->parent; });
+        auto* slot = graph.slot;
+        auto* model = graph.model;
+        auto* candidateAnchor = graph.anchor;
+        failure |= (slot ? 4u : 8u) | (model ? 16u : 32u);
+        if (!candidateAnchor || candidateAnchor->parent != model) continue;
+        sceneRoot_.reset(scene);
+        weaponSlot_.reset(slot);
+        weaponRoot_.reset(model);
         anchor_.reset(candidateAnchor);
-        isLeftHand_=c.left;
+        inventoryLeft_ = inventoryLeft;
+        acquiredLeftMode_ = VRLeftHandedMode();
+        isLeftHand_ = inventoryLeft != acquiredLeftMode_;
+        firstPerson_ = firstPerson;
         ownerPlayerAddress_=reinterpret_cast<std::uintptr_t>(player);
         ownerCellAddress_=reinterpret_cast<std::uintptr_t>(player->GetParentCell());
         break;
     }
     if (!anchor_) {
-        releaseWeaponNodes();
+        if (equipped && failure != lastAcquireFailure_) {
+            SKSE::log::warn("CMS equipped but attached model unavailable: view={} scene={} details={} anchorElsewhere={}; check NIF Prn=WeaponMace and draw state",
+                firstPerson ? "first-person" : "VRIK third-person", scene != nullptr, failure,
+                findUnder(scene, kChainAnchorNode) != nullptr);
+        }
+        lastAcquireFailure_ = equipped ? failure : 0;
         return false;
     }
+    lastAcquireFailure_ = 0;
 
     for (std::size_t i=0;i<links_.size();++i) {
         links_[i].reset(findUnder(anchor_.get(), kLinkNodes[i]));
@@ -197,11 +217,14 @@ bool SkyrimVRSceneBridge::reacquireWeaponNodes()
         releaseWeaponNodes();
         return false;
     }
-    SKSE::log::info("ChainMorningstarVR: acquired {}-hand VR scene nodes (14 links + head)", isLeftHand_ ? "left" : "right");
+    SKSE::log::info("ChainMorningstarVR: acquired {}-hand VR scene nodes (14 links + head); view={} slot={} root={} scale={}",
+        isLeftHand_ ? "left" : "right", firstPerson_ ? "first-person" : "VRIK third-person",
+        inventoryLeft_ ? "SHIELD" : "WEAPON", weaponRoot_->name.c_str(), anchor_->world.scale);
+    diagnosticAnchor_ = toCms(anchor_->world.translate);
     if (++nativeGeneration_ == 0) ++nativeGeneration_;
     acquiredScale_ = anchor_->world.scale;
     auto& native = NativePhysicsBackend::GetSingleton();
-    nativePrepared_ = native.BeginSession(head_.get(), isLeftHand_, nativeGeneration_);
+    nativePrepared_ = native.BeginSession(weaponRoot_.get(), isLeftHand_, nativeGeneration_);
     nativePrepareRetries_ = !nativePrepared_ && native.Available() ? 3 : 0;
     nativePrepareCooldownS_ = 0.5f;
     if (!nativePrepared_) SKSE::log::warn("Native head preparation pending/unavailable; retries={}", nativePrepareRetries_);
@@ -242,20 +265,21 @@ bool SkyrimVRSceneBridge::currentHandStillOwnsAnchor() const
     }
 
     auto* player = RE::PlayerCharacter::GetSingleton();
-    auto* vr = player ? player->GetVRNodeData() : nullptr;
-    if (!player || !vr || !player->IsWeaponDrawn() ||
+    if (!player || !player->IsWeaponDrawn() ||
         reinterpret_cast<std::uintptr_t>(player) != ownerPlayerAddress_ ||
-        reinterpret_cast<std::uintptr_t>(player->GetParentCell()) != ownerCellAddress_) return false;
-
-    RE::NiAVObject* currentRoot = isLeftHand_
-        ? static_cast<RE::NiAVObject*>(vr->LeftMeleeWeaponOffsetNode.get())
-        : static_cast<RE::NiAVObject*>(vr->RightMeleeWeaponOffsetNode.get());
-    if (!currentRoot) return false;
-
-    // A retained NiPointer can keep a detached old weapon graph alive after unequip.
-    // Identity under the CURRENT hand root is therefore the authoritative ownership test.
-    auto* currentAnchor = findUnder(currentRoot, kChainAnchorNode);
-    return currentAnchor == anchor_.get();
+        reinterpret_cast<std::uintptr_t>(player->GetParentCell()) != ownerCellAddress_ ||
+        VRLeftHandedMode() != acquiredLeftMode_) return false;
+    auto* data = RE::TESDataHandler::GetSingleton();
+    auto* cmsWeapon = data ? data->LookupForm<RE::TESObjectWEAP>(0x800, "ChainMorningstarVR.esp") : nullptr;
+    if (!cmsWeapon || player->GetEquippedObject(inventoryLeft_) != cmsWeapon) return false;
+    auto* scene = player->Get3D(firstPerson_);
+    if (!scene || scene != sceneRoot_.get()) return false;
+    auto* slot = findUnder(scene, inventoryLeft_ ? "SHIELD" : "WEAPON");
+    if (!slot || slot != weaponSlot_.get()) return false;
+    // A retained NiPointer can keep a detached old graph alive. Certify identity
+    // below the CURRENT equipped slot, never merely below the whole player.
+    auto* currentAnchor = findUnder(slot, kChainAnchorNode);
+    return currentAnchor == anchor_.get() && currentAnchor->parent == weaponRoot_.get();
 }
 
 void SkyrimVRSceneBridge::releaseWeaponNodes()
@@ -275,7 +299,12 @@ void SkyrimVRSceneBridge::releaseWeaponNodes()
     head_.reset();
     for (auto& n:links_) n.reset();
     anchor_.reset();
-    meleeRoot_.reset();
+    weaponRoot_.reset();
+    weaponSlot_.reset();
+    sceneRoot_.reset();
+    diagnosticsTime_ = 0;
+    diagnosticSamples_ = 0;
+    diagnosticMaxTravelM_ = 0;
     isLeftHand_=false;
     readOnlyNativeMotionStateKnown_=false;
     readOnlyNativeProbeRejectedWarned_=false;
@@ -321,7 +350,7 @@ void SkyrimVRSceneBridge::applyVisualFrame(const VisualFrame& frame)
         writeNodeWorldPose(links_[i].get(),frame.links[i].centerM,frame.links[i].tangent,frame.links[i].rollRadians);
     writeNodeWorldPose(head_.get(),frame.head.centerM,frame.head.chainAxis,0.0f);
 
-    // PlayerCharacter::Update has already run. Refresh the owned subtree after
+    // HIGGS/VRIK have updated tracked hands. Refresh the owned subtree after
     // writing local poses so visuals do not lag a frame behind their simulation.
     RE::NiUpdateData updateData{};
     updateData.time = 0.0f;
@@ -394,17 +423,30 @@ void SkyrimVRSceneBridge::submitNativePose(const HeadPose& pose, const HeadSweep
         if (nativePrepareCooldownS_ <= 0.0f) {
             --nativePrepareRetries_;
             nativePrepareCooldownS_ = 0.5f;
-            nativePrepared_ = native.BeginSession(head_.get(), isLeftHand_, nativeGeneration_);
+            nativePrepared_ = native.BeginSession(weaponRoot_.get(), isLeftHand_, nativeGeneration_);
             if (!nativePrepared_ && !nativePrepareRetries_)
                 SKSE::log::warn("Native head preparation failed after bounded retries; re-equip after resolving dependencies/shape warnings");
         }
     }
     native.SubmitPose(pose, frameDt);
     auto* player = RE::PlayerCharacter::GetSingleton();
-    auto* weapon = player ? player->GetEquippedObject(isLeftHand_) : nullptr;
-    WeaponMeshContact::GetSingleton().Update(
-        NativePhysicsBackend::GetSingleton().Snapshot(), frameDt,
-        weapon ? weapon->GetFormID() : 0);
+    auto* weapon = player ? player->GetEquippedObject(inventoryLeft_) : nullptr;
+    const auto snapshot = native.Snapshot();
+    WeaponMeshContact::GetSingleton().Update(snapshot, frameDt, weapon ? weapon->GetFormID() : 0);
+    // Three bounded samples per equip: prove movement and collider readiness,
+    // without logging controller coordinates or flooding the user's logs.
+    if (diagnosticSamples_ < 3) {
+        diagnosticMaxTravelM_ = std::max(diagnosticMaxTravelM_,
+            length(toCms(anchor_->world.translate) - diagnosticAnchor_) / kSkyrimUnitsPerMeter);
+        diagnosticsTime_ += frameDt;
+        if (diagnosticsTime_ >= 5.0f) {
+            SKSE::log::info("CMS tracking sample: hand={} anchorTravelM={:.3f} headSpeedMps={:.3f} nativePrepared={} colliderReady={} physicsStep={}",
+                isLeftHand_ ? "left" : "right", diagnosticMaxTravelM_, sweep.speedMps,
+                nativePrepared_, snapshot.ready, snapshot.physicsStep);
+            ++diagnosticSamples_;
+            diagnosticsTime_ = 0;
+        }
+    }
 #if defined(CMS_ENABLE_READONLY_VRMELEE_PROBE) && CMS_ENABLE_READONLY_VRMELEE_PROBE
     updateNativeMeleeHeadProxy(sweep);
 #else
