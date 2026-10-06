@@ -3,11 +3,14 @@
 #include <RE/Skyrim.h>
 #include <SKSE/SKSE.h>
 
+#include <cmath>
+
 namespace cms::skyrimvr {
 namespace {
 
 constexpr RE::FormID kChainMorningstarLocalFormID = 0x00000800;
 constexpr RE::FormID kEorlundMerchantChestLocalFormID = 0x0010FDE6;
+constexpr RE::FormID kVendorItemWeaponLocalFormID = 0x0008F958;
 constexpr std::string_view kPluginName = "ChainMorningstarVR.esp";
 constexpr std::string_view kSkyrimMaster = "Skyrim.esm";
 
@@ -30,22 +33,25 @@ bool EnsureEorlundSellsChainMorningstar()
         return false;
     }
 
-    if (std::string_view(weapon->GetFormEditorID()) != "CMS_ChainMorningstar") {
-        SKSE::log::error(
-            "ChainMorningstarVR: Eorlund vendor injection refused: local FormID {:06X} EDID is '{}'",
-            kChainMorningstarLocalFormID,
-            weapon->GetFormEditorID());
-        return false;
-    }
-
     if (!weapon->IsOneHandedMace()) {
         SKSE::log::error(
             "ChainMorningstarVR: Eorlund vendor injection refused: CMS weapon is not One-Hand Mace");
         return false;
     }
-    if (!weapon->HasKeywordByEditorID("VendorItemWeapon")) {
+    if (weapon->attackDamage != 44 || weapon->value != 550 || std::fabs(weapon->weight - 17.0f) > 0.001f) {
         SKSE::log::error(
-            "ChainMorningstarVR: Eorlund vendor injection refused: CMS weapon lacks VendorItemWeapon");
+            "ChainMorningstarVR: Eorlund vendor injection refused: CMS stats mismatch (damage={} weight={:.3f} value={})",
+            weapon->attackDamage,
+            weapon->weight,
+            weapon->value);
+        return false;
+    }
+
+    auto* vendorKeyword = data->LookupForm<RE::BGSKeyword>(kVendorItemWeaponLocalFormID, kSkyrimMaster);
+    if (!vendorKeyword || !weapon->HasKeyword(vendorKeyword)) {
+        SKSE::log::error(
+            "ChainMorningstarVR: Eorlund vendor injection refused: CMS weapon lacks Skyrim.esm VendorItemWeapon [{:08X}]",
+            kVendorItemWeaponLocalFormID);
         return false;
     }
 
@@ -54,14 +60,6 @@ bool EnsureEorlundSellsChainMorningstar()
         SKSE::log::error(
             "ChainMorningstarVR: Eorlund vendor injection failed: MerchantWhiterunEorlundChest [{:08X}] not found",
             kEorlundMerchantChestLocalFormID);
-        return false;
-    }
-
-    if (std::string_view(chest->GetFormEditorID()) != "MerchantWhiterunEorlundChest") {
-        SKSE::log::error(
-            "ChainMorningstarVR: Eorlund vendor injection refused: Skyrim.esm {:08X} EDID is '{}'",
-            kEorlundMerchantChestLocalFormID,
-            chest->GetFormEditorID());
         return false;
     }
 
