@@ -35,6 +35,14 @@ for script_name, script_text in (
     if "assigned(" in lowered and ") and (" in lowered:
         raise SystemExit(f"{script_name} contains a potentially unsafe non-short-circuit Assigned(...) and (...) expression")
 
+# Both scripts must fail closed outside Skyrim VR xEdit mode.
+for script_name, script_text in (
+    ("Build_ChainMorningstarVR.pas", build),
+    ("Validate_ChainMorningstarVR.pas", validate),
+):
+    if "lowercase(wbappname) <> 'tes5vr'" not in script_text.lower():
+        raise SystemExit(f"{script_name} is missing TES5VR mode guard")
+
 # Validator must explicitly reject container and leveled-list overrides.
 for required in (
     "GroupBySignature(ModFile, 'CONT')",
