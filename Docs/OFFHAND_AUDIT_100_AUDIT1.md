@@ -1,8 +1,15 @@
-# Offhand investigation — 1.0.0-audit1, release blocked
+# Offhand investigation — 1.0.0-audit1, completed release blocked
+
+Update 2026-10-07 JST: the user explicitly requested delivery here for the required
+runtime test. `Tools/package_runtime_diagnostic.py` packages the matched audit1
+artifacts as a diagnostic ZIP with Japanese instructions. This authorizes the
+user test package; it does not mark runtime gates passed or authorize a completed
+release. The ordinary candidate packager still rejects audit builds.
 
 The user reports that rc2 still cannot hold the ball. Do not equate a `held`
-log entry, a successful build or portable tests with an in-game fix. No new
-Vortex distribution or completed release is authorized by this evidence.
+log entry, a successful build or portable tests with an in-game fix. This evidence alone does not
+authorize a completed release. The diagnostic exception is the explicit user
+request above.
 The work branch can be built for investigation. Main remains unchanged.
 
 ## Received evidence
@@ -102,8 +109,9 @@ presence is not evidence of a conflict. No other mod settings were changed.
    Do not label this user's specific cause confirmed without that evidence.
 3. Verify HIGGS ordinary grabs/two-handing with another weapon, menu/equip/load
    teardown, floor/wall interactions and the full existing release checklist.
-4. Only then change investigation status and create a distributable ZIP.
-   `Tools/package_visual_test.py` rejects the audit build label.
+4. Only then change investigation status and create a completed-release ZIP.
+   `Tools/package_visual_test.py` rejects the audit build label. The separate
+   diagnostic packager is limited to the explicitly requested audit1 test.
 
 The old release-gate document remains required. This investigation neither
 certifies the pending equipment-drop observations nor runs xEdit or the game.

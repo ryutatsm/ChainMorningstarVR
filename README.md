@@ -1,6 +1,6 @@
 # ChainMorningstarVR
 
-**チェーンドモーニングスター — 1.0.0-audit1、原因調査中・リリース保留。**
+**チェーンドモーニングスター — 1.0.0-audit1、実機診断版（正式版は保留）。**
 Skyrim VR 1.4.15 / SKSEVR 2.0.12; requires HIGGS and PLANCK, with VRIK for
 non-damaging player-body chain contacts. One-hand mace: damage44, weight17, value550.
 
@@ -13,8 +13,9 @@ remain unconfirmed**. See the [audit and remaining checks](Docs/OFFHAND_AUDIT_10
 
 The 75% dark model, 19 links, heavy head, metal sounds, curved emblem, native
 blood surfaces, Japanese name, upright preview and existing combat integration
-are retained. This work branch provides an investigation DLL build. It does
-not provide a new installable release; distribution packaging rejects audit1.
+are retained. At the user's explicit request, the matched audit1 build is
+provided as a Vortex-installable diagnostic package for target-machine testing.
+[日本語テスト手順](Docs/DIAGNOSTIC_TEST_AUDIT1_JA.txt). Completed release remains blocked.
 
 - [日本語の導入・更新・操作](Docs/INSTALL_VR.md)
 - [最終確認票](Docs/FINAL_CHECK_JA.txt)
@@ -28,7 +29,9 @@ Build using `Source/SKSE/PluginSkeleton` preset `vr-physics-test` (name retained
 compatibility). Pinned Windows workflows build the DLL and actual NIF/DDS assets
 from one commit. `Tools/package_visual_test.py` verifies paired provenance and
 creates candidate ZIPs only for an eligible candidate label. Audit builds are
-blocked from packaging. Portable behavior tests run in CI.
+blocked from candidate packaging. The separately authorized audit1 diagnostic
+uses `Tools/package_runtime_diagnostic.py`, with complete source/hash validation
+and separate runtime/packaging commits. Portable behavior tests run in CI.
 
 Only one weapon is simulated at a time. Chain contacts bend/slide without pushing
 the other body, self-collision or wrapping constraints. Body contacts use anatomical
