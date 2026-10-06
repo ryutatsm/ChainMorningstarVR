@@ -7,6 +7,12 @@ function Initialize: integer;
 begin
   Result := 0;
 
+  if LowerCase(wbAppName) <> 'tes5vr' then begin
+    AddMessage('ERROR: This script must run in Skyrim VR mode (TES5VREdit / -TES5VR). Current mode: ' + wbAppName);
+    Result := 1;
+    Exit;
+  end;
+
   AddMessage('ChainMorningstarVR: clean-build WEAP generator');
   AddMessage('Source template: Skyrim.esm Steel Mace [WEAP:00013988].');
   AddMessage('Vendor distribution is handled separately by Container Item Distributor (CID).');
