@@ -62,6 +62,10 @@ begin
     Exit;
   end;
 
+  // The SKSE runtime resolves this record by plugin-local FormID, so keep it deterministic.
+  // This new plugin contains no other new records; 0x800 is xEdit's normal first-new-record range.
+  SetLoadOrderFormID(Dst, (GetLoadOrderFormID(Dst) and $FF000000) or $00000800);
+
   SetElementEditValues(Dst, 'EDID', 'CMS_ChainMorningstar');
   SetElementEditValues(Dst, 'FULL', 'Chain Morningstar');
   SetElementEditValues(Dst, 'Model\MODL', 'weapons\ChainMorningstarVR\ChainMorningstar.nif');
@@ -73,12 +77,12 @@ begin
   CleanMasters(DstFile);
 
   AddMessage('PASS: ChainMorningstarVR.esp created.');
-  AddMessage('PASS: EDID CMS_ChainMorningstar');
+  AddMessage('PASS: EDID CMS_ChainMorningstar / local FormID 00000800');
   AddMessage('PASS: one-handed mace template = Skyrim.esm SteelMace [00013988]');
   AddMessage('PASS: Damage 44 / Weight 17 / Value 550');
   AddMessage('PASS: Model weapons\ChainMorningstarVR\ChainMorningstar.nif');
   AddMessage('PASS: No merchant chest or leveled-list override was created.');
-  AddMessage('Vendor: ChainMorningstarVR_CID.ini distributes the weapon to Eorlund at runtime.');
+  AddMessage('Vendor: ChainMorningstarVR.dll injects one item into Eorlund merchant stock at DataLoaded.');
   AddMessage('Test spawn after saving: help "Chain Morningstar" 4');
 end;
 
