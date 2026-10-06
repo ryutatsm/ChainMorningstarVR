@@ -5,6 +5,7 @@
 #include "RuntimeService.hpp"
 #include "PlayerUpdateHook.hpp"
 #include "PlanckBuildProbe.hpp"
+#include "EorlundVendor.hpp"
 
 namespace {
 
@@ -33,6 +34,7 @@ void onSKSEMessage(SKSE::MessagingInterface::Message* msg)
         cms::skyrimvr::ProbePlanckBuildNumber();
         break;
     case SKSE::MessagingInterface::kDataLoaded:
+        cms::skyrimvr::EnsureEorlundSellsChainMorningstar();
         runtime.requestReacquire();
         break;
     case SKSE::MessagingInterface::kPostLoadGame:
