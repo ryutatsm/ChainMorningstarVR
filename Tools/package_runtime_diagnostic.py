@@ -1,4 +1,4 @@
-"""Build the explicitly requested audit1 runtime-test ZIP; never a completed release.
+"""Build the explicitly requested audit2 runtime-test ZIP; never a completed release.
 
 Uses the matched, already-built Windows DLL/assets. Their complete source
 manifests must still match the checkout. Packaging docs/code have a separately
@@ -36,11 +36,11 @@ def main():
     packaging_commit = git('rev-parse', 'HEAD')
     require(not git('status', '--porcelain', '--untracked-files=no'), 'Commit tracked edits before packaging')
     subprocess.run(['git', 'merge-base', '--is-ancestor', commit, packaging_commit], cwd=ROOT, check=True)
-    version = '1.0.0-audit1'
+    version = '1.0.0-audit2'
     cmake = (ROOT / 'Source/SKSE/PluginSkeleton/CMakeLists.txt').read_text()
     require('project(ChainMorningstarVR VERSION 1.0.0' in cmake and
-            'set(CMS_BUILD_LABEL "${PROJECT_VERSION}-audit1")' in cmake,
-            'This diagnostic packager is restricted to audit1')
+            'set(CMS_BUILD_LABEL "${PROJECT_VERSION}-audit2")' in cmake,
+            'This diagnostic packager is restricted to audit2')
     win, assets = args.windows_dir, args.windows_dir / 'assets'
     asset_provenance = read_json(assets / 'ASSET_BUILD_PROVENANCE.json')
     require(asset_provenance['source_commit'] == commit, 'Asset source commit mismatch')
@@ -82,7 +82,8 @@ def main():
     require(len(dll) >= pe + 26 and dll[pe:pe+4] == b'PE\0\0' and
             struct.unpack_from('<H', dll, pe+4)[0] == 0x8664 and
             struct.unpack_from('<H', dll, pe+24)[0] == 0x20b, 'Expected x64 Windows DLL')
-    require(version.encode() in dll and b'heldMs=' in dll and b'chain-overextended' in dll,
+    require(version.encode() in dll and b'heldMs=' in dll and b'chain-overextended' in dll and
+            b'button=left-trigger' in dll and b'side-grip=unchanged' in dll and b'trigger-released' in dll,
             'Diagnostic runtime strings missing')
     nif = files[NIF_PATH]
     for node in ['BSInvMarker', 'CMS_ChainAnchor', 'CMS_HeadNode', 'BloodFX', 'BloodLighting'] + [f'CMS_LinkNode_{i:02d}' for i in range(LINK_COUNT)]:
@@ -119,8 +120,11 @@ def main():
         'source_verification': {'dll_files': dll_count, 'asset_files': asset_count,
             'third_party_files': len(third), 'native_contact_planes_match_nif_input': True,
             'text_line_endings': 'LF/CRLF normalized; binary hashes exact'},
-        'retained_rc2_runtime_observation': {'held_ms': 141, 'release_reason': 'not recorded; still unconfirmed'},
-        'checks_requested': ['continuous 10-second hold', 'slow lift and taut-chain movement',
+        'audit1_runtime_observation': {'side_grip_held_ms': 160, 'release_reason': 'grip-released',
+            'trigger_observed': False, 'user_report': 'grabbing uses the index-finger trigger'},
+        'grab_input': 'physical left index-finger trigger (OpenVR button 33)',
+        'side_grip_binding': 'unchanged by CMS',
+        'checks_requested': ['continuous 10-second left-trigger hold', 'slow lift and taut-chain movement',
             'release and regrab', 'menu/sheathe lifecycle', 'ordinary HIGGS grabs after switching weapon'],
         'dimensions': geometry['dimensions'], 'plugin_provenance': esp,
         'asset_build_provenance': asset_provenance,
@@ -128,9 +132,9 @@ def main():
         'files': {p: {'bytes': len(data), 'sha256': sha(data)} for p, data in files.items()},
     }
     game_count = len(files)
-    test_readme = (ROOT / 'Docs/DIAGNOSTIC_TEST_AUDIT1_JA.txt').read_text()
+    test_readme = (ROOT / 'Docs/DIAGNOSTIC_TEST_AUDIT2_JA.txt').read_text()
     files['README_JA.txt'] = test_readme.encode('utf-8-sig')
-    files['DIAGNOSTIC_STATUS.md'] = (ROOT / 'Docs/OFFHAND_AUDIT_100_AUDIT1.md').read_bytes()
+    files['DIAGNOSTIC_STATUS.md'] = (ROOT / 'Docs/OFFHAND_AUDIT_100_AUDIT2.md').read_bytes()
     files['LICENSES/HIGGS_GPL-3.0.txt'] = (ROOT / 'Source/ThirdParty/HIGGS/LICENSE').read_bytes()
     files['THIRD_PARTY_NOTICES.txt'] = (
         'HIGGS interface and documented native integration adapted from HIGGS by adamhynek.\n'

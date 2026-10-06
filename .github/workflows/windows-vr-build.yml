@@ -162,10 +162,12 @@ jobs:
           Chain links use swept capsule queries against world and NPC bodies without attack bodies or damage.
           Chain response is one-way: links bend and slide but do not push objects/NPCs.
           Retains Japanese naming, upright inventory preview, offhand ball holding and VRIK body chain contacts.
-          Input reset is serialized against controller polling; raw grip state, release reason and duration are logged.
+          Left index-finger trigger (OpenVR button 33) holds the ball; side grip is unchanged.
+          Input reset is serialized against controller polling; trigger state, side-grip bit, release reason and duration are logged.
+          An owned-trigger final filter prevents HIGGS delayed replay from leaking that press to the game.
           Retains the rc2 right-hand CMS exclusion from HIGGS CustomPick2 selection queries during HIGGS Update.
           No HIGGS settings or physical collision filters are changed. Busy-hand guards remain.
-          User rc2 logs show a 141ms hold then unexplained release. A 140ms taut-chain release is reproduced in simulation.
+          Audit1 ignored trigger input and recorded only a 160ms side-grip hold; that cannot diagnose a trigger attempt.
           The new hold target stays within chain reach while the palm remains near the ball.
           This CI artifact is for investigation, not a verified fix or a Vortex release.
           "@ | Set-Content "$env:GITHUB_WORKSPACE\ci-artifact\BUILD_STATUS.txt"

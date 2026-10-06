@@ -3,7 +3,7 @@
 This is the independent ChainMorningstarVR project. Do not mix runtime evidence
 or assets from the older ChainedMorningstarVR project.
 Audited main: `0777e257d64fcab908df03ff94e7a9af4ff1a0ee` (2026-10-06).
-Current work: `astra/zero-base-audit-v050`, 1.0.0-audit1 (completed release blocked; user-requested diagnostic distribution). Main remains unchanged.
+Current work: `astra/zero-base-audit-v050`, 1.0.0-audit2 (completed release blocked; user-requested diagnostic distribution). Main remains unchanged.
 
 One-hand mace: damage44, weight17, value550; Japanese name
 「チェーンドモーニングスター」; Eorlund sale; physical chain without chain damage;
@@ -24,10 +24,13 @@ enemy headgear/weapon instance on each eligible distinct contact episode.
 
 ## Evidence and constraints
 
-Rc2 user feedback reports failure; one hold lasted 141ms. The taut-chain
-limit and input withdrawal edge have portable reproductions and fixes, but
-the user-specific release cause remains unconfirmed. See
-OFFHAND_AUDIT_100_AUDIT1.md for evidence and release-blocking checks.
+Current offhand input is the physical LEFT INDEX-FINGER TRIGGER (OpenVR button33).
+The previous implementation hard-coded side grip/button2 and missed the user's
+normal trigger grabs. Audit1 logged one 160ms side-grip hold; it did not observe
+trigger attempts. Audit2 preserves side grip, reads/owns only the trigger near
+the ball, and blocks delayed replay of that owned trigger. See
+OFFHAND_AUDIT_100_AUDIT2.md. Continuous physical VR holding remains unverified.
+The taut-chain and selection fixes from prior versions remain.
 RELEASE_GATE_NEW_BUILD.md is unchanged; pending observations remain pending.
 
 The obsolete native-proxy-test mode remains removed. No PlayerCharacter

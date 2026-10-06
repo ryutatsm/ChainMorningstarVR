@@ -1,5 +1,5 @@
 #include "Source/SKSE/GameBridgeContract.hpp"
-#include "Source/SKSE/GripCaptureCore.hpp"
+#include "Source/SKSE/OffhandInputCore.hpp"
 #include "Source/SKSE/OffhandGrabCore.hpp"
 #include "Source/SKSE/PlayerBodyCollisionCore.hpp"
 #include <cassert>
@@ -10,7 +10,7 @@ using namespace cms;
 // Runs the real RuntimeDriver order (contact drain -> input/hold -> fixed steps
 // -> visual -> native pose). This is a portable adapter fixture, not Havok/VR.
 struct InteractionBridge final : IGameBridge {
-    GripCaptureState capture;
+    OffhandTriggerInput capture;
     OffhandGrabState grab;
     RigidTransform palm{};
     VisualFrame visual{};
@@ -71,9 +71,16 @@ struct InteractionBridge final : IGameBridge {
     float consumeWorldContactImpulse() override {return 0;}
     void playChainRattle(float) override {}
     void playChainClank(float) override {}
-    void tick(RuntimeDriver& driver,float dt,bool down) {
+    void tick(RuntimeDriver& driver,float dt,bool down,bool sideGrip=false) {
         clockMs+=dt*1000;
-        if (poll) capture.sample(1,down,std::uint64_t(clockMs));
+        if (poll) {
+            ControllerState input{};
+            input.pressed=(down?(1ull<<33):0)|(sideGrip?(1ull<<2):0);
+            input.touched=input.pressed;
+            capture.sample(1,input,std::uint64_t(clockMs));
+            // The side grip (e.g. sheathe) is never swallowed by CMS.
+            assert(((input.pressed&(1ull<<2))!=0)==sideGrip);
+        }
         driver.update(dt);
     }
     void approach(RuntimeDriver& driver,float dt) {
@@ -95,7 +102,7 @@ int main() {
             const auto start=bridge.palm.translation;
             const float loadedReach=length(driver.controller().solver().headPosition()-bridge.anchor);
             bool crossedOldCutoff=false;
-            for (int i=0;i<int(hz*3);++i) {
+            for (int i=0;i<int(hz*10);++i) {
                 const float t=i/hz;
                 // Slow 7cm outward movement, then lift/sweep with both hands.
                 const float outward=std::min(.07f,.2f*t);
@@ -103,7 +110,9 @@ int main() {
                 const float travel=t>1?.07f*(t-1):0;
                 bridge.anchor.x=travel;
                 bridge.palm.translation=start+Vec3{travel,0,lift-outward};
-                bridge.tick(driver,dt,true);
+                // Trigger remains down for 10s; side grip falls at 160ms.
+                // audit1 decoded only that side grip and could not hold here.
+                bridge.tick(driver,dt,true,t<.16f);
                 crossedOldCutoff|=loadedReach+outward>kStraightReachM+.04f;
                 assert(bridge.grab.held());
                 assert(bridge.hold.active);
@@ -158,5 +167,5 @@ int main() {
     for(int i=0;i<9;++i)bridge.tick(driver,.02f,true);
     assert(!bridge.grab.held());
     assert(bridge.grab.diagnostic().reason==OffhandGrabReason::kInputStale);
-    std::cout<<"OFFHAND_RUNTIME_PASS 21 frame-rate/scale cases, taut lift/sweep, release/regrab, lifecycle, native/visual contract, floor and body contacts, input timeout\n";
+    std::cout<<"OFFHAND_RUNTIME_PASS 21 frame-rate/scale cases, 10s actual trigger input, side-grip independence, taut lift/sweep, release/regrab, lifecycle, native/visual contract, floor and body contacts, input timeout\n";
 }

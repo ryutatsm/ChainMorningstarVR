@@ -23,6 +23,7 @@ $cmsLog = Join-Path $stage 'ChainMorningstarVR.log'
 $summary = [ordered]@{
     cms_log_present = (Test-Path -LiteralPath $cmsLog -PathType Leaf)
     cms_version = $null
+    offhand_grab_button = $null
     evidence_scope = 'Counts are sampled log entries, not complete event totals. Zero means not observed; it is not proof of failure or success.'
     warning_or_error_lines = 0
     native_head_attachments = 0
@@ -43,6 +44,8 @@ if ($summary.cms_log_present) {
     $cmsText = [IO.File]::ReadAllText($cmsLog)
     $versions = [regex]::Matches($cmsText, 'ChainMorningstarVR ([0-9][^\s]*) loading:')
     if ($versions.Count) { $summary.cms_version = $versions[$versions.Count - 1].Groups[1].Value }
+    $buttons = [regex]::Matches($cmsText, 'CMS offhand input registered: button=([^\s]+)')
+    if ($buttons.Count) { $summary.offhand_grab_button = $buttons[$buttons.Count - 1].Groups[1].Value }
     $summary.warning_or_error_lines = [regex]::Matches($cmsText, '\[(warn|warning|error|critical)\]').Count
     $summary.native_head_attachments = [regex]::Matches($cmsText, 'Native head attached:').Count
     $summary.player_body_contact_entries = [regex]::Matches($cmsText, 'CMS player-body chain contact:').Count

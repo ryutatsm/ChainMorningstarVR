@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 project(ChainMorningstarVR VERSION 1.0.0 LANGUAGES CXX)
-set(CMS_BUILD_LABEL "${PROJECT_VERSION}-audit1")
+set(CMS_BUILD_LABEL "${PROJECT_VERSION}-audit2")
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -24,6 +24,7 @@ add_commonlibsse_plugin(${PROJECT_NAME}
         OffhandInput.hpp
         ../OffhandGrabCore.hpp
         ../GripCaptureCore.hpp
+        ../OffhandInputCore.hpp
         ../OffhandSelectionCore.hpp
         ../PlayerBodyCollisionCore.hpp
         RuntimeService.cpp
