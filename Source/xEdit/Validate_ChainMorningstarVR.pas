@@ -1,8 +1,9 @@
 unit userscript;
 
 var
-  ModFile, G, Rec, WeaponRec: IInterface;
-  i: integer;
+  ModFile, G, Rec, WeaponRec, KWDA, KW: IInterface;
+  i, j: integer;
+  HasVendorItemWeapon: boolean;
 
 procedure Fail(const S: string);
 begin
@@ -19,6 +20,7 @@ begin
     Exit;
   end;
   WeaponRec := nil;
+  HasVendorItemWeapon := False;
 
   ModFile := FileByName('ChainMorningstarVR.esp');
   if not Assigned(ModFile) then begin
@@ -41,6 +43,11 @@ begin
     Exit;
   end;
 
+  if (GetLoadOrderFormID(WeaponRec) and $00FFFFFF) <> $00000800 then begin
+    Fail('Local FormID is not 00000800.');
+    Exit;
+  end;
+
   if GetElementEditValues(WeaponRec, 'FULL') <> 'Chain Morningstar' then begin
     Fail('FULL name mismatch.');
     Exit;
@@ -57,6 +64,27 @@ begin
     Fail('Value is not 550.');
     Exit;
   end;
+  if GetElementNativeValues(WeaponRec, 'DNAM\Animation Type') <> 4 then begin
+    Fail('Weapon is not classified as One-Hand Mace (Animation Type 4).');
+    Exit;
+  end;
+
+  KWDA := ElementBySignature(WeaponRec, 'KWDA');
+  if Assigned(KWDA) then
+    for j := 0 to ElementCount(KWDA) - 1 do begin
+      KW := LinksTo(ElementByIndex(KWDA, j));
+      if Assigned(KW) then
+        if GetElementEditValues(KW, 'EDID') = 'VendorItemWeapon' then begin
+          HasVendorItemWeapon := True;
+          Break;
+        end;
+    end;
+
+  if not HasVendorItemWeapon then begin
+    Fail('VendorItemWeapon keyword is missing.');
+    Exit;
+  end;
+
   if LowerCase(GetElementEditValues(WeaponRec, 'Model\MODL')) <>
      'weapons\chainmorningstarvr\chainmorningstar.nif' then begin
     Fail('Model path mismatch.');
@@ -67,19 +95,20 @@ begin
   G := GroupBySignature(ModFile, 'CONT');
   if Assigned(G) then
     if ElementCount(G) > 0 then begin
-      Fail('Unexpected CONT override found. Vendor distribution must be CID-only.');
+      Fail('Unexpected CONT override found. Vendor distribution must be runtime-only.');
       Exit;
     end;
 
   G := GroupBySignature(ModFile, 'LVLI');
   if Assigned(G) then
     if ElementCount(G) > 0 then begin
-      Fail('Unexpected LVLI override found. Vendor distribution must be CID-only.');
+      Fail('Unexpected LVLI override found. Vendor distribution must be runtime-only.');
       Exit;
     end;
 
   AddMessage('PASS: ChainMorningstarVR.esp structural validation succeeded.');
-  AddMessage('PASS: WEAP CMS_ChainMorningstar / Damage 44 / Weight 17 / Value 550.');
+  AddMessage('PASS: WEAP CMS_ChainMorningstar [local FormID 00000800].');
+  AddMessage('PASS: One-Hand Mace / VendorItemWeapon / Damage 44 / Weight 17 / Value 550.');
   AddMessage('PASS: Model path weapons\ChainMorningstarVR\ChainMorningstar.nif.');
   AddMessage('PASS: No CONT or LVLI overrides are present.');
   AddMessage('NEXT: run xEdit Check for Errors on ChainMorningstarVR.esp.');
