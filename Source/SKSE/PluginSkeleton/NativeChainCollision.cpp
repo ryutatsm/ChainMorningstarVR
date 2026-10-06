@@ -193,9 +193,12 @@ void QueryNativeChainCollisions(RE::hkpWorld* world, const RE::hkpRigidBody* hea
         query.forceCollideOntoPpu = 1u << 3; // SHAPE_UNCHECKED
         query.broadPhaseHandle.type = static_cast<std::int8_t>(RE::hkpWorldObject::BroadPhaseType::kPhantom);
         query.broadPhaseHandle.ownerOffset = -0x24; // handle -> query collidable
-        // HIGGS FindCloseObject uses 0x2C for world/ragdoll picking queries.
-        // This is a query filter, never the weapon/attack collision layer.
-        query.broadPhaseHandle.collisionFilterInfo = 0x2C;
+        // Query the same physical surfaces as the certified HIGGS head. Its
+        // active filter includes world geometry and PLANCK actor bodies; a
+        // picking-only filter need not include every solid world layer.
+        // Borrowing filter bits cannot generate attacks: this collidable is
+        // never inserted into the world or dispatched to a contact listener.
+        query.broadPhaseHandle.collisionFilterInfo = head->collidable.broadPhaseHandle.collisionFilterInfo;
         query.allowedPenetrationDepth = -1.0f;
         LinkCollector initial(head,link,units,radiusM,false);
         if (lengthSq(link.toM-link.fromM) > 1.0e-12f) {

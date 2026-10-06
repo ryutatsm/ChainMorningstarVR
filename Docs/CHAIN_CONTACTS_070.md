@@ -37,7 +37,9 @@
 - HIGGS commit `93bf67b1bc4c4a11a20ccaef0d5012781d0d7eee` の
   `include/RE/offsets.h` / `src/RE/offsets.cpp`: LinearCast `0xAB5EC0`、
   GetClosestPoints `0xAB62D0`、GetRefFromCollidable `0x3B4940`。
-- `src/hand.cpp: Hand::FindCloseObject` と同じ照会フィルター `0x2C`。
+- 接続済みのHIGGS鉄球と同じ衝突フィルター情報を照会に使い、鉄球が衝突する壁・床・
+  PLANCK剛体を対象とする。ピッキング専用レイヤーの対象範囲には依存しない。
+  フィルターの値を借りるだけで剛体や接触イベントを登録しないため、鎖の攻撃は発生しない。
   HIGGSの共有ピッキング球は書き換えず、独立した一時collidableとtransformを使う。
 - 世界の読み取りロックを保持し、HIGGS本体・世代・装備・shapeの所有を既存の経路で確認。
   フレーム停止、解除、持ち替え、ロード、テレポートでは古い掃引を使わない。

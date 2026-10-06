@@ -33,7 +33,7 @@ def last_mip(path):
 
 class MaterialMapTests(unittest.TestCase):
     def test_black_finish_retains_detail_without_crushing_highlights(self):
-        manifest=json.loads((ROOT/'Source/Textures/source_manifest.json').read_text())
+        manifest=json.loads((ROOT/'Source/Textures/source_manifest.json').read_text(encoding='utf-8'))
         for name in textures.BASES:
             original,wrap,_=textures.material_pixels(name,textures.load_source(name,manifest))
             dark=textures.darken_diffuse(name,original)
