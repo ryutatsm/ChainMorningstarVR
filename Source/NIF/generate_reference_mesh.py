@@ -119,7 +119,12 @@ def sculpt_grid(parent,mat,positions,uvs,outward,feature=None):
     for i in range(3):np.add.at(normals,f[:,i],face)
     normals=normals.reshape(nr,nc,3)
     for j in range(nr):
-        combined=normals[j,0]+normals[j,-1];normals[j,0]=combined;normals[j,-1]=combined
+        if np.max(np.linalg.norm(v[j]-v[j,0],axis=1))<1e-12:
+            # All UV-longitude copies of a spherical pole share one normal.
+            # Per-wedge normals are undefined at this collapsed row.
+            normals[j]=normals[j].sum(axis=0)
+        else:
+            combined=normals[j,0]+normals[j,-1];normals[j,0]=combined;normals[j,-1]=combined
     normals=normals.reshape(-1,3);length=np.linalg.norm(normals,axis=1)
     tiny=length<1e-10;normals[tiny]=ref[tiny];length=np.linalg.norm(normals,axis=1)
     normals/=np.maximum(length[:,None],1e-10)
@@ -190,17 +195,22 @@ def core_points():
 def forged_ball(head):
     from scipy.spatial import ConvexHull
     planes=ConvexHull(core_points()).equations;v=[];uv=[];n=[]
-    for th in np.linspace(0,math.pi,41):
+    for latitude,th in enumerate(np.linspace(0,math.pi,41)):
         vr=[];ur=[];nr=[]
+        is_pole=latitude in (0,40)
         for ph in np.linspace(0,2*math.pi,81):
-            q=np.array([math.sin(th)*math.cos(ph),math.sin(th)*math.sin(ph),math.cos(th)])
+            # Canonical pole vectors avoid sin(pi) residue and signed tiny XY.
+            q=np.array([0.,0.,1. if latitude==0 else -1.]) if is_pole else np.array([math.sin(th)*math.cos(ph),math.sin(th)*math.sin(ph),math.cos(th)])
             den=planes[:,:3]@q;inside=den>1e-8;r=min(.16,float(np.min(-planes[inside,3]/den[inside])))
             dent=0
             for direction,width,depth in _HAMMERS:
                 dist2=max(0,2*(1-float(np.dot(q,direction))))
                 dent+=depth*math.exp(-dist2/(width*width))
             # Broad forged depressions plus nonperiodic coarse undulations.
-            dent+=.00055*(1+math.sin(ph*9+th*7)*math.sin(ph*3-th*13))
+            # Longitude is singular at a pole. Dampen its radial contribution
+            # smoothly to zero there; every pole UV copy has one exact radius.
+            longitude_weight=0. if is_pole else math.sin(th)**2
+            dent+=.00055*(1+longitude_weight*math.sin(ph*9+th*7)*math.sin(ph*3-th*13))
             rr=max(.148,r-dent);vr.append(q*rr);nr.append(q);ur.append([ph/(2*math.pi),th/math.pi])
         v.append(vr);uv.append(ur);n.append(nr)
     sculpt_grid(head,'metal',v,uv,n,'hammered_iron_core')

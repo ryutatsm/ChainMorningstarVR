@@ -101,6 +101,18 @@ jobs:
           Copy-Item $diag.FullName "$dir\ChainMorningstarVR.dll"
           (Get-FileHash "$dir\ChainMorningstarVR.dll" -Algorithm SHA256).Hash.ToLower() |
             Set-Content "$env:GITHUB_WORKSPACE\ci-artifact\ChainMorningstarVR.dll.sha256"
+          $sourceRoot = "$env:GITHUB_WORKSPACE\Source\SKSE"
+          $sourceHashes = Get-ChildItem $sourceRoot -Recurse -File |
+            Where-Object { $_.FullName -notlike "*\build\*" } |
+            Sort-Object FullName |
+            ForEach-Object {
+              [ordered]@{
+                path = $_.FullName.Substring($sourceRoot.Length + 1).Replace('\', '/')
+                sha256 = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+              }
+            }
+          ConvertTo-Json -InputObject @($sourceHashes) -Depth 3 |
+            Set-Content "$env:GITHUB_WORKSPACE\ci-artifact\DLL_SOURCE_SHA256.json"
           @"
           ChainMorningstarVR 0.5.1 visual/audio test -- NOT A RELEASE
           Commit: $env:GITHUB_SHA

@@ -48,12 +48,13 @@ def validate(build):
     for d,v in zip(dirs,hulls[1:]):
         assert np.min(np.linalg.norm(v-np.array(d)*.24,axis=1))<1e-6,'Wrong spike direction'
     manifest=json.loads((build/'visual-preview/asset_manifest.json').read_text())
-    feature_vertices={}
+    feature_vertices={};feature_data={}
     material_names=['metal','wood','leather','darksteel','edge','cord','bronze']
     for feature in manifest.get('sculpt_features',[]):
         match=[m for m in meshes if m[1]==feature['parent'] and m[2]==material_names.index(feature['material'])]
         assert len(match)==1
         start=feature['vertex_start'];end=start+feature['vertex_count'];assert end<=len(match[0][3])
+        feature_data[feature['name']]=match[0][3][start:end]
         feature_vertices[feature['name']]=match[0][3][start:end,:3]
     assert len(feature_vertices)==17,'Missing sculpted surfaces'
     wood=feature_vertices['rough_wood'];r=np.linalg.norm(wood[:,[0,2]],axis=1)
@@ -66,6 +67,14 @@ def validate(build):
     rows=[lr[np.isclose(leather[:,1],yy)] for yy in np.unique(leather[:,1])]
     assert np.median([np.ptp(row) for row in rows])>.002,'Leather must have actual folds/compression'
     core=feature_vertices['hammered_iron_core'];cr=np.linalg.norm(core,axis=1)
+    core_data=feature_data['hammered_iron_core']
+    for pole_v in [0.,1.]:
+        pole=core_data[core_data[:,7]==pole_v]
+        assert len(pole)==81,'Core pole UV copies missing'
+        assert np.all(pole[:,:3]==pole[0,:3]),'Core pole depends on longitude (degenerate cap risk)'
+        assert np.all(pole[:,3:6]==pole[0,3:6]),'Core pole normals vary by wedge'
+        assert np.dot(pole[0,:3],pole[0,3:6])>0,'Core pole normal points inward'
+    print('CORE_POLES_PASS each pole has one exact position and one shared outward normal')
     assert np.ptp(cr)>.004,'Forged iron has no coarse geometric dents'
     planes=hull_planes[0];assert np.max(core@planes[:,:3].T+planes[:,3])<1e-7
     for i in range(14):

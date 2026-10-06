@@ -87,8 +87,8 @@ The GLB uses simplified PBR materials and is intended for geometry inspection.
 ## Sculpt revision — 2026-10-06
 
 The rejected smooth first model has been revised at the mesh level, not merely
-recolored. The current mesh has 41,951 vertices and 76,154 triangles across the
-same 24 material shapes. Ball surface radii vary from 148.0 to 159.9 mm due to
+recolored. The current mesh has 41,951 vertices and 75,994 triangles across the
+same 24 material shapes. Ball surface radii vary from 148.0 to 159.6 mm due to
 actual hammer depressions. Spike roots penetrate the core; their sides have
 recessed facets and tips end in small closed worn faces. Every vertex of these
 surfaces is validated inside the existing core/spike collision union.
@@ -129,3 +129,18 @@ color map tinted as light brown hide, the leather normal map, and the nonmetal
 leather shader; it does not acquire metal reflections. CPU renders use bilinear
 sampling and mip levels selected from UV derivatives to prevent wood-grain
 moire. These sampling changes also appear in the exported material definitions.
+
+
+### Pole determinism regression
+
+Windows/Linux CI comparison exposed a real singularity in the forged ball:
+longitude-dependent radius displacement had made each nominal pole into a
+column of different points. The resulting thin cap faces could reverse winding
+under platform rounding, and the per-wedge pole normals differed substantially.
+The corrected generator uses exact (0,0,+/-1) pole directions, smoothly damps
+the longitude displacement to zero at each pole, and assigns a shared normal
+to all UV copies of a collapsed pole. The 160 degenerate cap triangles are now
+absent. The independent emitted-asset validator requires exact pole position
+and normal equality and outward normals. It rejects the earlier Windows
+artifact and accepts the corrected local build. Windows parity is rechecked
+through the next CI build; the local check alone is not a Windows result.
