@@ -15,7 +15,7 @@ begin
 
   AddMessage('ChainMorningstarVR: clean-build WEAP generator');
   AddMessage('Source template: Skyrim.esm Steel Mace [WEAP:00013988].');
-  AddMessage('Vendor distribution is handled separately by Container Item Distributor (CID).');
+  AddMessage('Vendor distribution is injected in memory by ChainMorningstarVR.dll at DataLoaded.');
   AddMessage('No vanilla merchant/container/leveled-list record is overridden.');
 
   SkyrimFile := FileByName('Skyrim.esm');
