@@ -10,7 +10,7 @@ $documents = [Environment]::GetFolderPath('MyDocuments')
 $logRoot = Join-Path $documents 'My Games\Skyrim VR'
 $logFiles = @('SKSE\ChainMorningstarVR.log', 'SKSE\sksevr.log', 'SKSE\higgs_vr.log', 'SKSE\activeragdoll.log', 'Logs\Script\Papyrus.0.log')
 $report = [System.Collections.Generic.List[string]]::new()
-$report.Add('ChainMorningstarVR 0.5.0 audit-preview feedback')
+$report.Add('ChainMorningstarVR 0.5.1 visual-test feedback')
 $report.Add("Collected: $timestamp")
 foreach ($relative in $logFiles) {
     $source = Join-Path $logRoot $relative

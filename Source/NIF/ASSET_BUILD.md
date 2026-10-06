@@ -82,3 +82,50 @@ Collar ornament, spike profile and etched surface details are still less rich
 than the supplied reference. The previews use a software material illustration;
 the actual game's lighting, mip bias and environment shader remain unverified.
 The GLB uses simplified PBR materials and is intended for geometry inspection.
+
+
+## Sculpt revision — 2026-10-06
+
+The rejected smooth first model has been revised at the mesh level, not merely
+recolored. The current mesh has 41,951 vertices and 76,154 triangles across the
+same 24 material shapes. Ball surface radii vary from 148.0 to 159.9 mm due to
+actual hammer depressions. Spike roots penetrate the core; their sides have
+recessed facets and tips end in small closed worn faces. Every vertex of these
+surfaces is validated inside the existing core/spike collision union.
+
+The core collision hull remains radius 160 mm but now uses 170 vertices, filling
+a gap that the former sparse hull left below some spike roots. The head still
+has 15 convex children. The dimensions and runtime node names are unchanged.
+
+The exposed wood radius averages 31.41 mm near the hand and 27.44 mm near the
+chain. Knots, longitudinal fissures and unequal grain ridges are actual vertex
+positions. The leather thickens toward the pommel and has local depressions
+under the crossed laces, raised diamond panels, wrinkles and rolled worn edges.
+The grip and wood remain continuous surfaces with normals calculated from the
+sculpted geometry. The collar at the hand is wider than the chain collar.
+
+The metal cubemap is `textures\cubemaps\ShinyDull_e.dds`, verified in the
+user-supplied uncompressed vanilla `trapmace01.nif`, `ironmace.nif` and
+`steelmace.nif` in ReferenceBundle. No cubemap from the game is redistributed.
+Metal normal-alpha specular and environment masks are used by the preview,
+with lower-gloss black iron and brighter worn relief edges.
+
+Normal and UV contract: authoring UVs use V up; the CPU render samples source
+PNGs at image row 1-V. GLB keeps those UVs and flips its embedded diffuse and
+normal images vertically, without changing the normal green channel. The NIF
+writer flips V before computing tangents. DDS normal maps therefore invert the
+source green channel once to preserve the same physical slopes. The material
+encoder and geometry validator check these conversions independently.
+
+Current review images include full weapon, forged head and tapered handle
+closeups, all rendered from the emitted mesh source. The CPU preview remains a
+material illustration, not Skyrim footage; exact game shading and Havok
+instantiation still need Windows build and in-game verification. Decoration
+and the unseen rear still involve interpretation of the single reference.
+
+Final surface sampling uses a 0.34 x 0.38 UV window per spike so the iron's
+hammer marks stay broad at that physical scale. Lacing uses the existing wood
+color map tinted as light brown hide, the leather normal map, and the nonmetal
+leather shader; it does not acquire metal reflections. CPU renders use bilinear
+sampling and mip levels selected from UV derivatives to prevent wood-grain
+moire. These sampling changes also appear in the exported material definitions.

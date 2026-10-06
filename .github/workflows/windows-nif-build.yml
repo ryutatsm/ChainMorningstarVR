@@ -2,9 +2,9 @@ name: Reference mesh and Skyrim VR NIF build gate
 on:
   workflow_dispatch:
   push:
-    paths: ["Source/NIF/**", "Source/Textures/**", ".github/workflows/windows-nif-build.yml"]
+    paths: ["Source/NIF/**", "Source/Textures/**", "Tests/test_material_maps.py", ".github/workflows/windows-nif-build.yml"]
   pull_request:
-    paths: ["Source/NIF/**", "Source/Textures/**", ".github/workflows/windows-nif-build.yml"]
+    paths: ["Source/NIF/**", "Source/Textures/**", "Tests/test_material_maps.py", ".github/workflows/windows-nif-build.yml"]
 permissions:
   contents: read
 jobs:
@@ -39,6 +39,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Texture generation failed" }
           python Source/Textures/encode_dds.py build/textures/weapons/ChainMorningstarVR
           if ($LASTEXITCODE -ne 0) { throw "DDS validation failed" }
+          python Tests/test_material_maps.py
+          if ($LASTEXITCODE -ne 0) { throw "Material direction/specular regression failed" }
       - name: Build and inspect actual geometry
         run: |
           python Source/NIF/generate_reference_mesh.py --out build/visual-preview --textures build/textures/weapons/ChainMorningstarVR
@@ -56,5 +58,6 @@ jobs:
             build/meshes/
             build/textures/**/*.dds
             build/textures/**/texture_validation.json
+            build/textures/**/material_generation.json
             build/visual-preview/
           if-no-files-found: error

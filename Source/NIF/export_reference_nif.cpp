@@ -44,18 +44,18 @@ int main(int argc,char**argv) try {
         bool metal=mat!=1&&mat!=2&&mat!=5;
         sh->shaderFlags1=SLSF1_SPECULAR|SLSF1_ZBUFFER_TEST|SLSF1_CAST_SHADOWS|SLSF1_RECEIVE_SHADOWS;
         sh->shaderFlags2=SLSF2_ZBUFFER_WRITE;
-        sh->glossiness=metal?32.f:10.f;sh->specularStrength=metal?1.35f:.24f;
+        sh->glossiness=metal?28.f:(mat==1?8.f:13.f);sh->specularStrength=metal?1.15f:(mat==1?.18f:.36f);
         sh->specularColor=Vector3(.78f,.79f,.8f);
-        if(metal){sh->SetShaderType(BSLSP_ENVMAP);sh->shaderFlags1|=SLSF1_ENVIRONMENT_MAPPING;sh->environmentMapScale=.52f;}
+        if(metal){sh->SetShaderType(BSLSP_ENVMAP);sh->shaderFlags1|=SLSF1_ENVIRONMENT_MAPPING;sh->environmentMapScale=.65f;}
         if(mat==3){sh->environmentMapScale=.16f;sh->specularStrength=.45f;}
-        if(mat==4){sh->environmentMapScale=.72f;sh->glossiness=45.f;}
-        std::string base=mat==1?"wood":(mat==2||mat==5)?"leather":"metal";
+        if(mat==4){sh->environmentMapScale=.72f;sh->glossiness=38.f;}
+        std::string base=(mat==1||mat==5)?"wood":mat==2?"leather":"metal";
         std::string prefix="textures\\weapons\\ChainMorningstarVR\\cms_"+base;
-        std::string path=prefix+"_d.dds";nif.SetTextureSlot(shape,path,0);path=prefix+"_n.dds";nif.SetTextureSlot(shape,path,1);
-        if(metal){path="textures\\cubemaps\\ore_e.dds";nif.SetTextureSlot(shape,path,4);path=prefix+"_m.dds";nif.SetTextureSlot(shape,path,5);}
+        std::string path=prefix+"_d.dds";nif.SetTextureSlot(shape,path,0);path=mat==5?"textures\\weapons\\ChainMorningstarVR\\cms_leather_n.dds":prefix+"_n.dds";nif.SetTextureSlot(shape,path,1);
+        if(metal){path="textures\\cubemaps\\ShinyDull_e.dds";nif.SetTextureSlot(shape,path,4);path=prefix+"_m.dds";nif.SetTextureSlot(shape,path,5);}
         Color4 tint(1,1,1,1);
         if(mat==3)tint=Color4(.30f,.32f,.35f,1);
-        if(mat==5)tint=Color4(1,.83f,.62f,1);
+        if(mat==5)tint=Color4(.90f,.85f,.75f,1);
         if(mat==6)tint=Color4(1,.76f,.44f,1);
         if(mat==3||mat==5||mat==6){nif.SetColorsForShape(shape,std::vector<Color4>(nv,tint));sh->shaderFlags2|=SLSF2_VERTEX_COLORS;}
         nif.CalcTangentsForShape(shape);totalVerts+=nv;totalTriangles+=nt;

@@ -2,9 +2,9 @@ name: Authored Skyrim VR texture gate
 on:
   workflow_dispatch:
   push:
-    paths: ["Source/Textures/**", "Source/NIF/requirements-assets.txt", ".github/workflows/windows-texture-build.yml"]
+    paths: ["Source/Textures/**", "Tests/test_material_maps.py", "Source/NIF/requirements-assets.txt", ".github/workflows/windows-texture-build.yml"]
   pull_request:
-    paths: ["Source/Textures/**", "Source/NIF/requirements-assets.txt", ".github/workflows/windows-texture-build.yml"]
+    paths: ["Source/Textures/**", "Tests/test_material_maps.py", "Source/NIF/requirements-assets.txt", ".github/workflows/windows-texture-build.yml"]
 permissions:
   contents: read
 jobs:
@@ -18,10 +18,12 @@ jobs:
       - run: python -m pip install -r Source/NIF/requirements-assets.txt
       - run: python Source/Textures/generate_textures.py
       - run: python Source/Textures/encode_dds.py build/textures/weapons/ChainMorningstarVR
+      - run: python Tests/test_material_maps.py
       - uses: actions/upload-artifact@v4
         with:
           name: ChainMorningstarVR-authored-textures-dev
           path: |
             build/textures/**/*.dds
             build/textures/**/texture_validation.json
+            build/textures/**/material_generation.json
           if-no-files-found: error

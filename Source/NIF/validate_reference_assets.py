@@ -1,5 +1,6 @@
 """Independent checks of emitted CMS geometry + glTF before NIF conversion."""
-import argparse,json,struct
+import argparse,json,struct,io
+from PIL import Image
 from pathlib import Path
 import numpy as np
 
@@ -32,13 +33,13 @@ def validate(build):
             assert np.ptp(v,axis=0)[0]>np.ptp(v,axis=0)[1]*3,'Baked alternation would conflict with runtime roll'
             assert span[(parent-2)%2]>span[1-(parent-2)%2]*3,'Chain links not alternating'
         meshes.append((name,parent,material,data,f))
-    hulls=[]
+    hulls=[];hull_planes=[]
     for i in range(nh):
         nv,np_=ints(2);margin=float(next(tokens));v=np.array(floats(nv*3)).reshape(nv,3);planes=np.array(floats(np_*4)).reshape(np_,4)
         assert np.max(v@planes[:,:3].T+planes[:,3])<1e-7,'Vertex outside hull'
         assert abs(np.max(np.linalg.norm(v,axis=1))-(.16 if i==0 else .24))<1e-6
         assert margin==(.003 if i==0 else .002)
-        hulls.append(v)
+        hulls.append(v);hull_planes.append(planes)
     assert next(tokens,None) is None
     # Exact current collision direction contract including empty chain socket axis.
     r=np.sqrt(1-.64**2)
@@ -46,6 +47,33 @@ def validate(build):
     dirs.extend([[r*np.cos(i*2*np.pi/3),y,r*np.sin(i*2*np.pi/3)] for y in [-.64,.64] for i in range(3)])
     for d,v in zip(dirs,hulls[1:]):
         assert np.min(np.linalg.norm(v-np.array(d)*.24,axis=1))<1e-6,'Wrong spike direction'
+    manifest=json.loads((build/'visual-preview/asset_manifest.json').read_text())
+    feature_vertices={}
+    material_names=['metal','wood','leather','darksteel','edge','cord','bronze']
+    for feature in manifest.get('sculpt_features',[]):
+        match=[m for m in meshes if m[1]==feature['parent'] and m[2]==material_names.index(feature['material'])]
+        assert len(match)==1
+        start=feature['vertex_start'];end=start+feature['vertex_count'];assert end<=len(match[0][3])
+        feature_vertices[feature['name']]=match[0][3][start:end,:3]
+    assert len(feature_vertices)==17,'Missing sculpted surfaces'
+    wood=feature_vertices['rough_wood'];r=np.linalg.norm(wood[:,[0,2]],axis=1)
+    hand_r=np.mean(r[(wood[:,1]>.15)&(wood[:,1]<.20)])
+    chain_r=np.mean(r[(wood[:,1]>.32)&(wood[:,1]<.36)])
+    assert hand_r>chain_r*1.10,'Handle must thicken towards hand'
+    rows=[r[np.isclose(wood[:,1],yy)] for yy in np.unique(wood[:,1])]
+    assert np.median([np.ptp(row) for row in rows])>.002,'Wood is still a smooth cylinder'
+    leather=feature_vertices['compressed_leather'];lr=np.linalg.norm(leather[:,[0,2]],axis=1)
+    rows=[lr[np.isclose(leather[:,1],yy)] for yy in np.unique(leather[:,1])]
+    assert np.median([np.ptp(row) for row in rows])>.002,'Leather must have actual folds/compression'
+    core=feature_vertices['hammered_iron_core'];cr=np.linalg.norm(core,axis=1)
+    assert np.ptp(cr)>.004,'Forged iron has no coarse geometric dents'
+    planes=hull_planes[0];assert np.max(core@planes[:,:3].T+planes[:,3])<1e-7
+    for i in range(14):
+        v=feature_vertices[f'battered_spike_{i:02d}'];core_planes=hull_planes[0];spike_planes=hull_planes[i+1]
+        inside_core=np.max(v@core_planes[:,:3].T+core_planes[:,3],axis=1)<=1e-7
+        inside_spike=np.max(v@spike_planes[:,:3].T+spike_planes[:,3],axis=1)<=1e-7
+        assert np.all(inside_core|inside_spike),f'Spike {i} exceeds existing collision hulls'
+    print(f'SCULPT_PASS wood_hand_radius={hand_r:.5f}m wood_chain_radius={chain_r:.5f}m core_radius_range={cr.min():.5f}..{cr.max():.5f}m; spikes_inside_collision=true')
     raw=(build/'visual-preview/ChainMorningstar_reference.glb').read_bytes();magic,version,length=struct.unpack_from('<4sII',raw)
     assert magic==b'glTF' and version==2 and length==len(raw)
     length,typ=struct.unpack_from('<I4s',raw,12);assert typ==b'JSON';doc=json.loads(raw[20:20+length]);binstart=20+length+8
@@ -56,6 +84,14 @@ def validate(build):
             acc=doc['accessors'][prim['attributes'][semantic]];view=doc['bufferViews'][acc['bufferView']]
             arr=np.frombuffer(raw,dtype='<f4',offset=binstart+view['byteOffset'],count=data[:,cols].size).reshape(data[:,cols].shape)
             assert np.allclose(arr,data[:,cols],atol=1e-6),'GLB mesh differs from NIF input'
+    texture_dir=build/'textures/weapons/ChainMorningstarVR'
+    for i,(base,kind) in enumerate((b,k) for b in ['metal','wood','leather'] for k in ['d','n']):
+        view=doc['bufferViews'][doc['images'][i]['bufferView']]
+        embedded=raw[binstart+view['byteOffset']:binstart+view['byteOffset']+view['byteLength']]
+        got=np.asarray(Image.open(io.BytesIO(embedded)).convert('RGB'))
+        expected=np.asarray(Image.open(texture_dir/f'cms_{base}_{kind}.png').convert('RGB'))[::-1]
+        assert np.array_equal(got,expected),'GLB image orientation/normal convention mismatch'
+    print('GLB_MATERIAL_PASS V-up UVs + flipped embedded PNGs; normal green unchanged')
     print(f'ASSET_GEOMETRY_PASS nodes={nn} meshes={nm} triangles={sum(len(m[4]) for m in meshes)} hulls={nh}; GLB matches NIF input')
 
 if __name__=='__main__':
