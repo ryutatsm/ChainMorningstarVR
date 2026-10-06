@@ -26,6 +26,15 @@ for required in (
     if required not in build:
         raise SystemExit(f"Build script missing required weapon contract: {required}")
 
+# xEdit/JvInterpreter does NOT short-circuit boolean and/or. Guard nil objects in nested ifs.
+for script_name, script_text in (
+    ("Build_ChainMorningstarVR.pas", build),
+    ("Validate_ChainMorningstarVR.pas", validate),
+):
+    lowered = script_text.lower()
+    if "assigned(" in lowered and ") and (" in lowered:
+        raise SystemExit(f"{script_name} contains a potentially unsafe non-short-circuit Assigned(...) and (...) expression")
+
 # Validator must explicitly reject container and leveled-list overrides.
 for required in (
     "GroupBySignature(ModFile, 'CONT')",
