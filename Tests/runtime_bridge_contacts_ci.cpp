@@ -18,6 +18,8 @@ struct ContactBridge final : cms::IGameBridge {
     int generation{};
     int contactReads{};
     int nativePoses{};
+    int chainQueries{};
+    cms::Vec3 firstLinkSweepStart{};
 
     bool tryGetChainAnchorWorldSU(cms::Vec3& out, cms::Vec3& direction) override {
         events.emplace_back("anchor");out=anchor;direction={0,0,-1};return anchorValid;
@@ -39,6 +41,12 @@ struct ContactBridge final : cms::IGameBridge {
         events.emplace_back("contacts");++contactReads;auto result=pending;pending.clear();return result;
     }
     float consumeWorldContactImpulse() override {events.emplace_back("impulse");return 0;}
+    void queryChainContacts(const std::vector<cms::ChainLinkSweep>& sweeps,
+                            std::vector<cms::ChainLinkContact>&) override {
+        assert(acquired && sweeps.size()==14);
+        if (!chainQueries) firstLinkSweepStart=sweeps[7].fromM;
+        ++chainQueries;
+    }
     void playChainRattle(float) override {}
     void playChainClank(float) override {}
 };
@@ -55,20 +63,24 @@ int main() {
     contact.normalWorld={0,0,1};contact.signedDistanceM=-0.02f;
     contact.pointM=contact.headCenterM;contact.otherBodyIdentity=1;
     bridge.pending.push_back(contact);
+    const auto beforeRecovery=driver.controller().solver().linkPosition(7);
     driver.update(1.0f/90.0f);
     assert((bridge.events==std::vector<std::string>{"anchor","contacts","visual","pose","impulse"}));
     assert(bridge.submitted.centerM.z >= contact.headCenterM.z+0.019f);
     assert(driver.controller().solver().activeContactCount()==1);
+    assert(bridge.chainQueries==1);
+    assert(length(bridge.firstLinkSweepStart-beforeRecovery)<1.0e-7f);
 
     // Invalid/paused time performs ownership checks only. No pending contacts
     // are drained, no native pose is submitted and no sound impulse is consumed.
     for(float dt : {0.0f,-0.01f,std::numeric_limits<float>::quiet_NaN(),
                     std::numeric_limits<float>::infinity()}) {
         bridge.events.clear();bridge.pending={contact};
-        const int reads=bridge.contactReads,poses=bridge.nativePoses;
+        const int reads=bridge.contactReads,poses=bridge.nativePoses,queries=bridge.chainQueries;
         driver.update(dt);
         assert((bridge.events==std::vector<std::string>{"anchor"}));
         assert(bridge.contactReads==reads && bridge.nativePoses==poses && bridge.pending.size()==1);
+        assert(bridge.chainQueries==queries);
     }
 
     // A tracked teleport must release the old native owner and discard its
@@ -89,6 +101,7 @@ int main() {
     assert(bridge.submitted.centerM.x>14.0f);
     // There must be no attack path spanning the teleport frame.
     assert(bridge.sweep.speedMps==0.0f && length(bridge.sweep.toM-bridge.sweep.fromM)==0.0f);
+    assert(bridge.chainQueries==1); // no sweep spans a teleport or re-equip
 
     // Even while paused, losing weapon ownership clears the native queue.
     bridge.pending={contact};bridge.anchorValid=false;bridge.events.clear();
@@ -96,5 +109,6 @@ int main() {
     assert(!driver.active() && !bridge.acquired && bridge.pending.empty());
     assert((bridge.events==std::vector<std::string>{"anchor","release"}));
     assert(!driver.controller().wouldTeleportReset({2000,0,0}));
+    driver.update(1.0f/90.0f);assert(bridge.chainQueries==1);
     std::cout << "CMS runtime contact ordering CI PASS\n";
 }

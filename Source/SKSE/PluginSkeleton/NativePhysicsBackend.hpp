@@ -15,6 +15,7 @@ struct NativeHeadSnapshot {
     std::uintptr_t bodyIdentity{};
     std::uint64_t generation{};
     std::uint64_t physicsStep{};
+    std::uint64_t chainSweeps{}, chainContacts{};
     bool leftHand{};
     bool ready{};
 };
@@ -30,6 +31,8 @@ public:
     void EndSession();
     void SubmitPose(const HeadPose& pose, float frameDeltaS);
     std::vector<HeadWorldContact> ConsumeContacts();
+    void QueryChainContacts(const std::vector<ChainLinkSweep>& sweeps,
+                            std::vector<ChainLinkContact>& contacts);
     [[nodiscard]] NativeHeadSnapshot Snapshot() const;
     [[nodiscard]] bool Available() const;
 };

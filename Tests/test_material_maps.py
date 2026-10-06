@@ -2,6 +2,7 @@
 from pathlib import Path
 import importlib.util
 import io
+import json
 import struct
 import tempfile
 import unittest
@@ -31,6 +32,20 @@ def last_mip(path):
 
 
 class MaterialMapTests(unittest.TestCase):
+    def test_black_finish_retains_detail_without_crushing_highlights(self):
+        manifest=json.loads((ROOT/'Source/Textures/source_manifest.json').read_text())
+        for name in textures.BASES:
+            original,wrap,_=textures.material_pixels(name,textures.load_source(name,manifest))
+            dark=textures.darken_diffuse(name,original)
+            ratio=float(dark.mean()/original.mean())
+            self.assertGreater(ratio,.58,name)
+            self.assertLess(ratio,.78,name)
+            # Same spatial detail: a monotonic color transform, never a blur.
+            self.assertGreater(float(np.corrcoef(original.mean(2).ravel(),dark.mean(2).ravel())[0,1]),.997,name)
+            self.assertLess(float(np.mean(dark==0)-np.mean(original==0)),.01,name)
+            if name=='spike':
+                self.assertGreater(float(dark[:30].mean()),float(dark[300:600].mean()))
+
     def test_analytic_height_gradient_uses_original_v_up(self):
         # A height that rises right/down must lean normal left/toward original +V.
         y,x=np.mgrid[:1024,:1024].astype(np.float32)

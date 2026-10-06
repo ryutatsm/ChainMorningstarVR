@@ -179,7 +179,11 @@ def main():
                                 'native_contact_planes_match_nif_input': True,
                                 'text_line_endings': 'LF/CRLF normalized; binary input hashes exact'},
         'in_game_validated': False, 'native_head_contacts': True, 'equipment_drop_connected': True,
-        'chain_link_world_colliders': False,
+        'chain_link_registered_bodies': False,
+        'chain_link_collision_queries': {'enabled': True, 'shape': 'swept capsule per link',
+            'registered_attack_bodies': False, 'damage': False, 'equipment_drop': False,
+            'response': 'one-way: chain bends/slides; no force applied to objects or NPCs'},
+        'head_motion': {'mass_kg': 12, 'damping_per_90hz': .990, 'restitution': .025},
         'physics_status': 'implemented test paths; Windows build validation is not in-game proof',
         'runtime_requirements': {'Skyrim VR': '1.4.15.0', 'SKSEVR': '2.0.12',
                                  'HIGGS': '1.6.0 or newer (interface001)',
@@ -192,15 +196,19 @@ def main():
     readme = f'''ChainMorningstarVR {version} — 物理・装備落下のテスト版
 ソース: {args.commit}
 
-0.6.1修正: 足元固定の原因となるPrn欠落、武器ノード取得先、衝突ルートを修正。
-手の位置が決まった後のHIGGS/VRIKコールバックで鎖を更新します。
+0.7.0変更: 14個の鎖リンクに壁・床・物体・NPC剛体との衝突照会を追加。
+鎖だけの接触はダメージも装備落下の抽選も発生させません。
+鉄球の計算上の質量を8→12kgにし、減衰を強め、反発を抑えました。
+素材ごとに約3〜4割暗くし、反射を抑制。形状・紋章の曲面・表面の凹凸は維持。
 
-Skyrim VR実機での起動・戦闘・安定性は未確認です。正式リリースではありません。
+0.6.1の手への追従・鉄球の動作はユーザー確認済みです。
+0.7.0の追加機能と戦闘・安定性は実機未確認です。正式リリースではありません。
 鉄球と棘の複合衝突形状をHIGGSの武器剛体へ設定し、物理ステップ直前に実位置へ
 反映します。接触情報を鎖のシミュレーションへ戻す処理を接続しました。
 敵の頭部／装備中の武器への確認済み接触から、対応する装備を1/3の確率で
 外して落とす処理を接続しています。接触が続く間の重複抽選を抑制します。
-鎖の各リンクに独立した壁・床用の衝突剛体はありません。
+鎖は接触に合わせて曲がり、滑る方式です。鎖から物体やNPCを押す力は加えません。
+鎖の輪は穴を埋めたカプセル近似で、リンク同士の衝突や物体への巻き付け拘束はありません。
 
 球面に沿った紋章と、提供画像から加工した各部位の材質を引き継いでいます。
 片手メイス、攻撃44・重量17・価値550。エオルンドの商品追加を実装。
@@ -221,6 +229,14 @@ FormID先頭はロード順で変わります。
 3回ごとに必ず1回という意味ではありません。武器の空白部分への近接は命中に含めません。
 装備解除、メニュー、ロード、セル移動後に古い接触が再利用されないことも確認します。
 攻撃力やNPCの衝突はPLANCKの設定にも影響されます。
+
+今回の重点確認:
+1. 鉄球を離した状態で鎖の中ほどを壁の角・机の縁・敵の腕へ当て、曲がるか確認。
+2. 鎖だけを敵へ触れさせ、体力低下・装備落下が発生しないことを確認。
+3. 障害物から離すと鎖の引っ掛かりが解除されるか、静止中も接触に反応するか確認。
+4. 一度振って手を止め、軽い跳ね返りが減ったか確認。
+5. 同じ照明の場所で黒鉄・木・革が暗くなり、凹凸や擦れが見えるか確認。
+ログの Chain collision queries active と chainContacts は鎖処理の動作確認に使えます。
 
 確認結果とログは別添 ChainMorningstarVR-{version}-feedback-tools.zip で収集できます。
 ゲーム終了後、解凍した Collect_CMS_Logs.cmd を実行してください。

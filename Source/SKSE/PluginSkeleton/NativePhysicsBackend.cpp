@@ -4,6 +4,7 @@
 #include "NativePhysicsBackend.hpp"
 #include "NativeContactRouter.hpp"
 #include "NativeWorldSweep.hpp"
+#include "NativeChainCollision.hpp"
 #include "PlanckBuildProbe.hpp"
 #include "PlayerUpdateHook.hpp"
 #include "../../ThirdParty/HIGGS/HiggsInterface001.hpp"
@@ -81,6 +82,7 @@ struct State {
     std::uint16_t previousDelay{};
     bool active{},left{}, poseValid{}, listenerAttached{};
     std::uint64_t generation{},step{};
+    std::uint64_t chainSweeps{},chainContacts{};
     float unitScale{1},shapeScale{1}, frameDt{1.0f/90};
     HeadPose pose{};
     std::chrono::steady_clock::time_point submitted{};
@@ -256,7 +258,7 @@ bool NativePhysicsBackend::Initialize() {
 bool NativePhysicsBackend::BeginSession(RE::NiAVObject* node,bool left,std::uint64_t generation) {
     EndSession();auto& s=state();std::lock_guard lock(s.stateMutex);
     if(!s.api||!node||!generation)return false;
-    if(!node->collisionObject) {SKSE::log::warn("Native head unavailable: equipped CMS_ROOT has no root collision; verify 0.6.1 NIF deployment");return false;}
+    if(!node->collisionObject) {SKSE::log::warn("Native head unavailable: equipped CMS_ROOT has no root collision; verify matching NIF deployment");return false;}
     auto* collision=node->collisionObject->AsBhkNiCollisionObject();
     auto* sourceBody=collision&&collision->body?collision->body->AsBhkRigidBody():nullptr;
     auto* native=havokBody(sourceBody);auto* source=native?native->collidable.shape:nullptr;
@@ -289,6 +291,7 @@ bool NativePhysicsBackend::BeginSession(RE::NiAVObject* node,bool left,std::uint
     const Vec3 desired=expected*(unitScale*visualScale);
     if(!isFinite(actual)||length(actual-desired)>.012f*length(desired)){s.shape.reset();SKSE::log::warn("Native head clone scale failed validation");return false;}
     s.unitScale=unitScale;s.shapeScale=visualScale;s.left=left;s.generation=generation;s.step=0;s.active=true;
+    s.chainSweeps=0;s.chainContacts=0;
     SKSE::log::info("Native head prepared: fifteen convex hulls, sourceScale={} cloneScale={} visualScale={}",sx,scale,visualScale);return true;
 }
 void NativePhysicsBackend::EndSession() {
@@ -303,6 +306,22 @@ void NativePhysicsBackend::SubmitPose(const HeadPose& pose,float dt) {
 }
 std::vector<HeadWorldContact> NativePhysicsBackend::ConsumeContacts() {
     auto& s=state();std::lock_guard lock(s.queueMutex);std::vector<HeadWorldContact> result;result.swap(s.contacts);return result;
+}
+void NativePhysicsBackend::QueryChainContacts(const std::vector<ChainLinkSweep>& sweeps,
+                                              std::vector<ChainLinkContact>& contacts) {
+    auto& s=state();std::lock_guard stateLock(s.stateMutex);
+    auto* body=havokBody(s.body.get());
+    if(!s.active||!s.world||!s.shape||!body||s.contactBody.load()!=body||
+       s.api->GetWeaponRigidBody(s.left)!=s.body.get())return;
+    RE::BSReadLockGuard worldLock(s.world->worldLock);
+    auto* world=static_cast<RE::hkpWorld*>(s.world->referencedObject.get());
+    if(body->world!=world||body->collidable.shape!=s.shape->referencedObject.get())return;
+    const auto before=contacts.size();
+    QueryNativeChainCollisions(world,body,s.unitScale,sweeps,contacts);
+    if(s.chainSweeps==0)
+        SKSE::log::info("Chain collision queries active: links={} capsuleRadiusM={} capsuleHalfSegmentM={} damage=false response=chain-only",
+            sweeps.size(),sweeps.empty()?0:sweeps.front().radiusM,sweeps.empty()?0:sweeps.front().halfSegmentM);
+    s.chainSweeps+=sweeps.size();s.chainContacts+=contacts.size()-before;
 }
 NativeHeadSnapshot NativePhysicsBackend::Snapshot() const {
     auto& s=state();std::lock_guard stateLock(s.stateMutex);
@@ -321,6 +340,7 @@ NativeHeadSnapshot NativePhysicsBackend::Snapshot() const {
     result.velocityMps=vector3(body->motion.linearVelocity)/s.unitScale;
     result.shapeScale=s.shapeScale;result.bodyIdentity=reinterpret_cast<std::uintptr_t>(body);
     result.generation=s.generation;result.physicsStep=s.step;result.leftHand=s.left;result.ready=true;
+    result.chainSweeps=s.chainSweeps;result.chainContacts=s.chainContacts;
     return result;
 }
 bool NativePhysicsBackend::Available() const {

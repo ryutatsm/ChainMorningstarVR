@@ -38,10 +38,7 @@ inline VisualFrame buildVisualFrame(const ChainSolver& s) {
 
     for (std::size_t i = 0; i < n; ++i) {
         const Vec3 p = s.linkPosition(i);
-        Vec3 prev = (i == 0) ? s.anchorPosition() : s.linkPosition(i - 1);
-        Vec3 next = (i + 1 < n) ? s.linkPosition(i + 1) : s.headPosition();
-        Vec3 tangent = normalized(next - prev);
-        if (lengthSq(tangent) < 1.0e-7f) tangent = {0,0,1};
+        const Vec3 tangent = s.linkAxis(i);
         out.links[i] = {p, tangent, (i & 1u) ? (0.5f * kPi) : 0.0f};
     }
 
@@ -153,7 +150,7 @@ public:
         return chain_.solver().applyWorldContacts(contacts);
     }
 
-    bool update(float frameDt, Vec3 anchorWorldSU) {
+    bool update(float frameDt, Vec3 anchorWorldSU, IChainCollisionQuery* query = nullptr) {
         if (!equipped_) return false;
         if (!std::isfinite(frameDt) || !isFinite(anchorWorldSU)) {
             previousHeadM_ = chain_.solver().headPosition();
@@ -170,7 +167,7 @@ public:
             sound_.reset();
         } else {
             if (hasPreviousHead_) previousHeadM_ = chain_.solver().headPosition();
-            const int steps = chain_.update(frameDt, anchorM);
+            const int steps = chain_.update(frameDt, anchorM, query);
             lastSimulatedDt_ = static_cast<float>(steps) * (1.0f / 90.0f);
         }
         lastAnchorM_ = anchorM;

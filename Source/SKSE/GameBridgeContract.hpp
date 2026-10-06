@@ -5,7 +5,7 @@
 
 namespace cms {
 
-class IGameBridge {
+class IGameBridge : public IChainCollisionQuery {
 public:
     virtual ~IGameBridge() = default;
     virtual bool tryGetChainAnchorWorldSU(Vec3& outPositionSU, Vec3& outInitialDirectionWorld) = 0;
@@ -67,7 +67,7 @@ public:
             if (!active_) return;
         }
         const float contactImpulse = controller_.applyWorldContacts(bridge_.consumeWorldContacts());
-        if (!controller_.update(teleported ? 0.0f : frameDt, anchor)) return;
+        if (!controller_.update(teleported ? 0.0f : frameDt, anchor, &bridge_)) return;
         const VisualFrame frame = controller_.visualFrame();
         bridge_.applyVisualFrame(frame);
         bridge_.submitNativePose(frame.head, controller_.headSweep(), frameDt);

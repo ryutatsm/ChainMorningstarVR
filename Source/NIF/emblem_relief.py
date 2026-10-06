@@ -60,9 +60,10 @@ def _normal_surface(vertices, faces, outward=True):
     return normal,faces
 
 
-def create_relief(texture_path):
+def create_relief(texture_path, relief_path=None):
     texture_path=Path(texture_path)
-    rgb=np.asarray(Image.open(texture_path).convert('RGB'),dtype=np.float64)/255.
+    relief_path=Path(relief_path) if relief_path is not None else texture_path
+    rgb=np.asarray(Image.open(relief_path).convert('RGB'),dtype=np.float64)/255.
     luma=rgb@np.array([.2126,.7152,.0722])
     # Broad metal facets rise at most 1.8 mm; tiny scratches never turn into
     # long spikes. The image remains authoritative for all painted detail.
@@ -103,6 +104,8 @@ def create_relief(texture_path):
     sides=dict(v=np.asarray(side_v),n=np.asarray(side_n),uv=np.asarray(side_uv),f=np.asarray(side_f))
     metadata=dict(source_texture='エンブレム.png',processed_texture=texture_path.name,
         processed_texture_sha256=hashlib.sha256(texture_path.read_bytes()).hexdigest(),
+        relief_source=relief_path.name,
+        relief_source_sha256=hashlib.sha256(relief_path.read_bytes()).hexdigest(),
         source_dimensions_px=[SOURCE_SIZE,SOURCE_SIZE],source_corners_px=SOURCE_CORNERS.tolist(),
         center_pixel=SOURCE_CENTER.tolist(),scale_m_per_pixel=scale,height_m=HEIGHT,
         surface='spherical_radial_image_relief',sphere_radius_m=SPHERE_RADIUS,front_base_radius_m=FRONT_RADIUS,

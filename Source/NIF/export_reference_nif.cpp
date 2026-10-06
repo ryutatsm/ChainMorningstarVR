@@ -49,11 +49,11 @@ int main(int argc,char**argv) try {
         bool metal=mat!=1&&mat!=2&&mat!=5;
         sh->shaderFlags1=SLSF1_SPECULAR|SLSF1_ZBUFFER_TEST|SLSF1_CAST_SHADOWS|SLSF1_RECEIVE_SHADOWS;
         sh->shaderFlags2=SLSF2_ZBUFFER_WRITE;
-        sh->glossiness=metal?28.f:(mat==1?8.f:13.f);sh->specularStrength=metal?.75f:(mat==1?.18f:.28f);
+        sh->glossiness=metal?28.f:(mat==1?8.f:13.f);sh->specularStrength=metal?.60f:(mat==1?.16f:.23f);
         sh->specularColor=Vector3(.78f,.79f,.8f);
-        if(metal){sh->SetShaderType(BSLSP_ENVMAP);sh->shaderFlags1|=SLSF1_ENVIRONMENT_MAPPING;sh->environmentMapScale=.45f;}
-        if(mat==3){sh->environmentMapScale=.16f;sh->specularStrength=.45f;}
-        if(mat==4){sh->environmentMapScale=.72f;sh->glossiness=38.f;}
+        if(metal){sh->SetShaderType(BSLSP_ENVMAP);sh->shaderFlags1|=SLSF1_ENVIRONMENT_MAPPING;sh->environmentMapScale=.32f;}
+        if(mat==3){sh->environmentMapScale=.12f;sh->specularStrength=.36f;}
+        if(mat==4){sh->environmentMapScale=.50f;sh->glossiness=38.f;}
         static const char* bases[]={"metal","wood","leather","metal","metal","cord","metal","spike","chain","ring","emblem"};
         std::string base=bases[mat];
         std::string prefix="textures\\weapons\\ChainMorningstarVR\\cms_"+base;
@@ -86,7 +86,7 @@ int main(int argc,char**argv) try {
     auto body=std::make_unique<bhkRigidBodyT>();body->shapeRef.index=hdr.AddBlock(std::move(list));
     body->translation=Vector4(headRest.translation.x/SU,headRest.translation.y/SU,headRest.translation.z/SU,0);
     body->rotation=QuaternionXYZW(-std::sqrt(.5f),0,0,std::sqrt(.5f));
-    body->mass=8;body->friction=.74f;body->restitution=.08f;body->linearDamping=.12f;body->angularDamping=.2f;
+    body->mass=12;body->friction=.74f;body->restitution=.025f;body->linearDamping=.20f;body->angularDamping=.3f;
     body->inertiaMatrix[0]=body->inertiaMatrix[5]=body->inertiaMatrix[10]=.4f*8*.16f*.16f;
     body->collisionFilter.layer=5;body->collisionFilterCopy=body->collisionFilter;
     body->broadPhaseType=1;body->motionSystem=2;body->qualityType=4;body->solverDeactivation=2;

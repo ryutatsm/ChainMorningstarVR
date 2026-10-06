@@ -341,7 +341,8 @@ def build(texture_dir):
     # The supplied complete emblem replaces the previous independent dragon
     # and frame, preventing two incompatible silhouettes from overlapping.
     crest_starts={k:len(m.v) for k,m in MESHES.items() if k[0]==head}
-    front,back,sides,info=create_relief(texture_dir/'cms_emblem_d.png')
+    front,back,sides,info=create_relief(texture_dir/'cms_emblem_d.png',
+                                      texture_dir/'cms_emblem_relief_source.png')
     parts=[]
     for name,material,part in [('front','emblem',front),('back','metal',back),('sides','metal',sides)]:
         target=mesh(head,material);vstart=len(target.v);fstart=len(target.f)

@@ -440,9 +440,9 @@ void SkyrimVRSceneBridge::submitNativePose(const HeadPose& pose, const HeadSweep
             length(toCms(anchor_->world.translate) - diagnosticAnchor_) / kSkyrimUnitsPerMeter);
         diagnosticsTime_ += frameDt;
         if (diagnosticsTime_ >= 5.0f) {
-            SKSE::log::info("CMS tracking sample: hand={} anchorTravelM={:.3f} headSpeedMps={:.3f} nativePrepared={} colliderReady={} physicsStep={}",
+            SKSE::log::info("CMS tracking sample: hand={} anchorTravelM={:.3f} headSpeedMps={:.3f} nativePrepared={} colliderReady={} physicsStep={} chainSweeps={} chainContacts={}",
                 isLeftHand_ ? "left" : "right", diagnosticMaxTravelM_, sweep.speedMps,
-                nativePrepared_, snapshot.ready, snapshot.physicsStep);
+                nativePrepared_, snapshot.ready, snapshot.physicsStep,snapshot.chainSweeps,snapshot.chainContacts);
             ++diagnosticSamples_;
             diagnosticsTime_ = 0;
         }
@@ -458,6 +458,13 @@ std::vector<HeadWorldContact> SkyrimVRSceneBridge::consumeWorldContacts()
 {
     NativeContactRouter::GetSingleton().DrainAndRefresh();
     return NativePhysicsBackend::GetSingleton().ConsumeContacts();
+}
+
+void SkyrimVRSceneBridge::queryChainContacts(const std::vector<ChainLinkSweep>& sweeps,
+                                            std::vector<ChainLinkContact>& contacts)
+{
+    if (currentHandStillOwnsAnchor())
+        NativePhysicsBackend::GetSingleton().QueryChainContacts(sweeps,contacts);
 }
 
 float SkyrimVRSceneBridge::consumeWorldContactImpulse() { return 0.0f; }

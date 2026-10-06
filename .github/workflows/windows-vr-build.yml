@@ -63,6 +63,7 @@ jobs:
             "$env:PLUGIN_SRC\PlanckBuildProbe.cpp",
             "$env:PLUGIN_SRC\NativePhysicsBackend.cpp",
             "$env:PLUGIN_SRC\NativeWorldSweep.cpp",
+            "$env:PLUGIN_SRC\NativeChainCollision.cpp",
             "$env:PLUGIN_SRC\NativeContactRouter.cpp",
             "$env:PLUGIN_SRC\WeaponMeshContact.cpp",
             "$env:GITHUB_WORKSPACE\Source\SKSE\HeadContactPlanes.hpp",
@@ -156,7 +157,9 @@ jobs:
           HIGGS head-compound collision and solver contact feedback are connected.
           Enemy head/weapon contacts feed the one-in-three worn-instance drop policy.
           Requires HIGGS >= 1.6.0; PLANCK supplies NPC physics and melee damage.
-          In-game behavior is unverified. Separate chain-link world colliders are not implemented.
+          Chain links use swept capsule queries against world and NPC bodies without attack bodies or damage.
+          Chain response is one-way: links bend and slide but do not push objects/NPCs.
+          Version 0.7.0 in-game behavior is unverified; 0.6.1 tracking/head motion was user-confirmed.
           "@ | Set-Content "$env:GITHUB_WORKSPACE\ci-artifact\BUILD_STATUS.txt"
 
       - name: Upload physics test artifact

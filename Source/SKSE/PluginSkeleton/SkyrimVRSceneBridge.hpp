@@ -23,6 +23,9 @@ public:
     bool updateNativeMeleeHeadProxy(const HeadSweep& sweep) override;
     void submitNativePose(const HeadPose& pose, const HeadSweep& sweep, float frameDt) override;
     std::vector<HeadWorldContact> consumeWorldContacts() override;
+    void queryChainContacts(const std::vector<ChainLinkSweep>& sweeps,
+                            std::vector<ChainLinkContact>& contacts) override;
+    [[nodiscard]] float chainCollisionScale() const override { return acquiredScale_; }
     float consumeWorldContactImpulse() override;
     void playChainRattle(float intensity) override;
     void playChainClank(float intensity) override;

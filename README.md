@@ -3,16 +3,23 @@
 Skyrim VR chain morningstar, under development. Audited against main commit
 `0777e257d64fcab908df03ff94e7a9af4ff1a0ee` on 2026-10-06.
 
-**0.6.1 attachment/physics test: Vortex-installable development build.**
-The 0.6.1 build fixes missing Prn=WeaponMace, acquires the visible weapon slot,
-and updates after HIGGS/VRIK. See [the attachment audit](Docs/ATTACHMENT_FIX_061.md).
+**0.7.0 chain-contact/weight/material test: Vortex-installable development build.**
+The user confirmed correct tracking and head motion in 0.6.1. Version 0.7.0 adds
+query-only swept capsule collisions for all 14 chain links: they bend/slide on
+world geometry, objects and PLANCK actor bodies, without damage or drop draws.
+The response is one-way; links do not push objects or NPCs. The solver's head
+mass increases to 12 kg with stronger damping and lower bounce. Part-specific
+darkening preserves geometry, the curved emblem and all normal-map detail.
+See [the new implementation notes](Docs/CHAIN_CONTACTS_070.md).
+The [0.6.1 attachment fix](Docs/ATTACHMENT_FIX_061.md) remains in place.
 The HIGGS weapon body follows the simulated iron head using the NIF's actual
 15 convex collision hulls. Native head contacts feed back into the chain solver.
 Certified enemy head or equipped-weapon contacts enter a single 1/3 drop draw;
 weapon meshes without usable CPU geometry are conservatively skipped.
 Windows compilation and portable tests do not establish in-game compatibility.
-Individual chain-link/world colliders are not implemented; both-hands-at-once
-use is unsupported. See the installation guide for requirements and test limits.
+There are no registered chain rigid bodies, self-collisions or closed-loop
+wrapping constraints. Both-hands-at-once use is unsupported. See the installation
+guide for requirements and test limits. The new 0.7.0 behavior needs in-game testing.
 
 The current appearance revision curves the emblem plaque around the iron ball
 and uses the supplied texture images for the corresponding weapon parts.

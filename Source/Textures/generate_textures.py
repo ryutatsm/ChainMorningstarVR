@@ -21,6 +21,8 @@ HERE = Path(__file__).resolve().parent
 DEFAULT_OUT = HERE.parents[1] / 'build/textures/weapons/ChainMorningstarVR'
 BASES = ['metal', 'wood', 'leather', 'cord', 'spike', 'chain', 'ring', 'emblem']
 METALS = {'metal', 'spike', 'chain', 'ring', 'emblem'}
+DARKEN = {'metal':.60, 'wood':.72, 'leather':.64, 'cord':.68,
+          'spike':.66, 'chain':.62, 'ring':.66, 'emblem':.70}
 
 
 def normal_from_height(h, uv_span_mm, wrap=(True, True)):
@@ -129,6 +131,20 @@ def save_png_atomic(image,path):
     pending.replace(path)
 
 
+def darken_diffuse(name, rgb):
+    """Lower albedo after height extraction; retain source grain and worn tips.
+
+    A small luminance-dependent lift keeps the brightest wear legible against
+    the black iron. No blur, gamma clipping, or changes to the normal field.
+    """
+    pixels = rgb.astype(np.float32)
+    luma = pixels @ np.array([.2126,.7152,.0722],np.float32) / 255
+    lift = .08 * np.clip((luma-.45)/.55,0,1) if name in METALS else 0
+    factor = DARKEN[name] + lift
+    if isinstance(factor,np.ndarray): factor = factor[...,None]
+    return np.rint(pixels * factor).clip(0,255).astype(np.uint8)
+
+
 def generate(out=DEFAULT_OUT):
     out.mkdir(parents=True,exist_ok=True)
     manifest=json.loads((HERE/'source_manifest.json').read_text(encoding='utf-8'))
@@ -137,6 +153,17 @@ def generate(out=DEFAULT_OUT):
         source=load_source(name,manifest)
         rgb,wrap,operations=material_pixels(name,source)
         height,normal,alpha,span,environment=derive_maps(name,rgb,wrap)
+        if name=='emblem':
+            # Mesh relief must keep its approved displacement when albedo is
+            # darkened. This build-only image is never shipped as a game map.
+            save_png_atomic(Image.fromarray(rgb),out/'cms_emblem_relief_source.png')
+        # Crucially, derive relief from the approved source colors first.
+        # The darker finish must not flatten leather dents or hammered iron.
+        before_luma=float((rgb.astype(np.float32)@np.array([.2126,.7152,.0722])).mean())
+        rgb=darken_diffuse(name,rgb)
+        operations.update(source_color_scale=DARKEN[name],
+                          bright_wear_scale_lift=.08 if name in METALS else 0,
+                          normal_height_source='approved source before darkening')
         save_png_atomic(Image.fromarray(rgb),out/f'cms_{name}_d.png')
         save_png_atomic(Image.fromarray(np.dstack([normal,alpha])),out/f'cms_{name}_n.png')
         if environment is not None:
@@ -149,9 +176,11 @@ def generate(out=DEFAULT_OUT):
             'normal_mean_tilt_degrees':float(np.degrees(np.arccos(np.clip(n[:,:,2],-1,1))).mean()),
             'normal_xy_rms':float(np.sqrt(np.mean(n[:,:,:2]**2))),
             'diffuse_luma_std':float(rgb.mean(2).std()),
+            'diffuse_luma_mean_before':before_luma,
+            'diffuse_luma_mean_after':float((rgb.astype(np.float32)@np.array([.2126,.7152,.0722])).mean()),
             'specular_range':[int(alpha.min()),int(alpha.max())],
             'uv_span_mm':list(span),'environment_map':environment is not None}
-    report={'schema_version':2,'material_revision':'20261006-user-textures', 'size':[N,N],
+    report={'schema_version':3,'material_revision':'20261006-black-iron-070', 'size':[N,N],
             'source_archive_sha256':manifest['archive_sha256'],
             'normal_png_convention':'mesh tangent basis, original V up',
             'normal_dds_convention':'NIF flipped V; green inverted during DDS encoding',

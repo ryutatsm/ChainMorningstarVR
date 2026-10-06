@@ -70,6 +70,29 @@ struct Particle {
     float invMass{1.0f};
 };
 
+// Query-only collision data. These links are never Havok attack bodies and
+// never enter the head contact / damage / equipment-drop pipeline.
+struct ChainLinkSweep {
+    std::size_t linkIndex{};
+    Vec3 fromM{}, toM{};
+    Vec3 fromAxis{}, toAxis{};
+    float radiusM{}, halfSegmentM{};
+};
+
+struct ChainLinkContact {
+    std::size_t linkIndex{};
+    Vec3 surfacePointM{}, normalWorld{}, surfaceVelocityMps{};
+    std::uintptr_t otherBodyIdentity{};
+};
+
+class IChainCollisionQuery {
+public:
+    virtual ~IChainCollisionQuery() = default;
+    virtual void queryChainContacts(const std::vector<ChainLinkSweep>&,
+                                   std::vector<ChainLinkContact>&) {}
+    [[nodiscard]] virtual float chainCollisionScale() const { return 1.0f; }
+};
+
 struct ChainConfig {
     std::size_t linkCount{14};
     float firstLinkCenterOffsetM{0.035f};
@@ -77,10 +100,15 @@ struct ChainConfig {
     float headCenterOffsetFromLastLinkM{0.190f};
 
     float linkMassKg{0.22f};
-    float headMassKg{8.0f};
+    float headMassKg{12.0f};
 
     float dampingPer90Hz{0.995f};
-    int solverIterations{80};
+    float headDampingPer90Hz{0.990f};
+    // Capsule enclosing each oval link: 47.4 mm outer radius, 70.8 mm
+    // total half-length. The hole is intentionally solid for robust contact.
+    float linkCollisionRadiusM{0.0474f};
+    float linkCollisionHalfSegmentM{0.0234f};
+    int solverIterations{96};
     Vec3 gravityMps2{0.0f, 0.0f, -9.80665f};
 };
 
@@ -110,10 +138,23 @@ public:
         reset(anchor, direction);
     }
 
-    void step90Hz(Vec3 anchor) {
+    void step90Hz(Vec3 anchor, IChainCollisionQuery* query = nullptr) {
         constexpr float dt = 1.0f / 90.0f;
         if (!isFinite(anchor)) return;
         if (!initialized_) reset(anchor);
+
+        chainContacts_.clear();
+        std::vector<Vec3> oldCenters, oldAxes;
+        if (query) {
+            oldCenters.reserve(linkCount()); oldAxes.reserve(linkCount());
+            for (std::size_t i = 0; i < linkCount(); ++i) {
+                oldCenters.push_back(pendingChainCenters_.empty() ? linkPosition(i) : pendingChainCenters_[i]);
+                oldAxes.push_back(pendingChainAxes_.empty() ? linkAxis(i) : pendingChainAxes_[i]);
+            }
+            const float scale = query->chainCollisionScale();
+            collisionScale_ = std::isfinite(scale) ? std::clamp(scale, 0.25f, 4.0f) : 1.0f;
+        }
+        pendingChainCenters_.clear(); pendingChainAxes_.clear();
 
         // Contacts are refreshed by Havok physics steps. A short bounded cache
         // bridges render/physics scheduling without keeping an infinite plane
@@ -129,27 +170,26 @@ public:
         points_[0].previous = oldAnchor;
         points_[0].position = anchor;
 
-        const float damp = std::clamp(cfg_.dampingPer90Hz, 0.0f, 1.0f);
         for (std::size_t i = 1; i < points_.size(); ++i) {
             Particle& p = points_[i];
+            const float damp = i + 1 == points_.size() ?
+                cfg_.headDampingPer90Hz : cfg_.dampingPer90Hz;
             const Vec3 velocity = (p.position - p.previous) * damp;
             p.previous = p.position;
             p.position += velocity + cfg_.gravityMps2 * (dt * dt);
         }
 
-        const int iterations = std::max(1, cfg_.solverIterations);
-        for (int iter = 0; iter < iterations; ++iter) {
-            points_[0].position = anchor;
-            if ((iter & 1) == 0) {
-                for (std::size_t c = 0; c < constraintLengthsM_.size(); ++c) {
-                    solveDistance(c, c + 1, constraintLengthsM_[c]);
-                }
-            } else {
-                for (std::size_t c = constraintLengthsM_.size(); c-- > 0;) {
-                    solveDistance(c, c + 1, constraintLengthsM_[c]);
-                }
+        solveConstraints(anchor, cfg_.solverIterations);
+        if (query) {
+            // Sweep after distance solving: otherwise a constraint correction
+            // could drag a link straight through a thin wall. Two bounded
+            // batches also cover the changed direction around an obstacle.
+            for (int pass = 0; pass < 2; ++pass) {
+                collectChainContacts(*query, oldCenters, oldAxes);
+                if (chainContacts_.empty()) break;
+                solveConstraints(anchor, cfg_.solverIterations);
             }
-            projectHeadOutsideContacts();
+            constrainChainVelocities(oldAxes);
         }
         points_[0].position = anchor;
         // Position constraints may pull the head back into a wall. Projection
@@ -162,6 +202,8 @@ public:
 
     void clearWorldContacts() {
         contacts_.clear();
+        chainContacts_.clear();
+        pendingChainCenters_.clear(); pendingChainAxes_.clear();
         lastContactPhysicsStep_ = 0;
     }
 
@@ -214,7 +256,7 @@ public:
             if (gap > kContactSlopM * 2.0f) continue;
             const float closing = dot(velocity - contact.surfaceVelocityMps, contact.normalWorld);
             if (closing >= 0.0f) continue;
-            // Low restitution suits an eight-kilogram iron head. Tangential
+            // Low restitution suits a heavy iron head. Tangential
             // friction is Coulomb-limited, so a grazing touch cannot erase a
             // fast swing or inject energy. No engine impulse is fabricated.
             const float normalDelta = -(1.0f + kHeadRestitution) * closing;
@@ -229,11 +271,15 @@ public:
         // Coupled contact normals (corners) must all have non-inward velocity.
         constrainContactVelocity(velocity);
         points_.back().previous = headPosition() - velocity * (1.0f / 90.0f);
-        reconcileLinksToCorrectedHead();
+        // Reconcile only actual recovery. Re-solving an already resting chain
+        // on every render callback made stiffness depend on headset refresh.
+        if (lengthSq(headPosition() - originalHead) > 1.0e-12f)
+            reconcileLinksToCorrectedHead(originalHead);
         return normalImpulse;
     }
 
     [[nodiscard]] std::size_t activeContactCount() const { return contacts_.size(); }
+    [[nodiscard]] std::size_t activeChainContactCount() const { return chainContacts_.size(); }
     [[nodiscard]] std::uint64_t lastContactPhysicsStep() const { return lastContactPhysicsStep_; }
 
     [[nodiscard]] const ChainConfig& config() const { return cfg_; }
@@ -243,6 +289,10 @@ public:
     [[nodiscard]] std::size_t linkCount() const { return cfg_.linkCount; }
     [[nodiscard]] Vec3 anchorPosition() const { return points_.front().position; }
     [[nodiscard]] Vec3 linkPosition(std::size_t i) const { return points_.at(i + 1).position; }
+    [[nodiscard]] Vec3 linkAxis(std::size_t i) const {
+        Vec3 axis = normalized(points_.at(i + 2).position - points_.at(i).position);
+        return lengthSq(axis) > 0.5f ? axis : Vec3{0,0,1};
+    }
     [[nodiscard]] Vec3 headPosition() const { return points_.back().position; }
 
     [[nodiscard]] Vec3 anchorVelocity90Hz() const {
@@ -279,8 +329,113 @@ private:
     static constexpr std::size_t kMaxContactPlanes = 12;
     static constexpr float kContactLifetimeS = 0.05f;
     static constexpr float kContactSlopM = 0.0005f;
-    static constexpr float kHeadRestitution = 0.08f;
-    static constexpr float kHeadFriction = 0.28f;
+    static constexpr float kHeadRestitution = 0.025f;
+    static constexpr float kHeadFriction = 0.38f;
+    static constexpr std::size_t kMaxContactsPerLink = 3;
+
+    float linkSupport(std::size_t i, Vec3 normal) const {
+        return collisionScale_ * (cfg_.linkCollisionRadiusM +
+            cfg_.linkCollisionHalfSegmentM * std::fabs(dot(linkAxis(i), normal)));
+    }
+
+    void collectChainContacts(IChainCollisionQuery& query,
+                              const std::vector<Vec3>& oldCenters,
+                              const std::vector<Vec3>& oldAxes) {
+        std::vector<ChainLinkSweep> sweeps;
+        sweeps.reserve(linkCount());
+        for (std::size_t i = 0; i < linkCount(); ++i)
+            sweeps.push_back({i, oldCenters[i], linkPosition(i), oldAxes[i], linkAxis(i),
+                cfg_.linkCollisionRadiusM * collisionScale_,
+                cfg_.linkCollisionHalfSegmentM * collisionScale_});
+        std::vector<ChainLinkContact> found;
+        query.queryChainContacts(sweeps, found);
+        for (auto contact : found) {
+            if (contact.linkIndex >= linkCount() || !contact.otherBodyIdentity ||
+                !isFinite(contact.surfacePointM) || !isFinite(contact.normalWorld) ||
+                !isFinite(contact.surfaceVelocityMps) ||
+                lengthSq(contact.normalWorld) < 0.25f || lengthSq(contact.normalWorld) > 4.0f ||
+                lengthSq(contact.surfaceVelocityMps) > 2500.0f ||
+                lengthSq(contact.surfacePointM - linkPosition(contact.linkIndex)) > 4.0f) continue;
+            contact.normalWorld = normalized(contact.normalWorld);
+            const auto duplicate = std::find_if(chainContacts_.begin(), chainContacts_.end(), [&](const auto& c) {
+                return c.linkIndex == contact.linkIndex && c.otherBodyIdentity == contact.otherBodyIdentity &&
+                    dot(c.normalWorld, contact.normalWorld) > 0.995f;
+            });
+            if (duplicate != chainContacts_.end()) {
+                if (dot(contact.surfacePointM - duplicate->surfacePointM, contact.normalWorld) > 0.0f)
+                    *duplicate = contact;
+            } else if (std::count_if(chainContacts_.begin(), chainContacts_.end(), [&](const auto& c) {
+                return c.linkIndex == contact.linkIndex;
+            }) < static_cast<std::ptrdiff_t>(kMaxContactsPerLink)) {
+                chainContacts_.push_back(contact);
+            }
+        }
+    }
+
+    void projectChainOutsideContacts() {
+        for (int pass = 0; pass < 3; ++pass) {
+            for (const auto& c : chainContacts_) {
+                auto& point = points_[c.linkIndex + 1];
+                const float gap = dot(point.position - c.surfacePointM, c.normalWorld) -
+                    linkSupport(c.linkIndex, c.normalWorld);
+                if (gap < kContactSlopM) point.position += c.normalWorld * (kContactSlopM - gap);
+            }
+        }
+    }
+
+    void constrainChainVelocities(const std::vector<Vec3>& oldAxes) {
+        for (std::size_t i = 0; i < linkCount(); ++i) {
+            auto& point = points_[i + 1];
+            // A moving object can overlap a previously stationary link.
+            // Recover the old position as well, so depenetration itself does
+            // not become a large outward Verlet velocity on the next tick.
+            for (int pass = 0; pass < 4; ++pass) {
+                for (const auto& c : chainContacts_) {
+                    if (c.linkIndex != i) continue;
+                    const float support = collisionScale_ * (cfg_.linkCollisionRadiusM +
+                        cfg_.linkCollisionHalfSegmentM * std::fabs(dot(oldAxes[i], c.normalWorld)));
+                    const float gap = dot(point.previous - c.surfacePointM, c.normalWorld) - support;
+                    if (gap < 0) point.previous -= c.normalWorld * gap;
+                }
+            }
+            Vec3 velocity = linkVelocity90Hz(i);
+            for (int pass = 0; pass < 4; ++pass) {
+                for (const auto& c : chainContacts_) {
+                    if (c.linkIndex != i) continue;
+                    const float gap = dot(point.position - c.surfacePointM, c.normalWorld) -
+                        linkSupport(i, c.normalWorld);
+                    if (gap > kContactSlopM * 2) continue;
+                    const float inward = dot(velocity - c.surfaceVelocityMps, c.normalWorld);
+                    if (inward < 0) {
+                        velocity -= c.normalWorld * inward; // no restitution on the chain
+                        if (pass == 0) {
+                            const Vec3 relative = velocity - c.surfaceVelocityMps;
+                            const Vec3 tangent = relative - c.normalWorld * dot(relative, c.normalWorld);
+                            const float speed = length(tangent);
+                            if (speed > 1.0e-6f)
+                                velocity -= tangent * (std::min(speed, -inward * 0.32f) / speed);
+                        }
+                    }
+                }
+            }
+            point.previous = point.position - velocity * (1.0f / 90.0f);
+        }
+    }
+
+    void solveConstraints(Vec3 anchor, int iterations) {
+        for (int iter = 0; iter < iterations; ++iter) {
+            points_[0].position = anchor;
+            if ((iter & 1) == 0) {
+                for (std::size_t c = 0; c < constraintLengthsM_.size(); ++c)
+                    solveDistance(c, c + 1, constraintLengthsM_[c]);
+            } else {
+                for (std::size_t c = constraintLengthsM_.size(); c-- > 0;)
+                    solveDistance(c, c + 1, constraintLengthsM_[c]);
+            }
+            projectHeadOutsideContacts();
+            projectChainOutsideContacts();
+        }
+    }
 
     bool validContact(const HeadWorldContact& contact) const {
         if (contact.physicsStep == 0 || !isFinite(contact.headCenterM) ||
@@ -317,7 +472,16 @@ private:
         }
     }
 
-    void reconcileLinksToCorrectedHead() {
+    void reconcileLinksToCorrectedHead(Vec3 originalHead) {
+        // A late head correction also moves its links. The next query must
+        // sweep that recovery path, not start on the far side of a thin wall.
+        if (pendingChainCenters_.empty()) {
+            for (std::size_t i = 0; i < linkCount(); ++i) {
+                pendingChainCenters_.push_back(linkPosition(i));
+                pendingChainAxes_.push_back(i + 1 == linkCount() ?
+                    normalized(originalHead - points_[i].position) : linkAxis(i));
+            }
+        }
         std::vector<Vec3> before;
         before.reserve(points_.size());
         for (const auto& point : points_) before.push_back(point.position);
@@ -348,6 +512,9 @@ private:
         if (!std::isfinite(cfg.linkMassKg)) cfg.linkMassKg = defaults.linkMassKg;
         if (!std::isfinite(cfg.headMassKg)) cfg.headMassKg = defaults.headMassKg;
         if (!std::isfinite(cfg.dampingPer90Hz)) cfg.dampingPer90Hz = defaults.dampingPer90Hz;
+        if (!std::isfinite(cfg.headDampingPer90Hz)) cfg.headDampingPer90Hz = defaults.headDampingPer90Hz;
+        if (!std::isfinite(cfg.linkCollisionRadiusM)) cfg.linkCollisionRadiusM = defaults.linkCollisionRadiusM;
+        if (!std::isfinite(cfg.linkCollisionHalfSegmentM)) cfg.linkCollisionHalfSegmentM = defaults.linkCollisionHalfSegmentM;
         if (!isFinite(cfg.gravityMps2)) cfg.gravityMps2 = defaults.gravityMps2;
         cfg.linkCount = std::max<std::size_t>(1, cfg.linkCount);
         cfg.firstLinkCenterOffsetM = std::max(0.001f, cfg.firstLinkCenterOffsetM);
@@ -355,6 +522,10 @@ private:
         cfg.headCenterOffsetFromLastLinkM = std::max(0.001f, cfg.headCenterOffsetFromLastLinkM);
         cfg.linkMassKg = std::max(0.001f, cfg.linkMassKg);
         cfg.headMassKg = std::max(0.001f, cfg.headMassKg);
+        cfg.dampingPer90Hz = std::clamp(cfg.dampingPer90Hz, 0.0f, 1.0f);
+        cfg.headDampingPer90Hz = std::clamp(cfg.headDampingPer90Hz, 0.0f, 1.0f);
+        cfg.linkCollisionRadiusM = std::clamp(cfg.linkCollisionRadiusM, 0.001f, 0.15f);
+        cfg.linkCollisionHalfSegmentM = std::clamp(cfg.linkCollisionHalfSegmentM, 0.001f, 0.15f);
         cfg.solverIterations = std::max(1, cfg.solverIterations);
         return cfg;
     }
@@ -402,6 +573,9 @@ private:
     std::vector<float> constraintLengthsM_{};
     bool initialized_{false};
     std::vector<HeadContactPlane> contacts_{};
+    std::vector<ChainLinkContact> chainContacts_{};
+    std::vector<Vec3> pendingChainCenters_{}, pendingChainAxes_{};
+    float collisionScale_{1.0f};
     std::uint64_t lastContactPhysicsStep_{};
 };
 
@@ -417,7 +591,7 @@ public:
         hasInputAnchor_ = true;
     }
 
-    int update(float frameDt, Vec3 anchor) {
+    int update(float frameDt, Vec3 anchor, IChainCollisionQuery* query = nullptr) {
         // Invalid tracking/time samples must never poison the persistent simulation.
         if (!std::isfinite(frameDt) || !isFinite(anchor)) return 0;
         frameDt = std::clamp(frameDt, 0.0f, 0.05f);
@@ -440,7 +614,7 @@ public:
         double sampleTimeInFrame = h - accumulatorAtFrameStart;
         while (accumulator_ >= h && steps < 5) {
             const float alpha = static_cast<float>(std::clamp(sampleTimeInFrame / frameDt, 0.0, 1.0));
-            solver_.step90Hz(lerp(lastInputAnchor_, anchor, alpha));
+            solver_.step90Hz(lerp(lastInputAnchor_, anchor, alpha), query);
             accumulator_ -= h;
             sampleTimeInFrame += h;
             ++steps;
