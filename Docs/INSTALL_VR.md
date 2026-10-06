@@ -1,74 +1,46 @@
-# ChainMorningstarVR — Skyrim VR install/test procedure
+# 0.5.0 監査・開発版の状態
 
-## Required runtime
-- Skyrim VR
-- SKSEVR
-- PLANCK (validated target build: 80100)
+2026-10-06時点で、新しいWindows DLLのコンパイル・実機起動は未確認。
+この段階では、導入用の完成ZIPを配布しない。
 
-No external item-distribution framework is required. Eorlund Gray-Mane's stock is patched
-in memory by ChainMorningstarVR.dll itself at SKSE DataLoaded.
+## 生成済みデータ
 
-## Vendor implementation
-ChainMorningstarVR.esp contains only the new weapon record and deliberately contains no CONT or
-LVLI override. The weapon has a fixed plugin-local FormID 00000800.
+- `ChainMorningstarVR.esp`: Skyrim.esmのみを参照する通常ESP。WEAP local 00000800、独自一人称STAT local 00000801。ダメージ44、重量17、価値550、片手メイス。
+- `ChainMorningstar.nif`: 独自の柄・14リンク・鉄球と棘。参照画像に基づく外観の初版。
+- テクスチャ: 鋼、木、革のdiffuse/normal、鋼の環境反射マスク。
+- SKSEソース: 鎖の表示用シミュレーション、標準ゲームの鎖音、エオルンドの販売登録。
 
-At DataLoaded, ChainMorningstarVR.dll:
-1. resolves ChainMorningstarVR.esp|00000800,
-2. verifies it is a one-hand mace and has VendorItemWeapon,
-3. resolves MerchantWhiterunEorlundChest [CONT:0010FDE6] from Skyrim.esm,
-4. checks whether that base container already contains the weapon,
-5. adds exactly one item only when the current count is zero,
-6. verifies the resulting count is exactly one and logs the result.
+ESPはユーザーから提供されたReferenceBundleの元レコードをハッシュ検証して
+生成した。以前必要だった手作業でのxEdit生成は、この新規ビルドでは不要。
+ただしxEdit Check for Errorsと実機ロードの確認はまだ必要。
 
-This modifies the process's in-memory winning container base record and creates no merchant-container
-or leveled-list override in the ESP. Once a merchant reference inventory is instantiated, Skyrim's
-normal save/restock behavior applies to that inventory just as it does to vanilla vendor stock.
+## 未実装・未接続の機能
 
-On an existing save whose merchant inventory is already instantiated, the new base item may not
-appear until Eorlund's merchant inventory next resets/restocks. Do not force-reset inventory
-during the first safety test; allow a normal vendor restock if necessary.
+- 壁・床・敵に反応する鎖／鉄球のネイティブ物理。
+- 鉄球の実位置に一致する攻撃判定。
+- 頭命中で兜、武器命中でその武器を3分の1で落とす機能の実接触との接続。
 
-## xEdit build stage
-Use current xEdit in Skyrim VR mode. Correct VR mode is selected by either running TES5VREdit.exe
-or launching xEdit with -TES5VR. Both bundled scripts independently check wbAppName and refuse to
-run unless it is TES5VR.
+既存の武器／HIGGS衝突が残る可能性はあるが、それをこのMODの鉄球判定が動いた
+証拠にしてはいけない。見た目の揺れだけでも物理攻撃の合格にしない。
 
-Before building, make sure no existing ChainMorningstarVR.esp is present in the active Data path.
-Back up and remove/rename any old file with that exact name so AddNewFileName can create a clean plugin.
+## ビルド後の最初の実機確認
 
-Copy these files into the xEdit installation's Edit Scripts folder:
-- Build_ChainMorningstarVR.pas
-- Validate_ChainMorningstarVR.pas
+新しいDLLがWindows CIでビルドでき、同じソースのNIF/DDS/ESPとの組み合わせを
+静的検証した後に、外観・音・販売・再ロードを確認する専用ZIPを用意する。
+この文書単独を現在のインストール指示として使わない。
 
-For the build pass, load only Skyrim.esm. The build script reads SteelMace [WEAP:00013988],
-copies it as a new record, fixes the new record's plugin-local FormID to 00000800, and sets the
-project values using xEdit native numeric APIs.
+その段階で確認する項目は、エオルンド販売、右手／左手の単独装備、紋章と材質、
+鎖の見た目、鎖音、装備解除、メニュー開閉、セーブ／ロード、セル移動。
+片手に1本ずつ切り替えて確認する。現行表示サービスは両手同時の2本には未対応。
 
-For the validation pass, restart TES5VREdit and select only ChainMorningstarVR.esp; xEdit will
-select Skyrim.esm because it is the plugin's required master. Run Validate_ChainMorningstarVR,
-then xEdit Check for Errors.
+`Tools/Collect_CMS_Logs.cmd` はゲーム終了後にログを収集する補助ファイル。
+ゲームデータやセーブを変更しない。実機テストZIPと一緒に使う。
 
-Required validator result:
-- local FormID 00000800
-- EDID CMS_ChainMorningstar
-- one-hand mace (DNAM Animation Type 4)
-- VendorItemWeapon keyword present
-- Damage 44
-- Weight 17
-- Value 550
-- Model weapons\ChainMorningstarVR\ChainMorningstar.nif
-- zero CONT overrides
-- zero LVLI overrides
+## 開発者向け
 
-## First target-machine test
-Use the READ-ONLY diagnostic DLL first. Do not use the native-proxy-test DLL until the diagnostic
-log shows a plausible VRMeleeData layout on the target Skyrim VR install.
-
-Verify:
-1. Vortex deployment has no unexpected file conflicts.
-2. ChainMorningstarVR.esp is enabled.
-3. ChainMorningstarVR.log contains successful plugin load, PLANCK build 80100 detection,
-   Eorlund vendor injection PASS, and the expected read-only VRMeleeData diagnostics.
-4. Eorlund sells one Chain Morningstar after his merchant inventory is initialized or normally restocked.
-5. Reopening the barter menu does not create duplicate Chain Morningstars.
-6. Animated chains reupload requires no conflict rule against this mod.
+- `Source/SKSE/PluginSkeleton` の `vr-diagnostic` プリセットのみ有効。
+- retired `CMS_ENABLE_NATIVE_MELEE_PROXY=1` はコンパイルエラー。
+- 旧 `native-proxy-test` を試す手順は撤回。診断値が妥当でも有効化しない。
+- 通常の装備アイテム・商人取引・所持品差分はゲームのセーブ対象。
+  base containerへの実行時追加自体はESPのCONTオーバーライドを作らないが、
+  既存セーブに副作用がないという保証にはならない。

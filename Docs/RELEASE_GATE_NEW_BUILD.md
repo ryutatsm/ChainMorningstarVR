@@ -1,63 +1,52 @@
-# ChainMorningstarVR — release gate for the NEW build
+# Release gate — audited development branch
 
-A release archive must pass all checks below on the target Skyrim VR installation.
+All gates are required. A compiler pass, NIF parser pass, or simulated test does
+not establish in-game compatibility. Do not reuse evidence from the old
+ChainedMorningstarVR project or a different build combination.
 
-## Build identity
-- Every binary/model/record is produced from this repository.
-- No NIF/ESP/DLL from an earlier morning-star project is included or used as a template.
-- CI source commit and SHA-256 hashes are recorded.
+## Build provenance
 
-## Weapon record
-- One-handed mace classification.
-- Damage 44.
-- Weight 17.
-- Value 550.
-- Model path is `weapons\\ChainMorningstarVR\\ChainMorningstar.nif`.
-- Weapon plugin-local FormID is fixed to `00000800` for deterministic SKSE lookup.
-- One-hand mace classification and `VendorItemWeapon` are explicitly validated.
-- Eorlund vendor distribution is runtime-only inside `ChainMorningstarVR.dll`.
-- `ChainMorningstarVR.esp` contains no `CONT` or `LVLI` override.
-- Runtime injector targets `MerchantWhiterunEorlundChest [CONT:0010FDE6]`, adds only when count is zero, and verifies count 1.
-- Generated ESP passes `Validate_ChainMorningstarVR.pas` and xEdit `Check for Errors`.
+- Pin source commit and external dependency revisions.
+- Windows Skyrim VR DLL build succeeds for the actual source delivered.
+- Plugin binary structural tests pass; xEdit Check for Errors passes.
+- WEAP local 00000800 and first-person STAT local 00000801 share custom model.
+- Mace / damage44 / weight17 / value550 and vanilla sound/impact/equip data verified.
+- Final NIF node tree, actual transforms, triangle bounds, 7 texture references,
+  DDS format, mip count, normal alpha and shader flags verified.
+- Package contains one matched DLL/ESP/NIF/DDS set with SHA-256 manifest.
 
-## Visual/NIF
-- Correct ~2x blueprint scale.
-- 56 cm handle.
-- 14 chain link runtime nodes.
-- 84 cm first-to-last link-centre span.
-- 32 cm iron core and 8 cm spikes.
-- CMS_ChainAnchor, CMS_LinkNode_00..13, CMS_HeadNode survive NIF round-trip.
-- Metal diffuse/normal/specular/environment maps resolve and no purple textures.
-- Seven authored DDS files are 1024x1024 DXT5 with 11 mip levels and pass decode-check.
-- Normal-map alpha is authored per material (not opaque 255) to avoid plastic/wet specular response.
-- Iron ball reads as rough forged steel, not smooth plastic.
+## In-game appearance and lifecycle
 
-## Physics/runtime
-- Fixed 90 Hz chain simulation remains stable under common VR frame rates.
-- Head centre maximum straight reach from anchor is 106.5 cm.
-- Visual head and collision proxy remain coincident during extension, lateral swing,
-  return swing and rapid direction changes.
-- Handle and chain do not produce the head's 44-damage hit.
-- Gaps between spikes are not treated as a fully solid 24 cm sphere.
-- All 14 visible spike directions are represented by narrow-phase collision.
-- Each valid contact produces one native hit/damage event, not duplicates.
-- Native blocking/perks/stagger/hostility/kill credit remain intact.
+- Record runtime, SKSEVR, HIGGS, PLANCK, VRIK versions actually used.
+- Eorlund sells weapon; purchase, buy-back and stock reset work on new and existing saves.
+- Right/left single-hand equip displays the reference design and correct scale.
+- Chains, collar, wood, leather, plaque and metal surface judged in VR lighting.
+- Sounds audible, spatially correct, no stuck sound on sheathe/unequip/load.
+- Pause/resume, tracking discontinuity, cell/fast-travel and save/load stable.
+- Repeated equip/unequip and at least 10 minutes of combat produce no CTD or detached bodies.
 
-## Stability
-- Right-hand and left-hand equip paths both work.
-- 50 equip/unequip cycles without CTD.
-- Save/load, death/reload, fast travel and cell transition without stale-node CTD.
-- Ten-minute combat stress test without progressive frame-time loss or leaked nodes.
-- Vortex install/deploy/purge/redeploy leaves no orphan files.
+## Physical combat
 
-## Compatibility / packaging
-- The release archive is self-contained: ESP + SKSE DLL + NIF + seven DDS textures.
-- No external container/item-distribution framework is required.
-- `Animated chains reupload` is not a dependency and requires no Vortex ordering rule against this mod.
-- Vendor distribution is an additive in-memory base-container patch after plugin data load, avoiding normal plugin-record conflicts on Eorlund's chest.
-- Existing-save behavior is tested both before and after a normal merchant inventory restock.
+- Actual head compound aligns with core and spike surfaces at every simulated pose.
+- Each link and head have justified physical world contacts; no wall penetration.
+- Contact feedback stops/rebounds the simulated head, not merely its rendered mesh.
+- Test both fast sweep and tip-only contacts; empty gaps between spikes do not hit.
+- No stale handle/steel-mace-position damage or duplicated native + custom damage.
+- Native block, armor, perks, stagger, kill credit, hostility and crime behavior preserved.
+- Callback threading, world lock, body ownership and restore lifecycle verified.
 
-## Evidence rule
-A regression check is added only when the problem is reproduced by THIS repository.
-Do not add release criteria merely because an older, separate morning-star project once
-exhibited a similar symptom.
+## Equipment drop
+
+- Actual enemy head surface contact resolves the worn helmet/headgear instance.
+- Actual enemy weapon surface contact resolves that hand's equipped weapon instance.
+- A hand/torso hit never substitutes for a weapon/head hit.
+- Every eligible distinct contact episode gets one unbiased 1/3 draw; resting or repeated
+  callbacks do not reroll. This is probabilistic, not exactly every third hit.
+- Only the struck equipment drops. Tempering/enchantment and exact instance retained.
+- Teammates/player, protected quest items and invalid/stale instances are excluded.
+- Empty/unarmed/nonhumanoid targets handled without invented equipment.
+- Fatal hits and dead-actor policy explicitly implemented/tested; current foundation
+  rejects dead actors, which must be revisited if queued contact follows a killing blow.
+- New game/load/equip generations invalidate pending contacts; no dangling pointers.
+
+Only after all gates pass may a completed release archive be offered.

@@ -9,7 +9,6 @@ plugin = (root / "Source/SKSE/PluginSkeleton/PluginSkeleton.cpp").read_text(enco
 
 # The ESP must remain conflict-free: no vanilla merchant/container/leveled-list override.
 for forbidden in (
-    "MerchantWhiterunEorlundChest",
     "GroupBySignature(DstFile, 'CONT')",
     "GroupBySignature(DstFile, 'LVLI')",
     "Container Item Distributor",
@@ -25,6 +24,8 @@ for required in (
     "SetElementNativeValues(Dst, 'DATA\\Weight', 17.0)",
     "SetElementNativeValues(Dst, 'DATA\\Value', 550)",
     "weapons\\ChainMorningstarVR\\ChainMorningstar.nif",
+    "CMS_ChainMorningstarFirstPerson",
+    "SetElementEditValues(Dst, 'WNAM', IntToHex(GetLoadOrderFormID(FirstPersonDst), 8))",
 ):
     if required not in build:
         raise SystemExit(f"Build script missing required weapon contract: {required}")
@@ -51,6 +52,8 @@ for required in (
     "GroupBySignature(ModFile, 'LVLI')",
     "Unexpected CONT override found",
     "Unexpected LVLI override found",
+    "First-person STAT local FormID is not 00000801",
+    "First-person STAT model path mismatch",
 ):
     if required not in validate:
         raise SystemExit(f"Validator missing required guard: {required}")
@@ -74,6 +77,8 @@ for required in (
     "if (before > 0)",
     "AddObjectToContainer(weapon, 1, nullptr)",
     "if (after != 1)",
+    "if (before < 0)",
+    "weapon->firstPersonModelObject != firstPerson",
 ):
     if required not in vendor:
         raise SystemExit(f"Eorlund runtime injector missing safety contract: {required}")
@@ -89,6 +94,7 @@ if cid_files:
 print("VENDOR_RUNTIME_CONTRACT_PASS")
 print("weapon_local_formid=00000800")
 print("target_container=0010FDE6 Skyrim.esm")
-print("vendor_count=1 idempotent=true")
+print("vendor_policy=add_1_when_empty_preserve_existing_positive_count")
 print("external_distributor_dependency=none")
 print("plugin_record_conflicts=CONT:0 LVLI:0")
+print("NOTE: source-contract lint only; this does not execute Skyrim or prove merchant sales")

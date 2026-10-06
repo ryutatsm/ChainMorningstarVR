@@ -1,79 +1,60 @@
-name: Windows Skyrim VR NIF build gate
-
+name: Reference mesh and Skyrim VR NIF build gate
 on:
   workflow_dispatch:
   push:
-    paths:
-      - "Source/NIF/**"
-      - ".github/workflows/windows-nif-build.yml"
+    paths: ["Source/NIF/**", "Source/Textures/**", ".github/workflows/windows-nif-build.yml"]
   pull_request:
-    paths:
-      - "Source/NIF/**"
-      - ".github/workflows/windows-nif-build.yml"
-
+    paths: ["Source/NIF/**", "Source/Textures/**", ".github/workflows/windows-nif-build.yml"]
+permissions:
+  contents: read
 jobs:
   nif:
     runs-on: windows-2022
     defaults:
       run:
         shell: pwsh
-    env:
-      CMS_NIF_OUT: ${{ github.workspace }}\nif-artifact\meshes\weapons\ChainMorningstarVR\ChainMorningstar.nif
-
     steps:
-      - name: Checkout
+      - uses: actions/checkout@v4
+      - name: Checkout pinned nifly source
         uses: actions/checkout@v4
-
-      - name: Install Blender
+        with:
+          repository: ousnius/nifly
+          ref: cca0a770094bb962fb28ea1fec5ea903e68fda8e
+          path: .deps/nifly
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install deterministic asset dependencies
+        run: python -m pip install -r Source/NIF/requirements-assets.txt
+      - name: Compile portable NIF writer
         run: |
-          choco install blender --no-progress -y
-          $blender = Get-ChildItem "C:\Program Files\Blender Foundation" -Recurse -Filter blender.exe |
-            Sort-Object FullName -Descending | Select-Object -First 1
-          if (-not $blender) { throw "blender.exe not found" }
-          "BLENDER_EXE=$($blender.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
-          & $blender.FullName --version
-
-      - name: Download PyNifly 29.0.0
+          cmake -S Source/NIF -B build/asset-exporter -A x64 "-DCMS_NIFLY_ROOT=$env:GITHUB_WORKSPACE/.deps/nifly"
+          if ($LASTEXITCODE -ne 0) { throw "CMake configure failed" }
+          cmake --build build/asset-exporter --config Release --parallel
+          if ($LASTEXITCODE -ne 0) { throw "NIF writer compile failed" }
+      - name: Build textures and decode all mipmaps
         run: |
-          $zip="$env:RUNNER_TEMP\io_scene_nifly.zip"
-          Invoke-WebRequest -Uri "https://github.com/BadDogSkyrim/PyNifly/releases/download/V29.0.0/io_scene_nifly.zip" -OutFile $zip
-          $hash=(Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
-          if ($hash -ne "7ee96322bd633372b1f2e8a99cac807723e249a132f15338c2f5b1cdf9f32190") {
-            throw "PyNifly release checksum mismatch: $hash"
-          }
-          $dst="$env:GITHUB_WORKSPACE\.pynifly"
-          New-Item -ItemType Directory -Force -Path $dst | Out-Null
-          Expand-Archive -Path $zip -DestinationPath $dst -Force
-          Get-ChildItem $dst -Depth 2 | Select-Object FullName
-
-      - name: Build and round-trip NIF
+          python Source/Textures/generate_textures.py
+          if ($LASTEXITCODE -ne 0) { throw "Texture generation failed" }
+          python Source/Textures/encode_dds.py build/textures/weapons/ChainMorningstarVR
+          if ($LASTEXITCODE -ne 0) { throw "DDS validation failed" }
+      - name: Build and inspect actual geometry
         run: |
-          $bootstrap="$env:RUNNER_TEMP\cms_nif_bootstrap.py"
-          @'
-          import os, sys
-          root=os.path.join(os.environ["GITHUB_WORKSPACE"],".pynifly")
-          candidates=[root, os.path.join(root,"io_scene_nifly")]
-          for p in candidates:
-              if os.path.isdir(p) and p not in sys.path:
-                  sys.path.insert(0,p)
-          import io_scene_nifly
-          io_scene_nifly.register()
-          script=os.path.join(os.environ["GITHUB_WORKSPACE"],"Source","NIF","generate_visual_nif.py")
-          exec(compile(open(script,"rb").read(),script,"exec"),{"__name__":"__main__","__file__":script})
-          '@ | Set-Content -Encoding UTF8 $bootstrap
-          & "$env:BLENDER_EXE" --background --python $bootstrap
-          if (-not (Test-Path "$env:CMS_NIF_OUT")) { throw "NIF was not generated" }
-
-      - name: NIF checksum
-        run: |
-          $dir=Split-Path "$env:CMS_NIF_OUT" -Parent
-          $hash=(Get-FileHash "$env:CMS_NIF_OUT" -Algorithm SHA256).Hash.ToLower()
-          $hash | Set-Content "$env:GITHUB_WORKSPACE\nif-artifact\ChainMorningstar.nif.sha256"
-          Write-Host "NIF SHA256 $hash"
-
-      - name: Upload NIF gate artifact
+          python Source/NIF/generate_reference_mesh.py --out build/visual-preview --textures build/textures/weapons/ChainMorningstarVR
+          if ($LASTEXITCODE -ne 0) { throw "Mesh generation failed" }
+          python Source/NIF/validate_reference_assets.py --build build
+          if ($LASTEXITCODE -ne 0) { throw "Geometry validation failed" }
+          New-Item -ItemType Directory -Force build/meshes/weapons/ChainMorningstarVR | Out-Null
+          & build/asset-exporter/Release/export_reference_nif.exe build/visual-preview/reference_mesh.cms build/meshes/weapons/ChainMorningstarVR/ChainMorningstar.nif
+          if ($LASTEXITCODE -ne 0) { throw "NIF roundtrip failed" }
+      - name: Upload development assets (not a playable release)
         uses: actions/upload-artifact@v4
         with:
-          name: ChainMorningstarVR-visual-nif-dev
-          path: nif-artifact
+          name: ChainMorningstarVR-reference-assets-dev
+          path: |
+            build/meshes/
+            build/textures/**/*.dds
+            build/textures/**/texture_validation.json
+            build/visual-preview/
           if-no-files-found: error

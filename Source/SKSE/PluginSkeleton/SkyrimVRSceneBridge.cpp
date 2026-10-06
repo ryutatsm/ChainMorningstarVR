@@ -1,11 +1,31 @@
 #include "SkyrimVRSceneBridge.hpp"
 #include "PlanckBuildProbe.hpp"
-#include "../NativeProxyOwnershipCore.hpp"
+#include <algorithm>
+#include <cmath>
+#include <cstring>
 #include <SKSE/SKSE.h>
+
+#if defined(CMS_ENABLE_NATIVE_MELEE_PROXY) && CMS_ENABLE_NATIVE_MELEE_PROXY
+#error "The unverified VRMeleeData collisionNode write path was removed; implement a verified Havok backend."
+#endif
 
 namespace cms::skyrimvr {
 
 namespace {
+
+bool nativeReadOnlyLayoutSupported()
+{
+    // The candidate offsets describe Skyrim VR 1.4.15, not arbitrary future VR
+    // runtimes. Read bytes into a trivial snapshot; never alias live NiPointers.
+    return REL::Module::IsVR() && REL::Module::get().version() == REL::Version{1, 4, 15, 0};
+}
+
+NativeVRMeleeDataProbeLayout readNativeMeleeSnapshot(std::uintptr_t address)
+{
+    NativeVRMeleeDataProbeLayout snapshot{};
+    std::memcpy(&snapshot, reinterpret_cast<const void*>(address), sizeof(snapshot));
+    return snapshot;
+}
 
 const char* identifyKnownVrOffsetNode(const RE::VR_NODE_DATA* vr, std::uintptr_t raw) noexcept
 {
@@ -45,33 +65,12 @@ const char* identifyKnownVrOffsetNode(const RE::VR_NODE_DATA* vr, std::uintptr_t
 
 
 
-struct NativeVRMeleeDataWriteLayout {
-    std::array<std::byte, 0x10> pad00{};
-    std::uintptr_t world{};
-    RE::NiPointer<RE::NiNode> collisionNode{};
-    RE::NiPointer<RE::NiAVObject> offsetNode{};
-    std::array<std::byte, 0x7C> pad28{};
-    float linearVelocityThreshold{};
-    std::array<std::byte, 0x14> padA8{};
-    std::uint8_t enableCollision{};
-    std::uint8_t applyImpulseOnHit{};
-    std::array<std::byte, 2> padBE{};
-    std::uint32_t swingDirection{};
-    float cooldown{};
-    float duration{};
-    std::uint32_t unkCC{};
-};
-static_assert(offsetof(NativeVRMeleeDataWriteLayout, collisionNode) == 0x18);
-static_assert(offsetof(NativeVRMeleeDataWriteLayout, offsetNode) == 0x20);
-static_assert(offsetof(NativeVRMeleeDataWriteLayout, linearVelocityThreshold) == 0xA4);
-static_assert(offsetof(NativeVRMeleeDataWriteLayout, enableCollision) == 0xBC);
-static_assert(sizeof(NativeVRMeleeDataWriteLayout) == 0xD0);
-
 } // namespace
 
 void ProbeBothHandsNativeMeleeLayoutReadOnly()
 {
 #if defined(CMS_ENABLE_READONLY_VRMELEE_PROBE) && CMS_ENABLE_READONLY_VRMELEE_PROBE
+    if (!nativeReadOnlyLayoutSupported()) return;
     auto* player = RE::PlayerCharacter::GetSingleton();
     auto* vr = player ? player->GetVRNodeData() : nullptr;
     if (!player || !vr) {
@@ -91,9 +90,9 @@ void ProbeBothHandsNativeMeleeLayoutReadOnly()
 
     const auto base = reinterpret_cast<std::uintptr_t>(player);
     for (const auto& hand : hands) {
-        const auto* raw = reinterpret_cast<const NativeVRMeleeDataProbeLayout*>(base + hand.offset);
+        const auto raw = readNativeMeleeSnapshot(base + hand.offset);
         const auto expected = reinterpret_cast<std::uintptr_t>(hand.expectedOffsetNode);
-        const auto result = inspectNativeMeleeDataReadOnly(*raw, expected);
+        const auto result = inspectNativeMeleeDataReadOnly(raw, expected);
         SKSE::log::info(
             "ChainMorningstarVR: GLOBAL READ-ONLY {} VRMeleeData status={}({}) candidate=0x{:X} world=0x{:X} collision=0x{:X} offset=0x{:X} offsetKnownAs={} expectedOffset=0x{:X} expectedMatch={} threshold={:.3f} enable={} impulse={} swing={} cooldown={:.3f} duration={:.3f}",
             hand.name,
@@ -148,7 +147,6 @@ RigidTransform SkyrimVRSceneBridge::anchorWorldTransformSU() const
     out.translation=toCms(anchor_->world.translate);
     out.rotation=toCms(anchor_->world.rotate);
     out.scale=anchor_->world.scale;
-    if (std::fabs(out.scale)<1.0e-6f) out.scale=1.0f;
     return out;
 }
 
@@ -156,7 +154,7 @@ bool SkyrimVRSceneBridge::reacquireWeaponNodes()
 {
     releaseWeaponNodes();
     auto* player=RE::PlayerCharacter::GetSingleton();
-    if (!player) return false;
+    if (!player || !player->IsWeaponDrawn() || !player->GetParentCell()) return false;
     auto* vr=player->GetVRNodeData();
     if (!vr) return false;
 
@@ -173,6 +171,8 @@ bool SkyrimVRSceneBridge::reacquireWeaponNodes()
         meleeRoot_.reset(c.root);
         anchor_.reset(candidateAnchor);
         isLeftHand_=c.left;
+        ownerPlayerAddress_=reinterpret_cast<std::uintptr_t>(player);
+        ownerCellAddress_=reinterpret_cast<std::uintptr_t>(player->GetParentCell());
         break;
     }
     if (!anchor_) {
@@ -182,36 +182,36 @@ bool SkyrimVRSceneBridge::reacquireWeaponNodes()
 
     for (std::size_t i=0;i<links_.size();++i) {
         links_[i].reset(findUnder(anchor_.get(), kLinkNodes[i]));
-        if (!links_[i]) {
-            SKSE::log::error("ChainMorningstarVR: missing runtime link node {}", kLinkNodes[i]);
+        if (!links_[i] || links_[i]->parent != anchor_.get()) {
+            SKSE::log::error("ChainMorningstarVR: missing runtime link node or unexpected parent: {}", kLinkNodes[i]);
             releaseWeaponNodes();
             return false;
         }
     }
     head_.reset(findUnder(anchor_.get(), kHeadNode));
-    if (!head_) {
-        SKSE::log::error("ChainMorningstarVR: missing {}", kHeadNode);
+    if (!head_ || head_->parent != anchor_.get()) {
+        SKSE::log::error("ChainMorningstarVR: missing head node or unexpected parent: {}", kHeadNode);
         releaseWeaponNodes();
         return false;
     }
     SKSE::log::info("ChainMorningstarVR: acquired {}-hand VR scene nodes (14 links + head)", isLeftHand_ ? "left" : "right");
     runReadOnlyNativeMeleeProbe();
-    installNativeMeleeHeadProxy();
     return true;
 }
 
 void SkyrimVRSceneBridge::runReadOnlyNativeMeleeProbe()
 {
 #if defined(CMS_ENABLE_READONLY_VRMELEE_PROBE) && CMS_ENABLE_READONLY_VRMELEE_PROBE
+    if (!nativeReadOnlyLayoutSupported()) return;
     auto* player=RE::PlayerCharacter::GetSingleton();
     auto* vr=player ? player->GetVRNodeData() : nullptr;
     if (!player || !vr) return;
     auto* expectedNode = isLeftHand_ ? vr->LeftMeleeWeaponOffsetNode.get() : vr->RightMeleeWeaponOffsetNode.get();
     const auto base=reinterpret_cast<std::uintptr_t>(player);
     const auto offset=isLeftHand_ ? kPlanckLeftVRMeleeDataOffset : kPlanckRightVRMeleeDataOffset;
-    const auto* raw=reinterpret_cast<const NativeVRMeleeDataProbeLayout*>(base+offset);
+    const auto raw=readNativeMeleeSnapshot(base+offset);
     const auto expected=reinterpret_cast<std::uintptr_t>(expectedNode);
-    const auto result=inspectNativeMeleeDataReadOnly(*raw,expected);
+    const auto result=inspectNativeMeleeDataReadOnly(raw,expected);
     SKSE::log::info(
         "ChainMorningstarVR: READ-ONLY VRMeleeData probe status={}({}) world=0x{:X} collision=0x{:X} offset=0x{:X} offsetKnownAs={} expectedMatch={} threshold={:.3f} swing={} cooldown={:.3f} duration={:.3f}",
         static_cast<unsigned>(result.status), nativeMeleeProbeStatusName(result.status),
@@ -226,11 +226,16 @@ void SkyrimVRSceneBridge::runReadOnlyNativeMeleeProbe()
 
 bool SkyrimVRSceneBridge::currentHandStillOwnsAnchor() const
 {
-    if (!anchor_) return false;
+    if (!anchor_ || !head_ || head_->parent != anchor_.get()) return false;
+    for (const auto& link : links_) {
+        if (!link || link->parent != anchor_.get()) return false;
+    }
 
     auto* player = RE::PlayerCharacter::GetSingleton();
     auto* vr = player ? player->GetVRNodeData() : nullptr;
-    if (!player || !vr) return false;
+    if (!player || !vr || !player->IsWeaponDrawn() ||
+        reinterpret_cast<std::uintptr_t>(player) != ownerPlayerAddress_ ||
+        reinterpret_cast<std::uintptr_t>(player->GetParentCell()) != ownerCellAddress_) return false;
 
     RE::NiAVObject* currentRoot = isLeftHand_
         ? static_cast<RE::NiAVObject*>(vr->LeftMeleeWeaponOffsetNode.get())
@@ -245,7 +250,13 @@ bool SkyrimVRSceneBridge::currentHandStillOwnsAnchor() const
 
 void SkyrimVRSceneBridge::releaseWeaponNodes()
 {
-    restoreNativeMeleeHeadProxy();
+    for (auto& sound : chainSounds_) {
+        if (sound.soundID != RE::BSSoundHandle::kInvalidID) sound.Stop();
+        sound = RE::BSSoundHandle{};
+    }
+    nextChainSound_ = 0;
+    ownerPlayerAddress_ = 0;
+    ownerCellAddress_ = 0;
     head_.reset();
     for (auto& n:links_) n.reset();
     anchor_.reset();
@@ -264,6 +275,8 @@ bool SkyrimVRSceneBridge::tryGetChainAnchorWorldSU(Vec3& outPositionSU, Vec3& ou
         return false;
     }
     const RigidTransform t=anchorWorldTransformSU();
+    if (!isFinite(t.translation) || !std::isfinite(t.scale) || t.scale <= 1.0e-6f ||
+        !approximatelyOrthonormal(t.rotation, 0.02f)) return false;
     outPositionSU=t.translation;
     outInitialDirectionWorld=normalized(mul(t.rotation,Vec3{0,0,1}));
     return true;
@@ -282,215 +295,35 @@ void SkyrimVRSceneBridge::writeNodeWorldPose(RE::NiAVObject* node, Vec3 centerWo
 
 void SkyrimVRSceneBridge::applyVisualFrame(const VisualFrame& frame)
 {
-    if (!visualNodesReady() || frame.links.size()!=links_.size()) return;
+    if (!visualNodesReady() || !currentHandStillOwnsAnchor() || frame.links.size()!=links_.size()) return;
+    if (!isFinite(frame.head.centerM) || !isFinite(frame.head.chainAxis)) return;
+    for (const auto& link : frame.links) {
+        if (!isFinite(link.centerM) || !isFinite(link.tangent) || !std::isfinite(link.rollRadians)) return;
+    }
     for (std::size_t i=0;i<links_.size();++i)
         writeNodeWorldPose(links_[i].get(),frame.links[i].centerM,frame.links[i].tangent,frame.links[i].rollRadians);
     writeNodeWorldPose(head_.get(),frame.head.centerM,frame.head.chainAxis,0.0f);
 
-#if defined(CMS_ENABLE_NATIVE_MELEE_PROXY) && CMS_ENABLE_NATIVE_MELEE_PROXY
-    // PlayerCharacter::Update already ran before this hook. Re-run the CMS subtree only
-    // after writing its local poses so CMS_HeadNode world transform and its SYNC_ON_UPDATE
-    // collision do not wait one extra frame. HIGGS uses the same NiAVObject update path
-    // after programmatic scene-graph transform changes.
-    if (nativeProxyInstalled_ && anchor_) {
-        RE::NiUpdateData updateData{};
-        updateData.time = 0.0f;
-        anchor_->Update(updateData);
-    }
-#endif
-}
-
-bool SkyrimVRSceneBridge::installNativeMeleeHeadProxy()
-{
-#if defined(CMS_ENABLE_NATIVE_MELEE_PROXY) && CMS_ENABLE_NATIVE_MELEE_PROXY
-    if (nativeProxyInstalled_) {
-        return true;
-    }
-
-    const auto detectedPlanck = GetDetectedPlanckBuildNumber();
-    if (!detectedPlanck || *detectedPlanck != kValidatedNativeProxyPlanckBuild) {
-        SKSE::log::error(
-            "ChainMorningstarVR: native proxy install refused: PLANCK build is {} but validated test build is {}",
-            detectedPlanck ? std::to_string(*detectedPlanck) : std::string("unknown"),
-            kValidatedNativeProxyPlanckBuild);
-        return false;
-    }
-
-    auto* player = RE::PlayerCharacter::GetSingleton();
-    auto* vr = player ? player->GetVRNodeData() : nullptr;
-    auto* headNode = head_ ? head_->AsNode() : nullptr;
-    if (!player || !vr || !headNode) {
-        SKSE::log::warn("ChainMorningstarVR: native proxy install refused: player/VR/head node unavailable");
-        return false;
-    }
-    if (!head_->GetCollisionObject()) {
-        SKSE::log::error("ChainMorningstarVR: native proxy install refused: CMS_HeadNode has no bhk collision object");
-        return false;
-    }
-
-    const auto base = reinterpret_cast<std::uintptr_t>(player);
-    const auto offset = isLeftHand_ ? kPlanckLeftVRMeleeDataOffset : kPlanckRightVRMeleeDataOffset;
-    const auto address = base + offset;
-    auto* rawProbe = reinterpret_cast<const NativeVRMeleeDataProbeLayout*>(address);
-    auto* expectedNode = isLeftHand_
-        ? static_cast<RE::NiAVObject*>(vr->LeftMeleeWeaponOffsetNode.get())
-        : static_cast<RE::NiAVObject*>(vr->RightMeleeWeaponOffsetNode.get());
-
-    const auto probe = inspectNativeMeleeDataReadOnly(
-        *rawProbe, reinterpret_cast<std::uintptr_t>(expectedNode));
-    if (!probe.plausible()) {
-        SKSE::log::error(
-            "ChainMorningstarVR: native proxy install refused: VRMeleeData status={} is not plausible",
-            static_cast<unsigned>(probe.status));
-        return false;
-    }
-
-    auto* data = reinterpret_cast<NativeVRMeleeDataWriteLayout*>(address);
-    if (!data->collisionNode) {
-        SKSE::log::error("ChainMorningstarVR: native proxy install refused: original collisionNode is null");
-        return false;
-    }
-
-    originalNativeCollisionNode_ = data->collisionNode;
-    data->collisionNode.reset(headNode);
-
-    if (data->collisionNode.get() != headNode) {
-        SKSE::log::critical("ChainMorningstarVR: collisionNode swap verification failed; restoring original");
-        data->collisionNode = originalNativeCollisionNode_;
-        originalNativeCollisionNode_.reset();
-        return false;
-    }
-
-    nativeProxyPlayerAddress_ = base;
-    nativeProxyInstalled_ = true;
-    SKSE::log::info(
-        "ChainMorningstarVR: native melee proxy installed for {} hand; "
-        "collisionNode -> CMS_HeadNode; original retained for restoration",
-        isLeftHand_ ? "left" : "right");
-    return true;
-#else
-    return false;
-#endif
-}
-
-void SkyrimVRSceneBridge::restoreNativeMeleeHeadProxy()
-{
-#if defined(CMS_ENABLE_NATIVE_MELEE_PROXY) && CMS_ENABLE_NATIVE_MELEE_PROXY
-    if (!nativeProxyInstalled_) {
-        originalNativeCollisionNode_.reset();
-        nativeProxyPlayerAddress_ = 0;
-        return;
-    }
-
-    // Never dereference a VRMeleeData address saved from an earlier player instance.
-    // Save/load/death/new-game may rebuild runtime objects. Re-resolve the singleton now
-    // and touch memory only if it is the same owner that CMS originally modified.
-    auto* currentPlayer = RE::PlayerCharacter::GetSingleton();
-    const auto currentPlayerAddress = reinterpret_cast<std::uintptr_t>(currentPlayer);
-    auto* headNode = head_ ? head_->AsNode() : nullptr;
-
-    // Do not even form/dereference the current VRMeleeData pointer until the player-owner
-    // check passes. This makes save/load/death/new-game fail closed.
-    const auto ownerStateBeforeRead = evaluateNativeProxyOwnership({
-        nativeProxyInstalled_,
-        nativeProxyPlayerAddress_,
-        currentPlayerAddress,
-        reinterpret_cast<std::uintptr_t>(headNode),
-        reinterpret_cast<std::uintptr_t>(headNode)
-    });
-    if (ownerStateBeforeRead == NativeProxyOwnershipState::kPlayerChanged) {
-        SKSE::log::warn(
-            "ChainMorningstarVR: native proxy owner PlayerCharacter changed; "
-            "skipping stale-memory restore and releasing CMS references only");
-        originalNativeCollisionNode_.reset();
-        nativeProxyPlayerAddress_ = 0;
-        nativeProxyInstalled_ = false;
-        return;
-    }
-
-    const auto offset = isLeftHand_ ? kPlanckLeftVRMeleeDataOffset : kPlanckRightVRMeleeDataOffset;
-    auto* data = reinterpret_cast<NativeVRMeleeDataWriteLayout*>(currentPlayerAddress + offset);
-    const auto ownerState = evaluateNativeProxyOwnership({
-        nativeProxyInstalled_,
-        nativeProxyPlayerAddress_,
-        currentPlayerAddress,
-        reinterpret_cast<std::uintptr_t>(headNode),
-        reinterpret_cast<std::uintptr_t>(data->collisionNode.get())
-    });
-
-    if (ownerState == NativeProxyOwnershipState::kOwnedByCms) {
-        data->collisionNode = originalNativeCollisionNode_;
-        SKSE::log::info("ChainMorningstarVR: restored original native melee collisionNode");
-    } else {
-        SKSE::log::warn(
-            "ChainMorningstarVR: native collisionNode changed externally before restore; "
-            "external value left untouched");
-    }
-
-    originalNativeCollisionNode_.reset();
-    nativeProxyPlayerAddress_ = 0;
-    nativeProxyInstalled_ = false;
-#endif
+    // PlayerCharacter::Update has already run. Refresh the owned subtree after
+    // writing local poses so visuals do not lag a frame behind their simulation.
+    RE::NiUpdateData updateData{};
+    updateData.time = 0.0f;
+    anchor_->Update(updateData);
 }
 
 bool SkyrimVRSceneBridge::updateNativeMeleeHeadProxy(const HeadSweep& sweep)
 {
-#if defined(CMS_ENABLE_NATIVE_MELEE_PROXY) && CMS_ENABLE_NATIVE_MELEE_PROXY
-    if (!nativeProxyInstalled_ || !nativeProxyPlayerAddress_ || !head_) {
-        return false;
-    }
-
-    auto* currentPlayer = RE::PlayerCharacter::GetSingleton();
-    const auto currentPlayerAddress = reinterpret_cast<std::uintptr_t>(currentPlayer);
-    auto* headNode = head_->AsNode();
-
-    const auto ownerStateBeforeRead = evaluateNativeProxyOwnership({
-        nativeProxyInstalled_,
-        nativeProxyPlayerAddress_,
-        currentPlayerAddress,
-        reinterpret_cast<std::uintptr_t>(headNode),
-        reinterpret_cast<std::uintptr_t>(headNode)
-    });
-    if (ownerStateBeforeRead == NativeProxyOwnershipState::kPlayerChanged) {
-        SKSE::log::warn(
-            "ChainMorningstarVR: PlayerCharacter changed while native proxy was active; "
-            "dropping CMS proxy ownership without dereferencing stale VRMeleeData");
-        nativeProxyInstalled_ = false;
-        nativeProxyPlayerAddress_ = 0;
-        originalNativeCollisionNode_.reset();
-        return false;
-    }
-
-    const auto offset = isLeftHand_ ? kPlanckLeftVRMeleeDataOffset : kPlanckRightVRMeleeDataOffset;
-    auto* data = reinterpret_cast<NativeVRMeleeDataWriteLayout*>(currentPlayerAddress + offset);
-    const auto ownerState = evaluateNativeProxyOwnership({
-        nativeProxyInstalled_,
-        nativeProxyPlayerAddress_,
-        currentPlayerAddress,
-        reinterpret_cast<std::uintptr_t>(headNode),
-        reinterpret_cast<std::uintptr_t>(data->collisionNode.get())
-    });
-    if (ownerState != NativeProxyOwnershipState::kOwnedByCms) {
-        SKSE::log::warn(
-            "ChainMorningstarVR: native melee collisionNode changed externally; "
-            "disabling CMS proxy ownership without overwriting the new value");
-        nativeProxyInstalled_ = false;
-        nativeProxyPlayerAddress_ = 0;
-        originalNativeCollisionNode_.reset();
-        return false;
-    }
-    return true;
-#else
 #if defined(CMS_ENABLE_READONLY_VRMELEE_PROBE) && CMS_ENABLE_READONLY_VRMELEE_PROBE
+    if (!nativeReadOnlyLayoutSupported()) return false;
     auto* player = RE::PlayerCharacter::GetSingleton();
-    if (!player || !anchor_) {
+    if (!player || !anchor_ || !currentHandStillOwnsAnchor()) {
         return false;
     }
 
     const auto base = reinterpret_cast<std::uintptr_t>(player);
     const auto offset = isLeftHand_ ? kPlanckLeftVRMeleeDataOffset : kPlanckRightVRMeleeDataOffset;
-    const auto* raw = reinterpret_cast<const NativeVRMeleeDataProbeLayout*>(base + offset);
-    const auto probe = inspectNativeMeleeDataReadOnly(*raw, 0);
+    const auto raw = readNativeMeleeSnapshot(base + offset);
+    const auto probe = inspectNativeMeleeDataReadOnly(raw, 0);
 
     if (!probe.plausible()) {
         if (!readOnlyNativeProbeRejectedWarned_) {
@@ -537,11 +370,39 @@ bool SkyrimVRSceneBridge::updateNativeMeleeHeadProxy(const HeadSweep& sweep)
     }
     return false;
 #endif
-#endif
 }
 
 float SkyrimVRSceneBridge::consumeWorldContactImpulse() { return 0.0f; }
-void SkyrimVRSceneBridge::playChainRattle(float) {}
-void SkyrimVRSceneBridge::playChainClank(float) {}
+void SkyrimVRSceneBridge::playChainSound(float intensity)
+{
+    if (!head_ || !currentHandStillOwnsAnchor() || !std::isfinite(intensity) || intensity <= 0.0f) return;
+    // Verified against the user's Skyrim.esm SNDR_0003D128 record: PHYChainSD.
+    // It chooses among four native physics-chain samples. No sound assets are bundled.
+    constexpr RE::FormID kPhysicsChainSoundID = 0x0003D128;
+    auto* descriptor = RE::TESForm::LookupByID<RE::BGSSoundDescriptorForm>(kPhysicsChainSoundID);
+    auto* audio = RE::BSAudioManager::GetSingleton();
+    if (!descriptor || !audio) {
+        if (!warnedChainSound_) {
+            SKSE::log::warn("ChainMorningstarVR: native PHYChainSD or audio manager unavailable");
+            warnedChainSound_ = true;
+        }
+        return;
+    }
+
+    // Bound overlapping one-shots, and stop them explicitly on unequip/load.
+    auto& sound = chainSounds_[nextChainSound_];
+    nextChainSound_ = (nextChainSound_ + 1) % chainSounds_.size();
+    if (sound.soundID != RE::BSSoundHandle::kInvalidID) sound.Stop();
+    sound = RE::BSSoundHandle{};
+    if (!audio->BuildSoundDataFromDescriptor(sound, descriptor, 0x10) ||
+        sound.soundID == RE::BSSoundHandle::kInvalidID) return;
+    sound.SetPosition(head_->world.translate);
+    sound.SetObjectToFollow(head_.get());
+    sound.SetVolume(std::clamp(intensity, 0.0f, 1.0f));
+    sound.Play();
+}
+
+void SkyrimVRSceneBridge::playChainRattle(float intensity) { playChainSound(intensity); }
+void SkyrimVRSceneBridge::playChainClank(float intensity) { playChainSound(intensity); }
 
 } // namespace cms::skyrimvr

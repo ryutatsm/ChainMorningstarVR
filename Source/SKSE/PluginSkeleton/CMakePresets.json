@@ -7,19 +7,6 @@
   },
   "configurePresets": [
     {
-      "name": "vr-release",
-      "displayName": "Skyrim VR Release",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/vr-release",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_TOOLCHAIN_FILE": "$env{CMS_VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-        "VCPKG_TARGET_TRIPLET": "x64-windows",
-        "CMS_ENABLE_READONLY_VRMELEE_PROBE": "OFF",
-        "CMS_ENABLE_NATIVE_MELEE_PROXY": "OFF"
-      }
-    },
-    {
       "name": "vr-diagnostic",
       "displayName": "Skyrim VR Read-only Diagnostic",
       "generator": "Ninja",
@@ -28,36 +15,14 @@
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_TOOLCHAIN_FILE": "$env{CMS_VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
         "VCPKG_TARGET_TRIPLET": "x64-windows",
-        "CMS_ENABLE_READONLY_VRMELEE_PROBE": "ON",
-        "CMS_ENABLE_NATIVE_MELEE_PROXY": "OFF"
-      }
-    },
-    {
-      "name": "vr-native-proxy-test",
-      "displayName": "Skyrim VR Native Head Collision Proxy Test",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/vr-native-proxy-test",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_TOOLCHAIN_FILE": "$env{CMS_VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-        "VCPKG_TARGET_TRIPLET": "x64-windows",
-        "CMS_ENABLE_READONLY_VRMELEE_PROBE": "ON",
-        "CMS_ENABLE_NATIVE_MELEE_PROXY": "ON"
+        "CMS_ENABLE_READONLY_VRMELEE_PROBE": "ON"
       }
     }
   ],
   "buildPresets": [
     {
-      "name": "vr-release",
-      "configurePreset": "vr-release"
-    },
-    {
       "name": "vr-diagnostic",
       "configurePreset": "vr-diagnostic"
-    },
-    {
-      "name": "vr-native-proxy-test",
-      "configurePreset": "vr-native-proxy-test"
     }
   ]
 }

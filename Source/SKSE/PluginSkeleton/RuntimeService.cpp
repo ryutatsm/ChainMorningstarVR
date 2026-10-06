@@ -1,5 +1,6 @@
 #include "RuntimeService.hpp"
 #include <algorithm>
+#include <cmath>
 #include <SKSE/SKSE.h>
 
 namespace cms::skyrimvr {
@@ -9,6 +10,19 @@ RuntimeService& RuntimeService::GetSingleton() { static RuntimeService s; return
 
 void RuntimeService::tick(float frameDt)
 {
+    if (suspended_ || !std::isfinite(frameDt)) return;
+    auto* ui = RE::UI::GetSingleton();
+    if (!ui || ui->GameIsPaused()) {
+        wasPaused_ = true;
+        return;
+    }
+    if (frameDt <= 0.0f) return;
+    // Controller poses may change while menus suspend the game. Start from the
+    // resumed pose rather than turning that discontinuity into chain velocity.
+    if (wasPaused_) {
+        wasPaused_ = false;
+        requestReacquire();
+    }
     frameDt = std::clamp(frameDt, 0.0f, 0.100f);
     reacquireCooldownS_ = std::max(0.0f, reacquireCooldownS_ - frameDt);
 
@@ -38,7 +52,12 @@ void RuntimeService::tick(float frameDt)
 
 void RuntimeService::shutdown()
 {
-    if (driver_.active()) driver_.onUnequip();
+    suspended_ = true;
+    wasPaused_ = false;
+    reacquireRequested_ = false;
+    reacquireCooldownS_ = 0.0f;
+    // Also clears a partially acquired graph if a previous acquisition failed.
+    driver_.onUnequip();
 }
 
 } // namespace cms::skyrimvr

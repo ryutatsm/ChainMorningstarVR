@@ -29,9 +29,12 @@ inline Vec3 cross(Vec3 a, Vec3 b) {
 }
 inline float lengthSq(Vec3 a) { return dot(a, a); }
 inline float length(Vec3 a) { return std::sqrt(lengthSq(a)); }
+inline bool isFinite(Vec3 a) {
+    return std::isfinite(a.x) && std::isfinite(a.y) && std::isfinite(a.z);
+}
 inline Vec3 normalized(Vec3 a) {
     const float l = length(a);
-    return l > 1.0e-7f ? a / l : Vec3{};
+    return std::isfinite(l) && l > 1.0e-7f ? a / l : Vec3{};
 }
 inline Vec3 lerp(Vec3 a, Vec3 b, float t) { return a + (b-a)*t; }
 
@@ -62,6 +65,7 @@ public:
     }
 
     void reset(Vec3 anchor, Vec3 direction = {0.0f, 0.0f, -1.0f}) {
+        if (!isFinite(anchor)) return;
         direction = normalized(direction);
         if (lengthSq(direction) < 1.0e-7f) direction = {0.0f, 0.0f, -1.0f};
 
@@ -81,6 +85,7 @@ public:
 
     void step90Hz(Vec3 anchor) {
         constexpr float dt = 1.0f / 90.0f;
+        if (!isFinite(anchor)) return;
         if (!initialized_) reset(anchor);
 
         const Vec3 oldAnchor = points_[0].position;
@@ -120,6 +125,10 @@ public:
     [[nodiscard]] Vec3 linkPosition(std::size_t i) const { return points_.at(i + 1).position; }
     [[nodiscard]] Vec3 headPosition() const { return points_.back().position; }
 
+    [[nodiscard]] Vec3 anchorVelocity90Hz() const {
+        return (points_.front().position - points_.front().previous) * 90.0f;
+    }
+
     [[nodiscard]] Vec3 linkVelocity90Hz(std::size_t i) const {
         constexpr float invDt = 90.0f;
         const Particle& p = points_.at(i + 1);
@@ -148,6 +157,14 @@ public:
 
 private:
     static ChainConfig sanitize(ChainConfig cfg) {
+        const ChainConfig defaults{};
+        if (!std::isfinite(cfg.firstLinkCenterOffsetM)) cfg.firstLinkCenterOffsetM = defaults.firstLinkCenterOffsetM;
+        if (!std::isfinite(cfg.linkCenterSpanM)) cfg.linkCenterSpanM = defaults.linkCenterSpanM;
+        if (!std::isfinite(cfg.headCenterOffsetFromLastLinkM)) cfg.headCenterOffsetFromLastLinkM = defaults.headCenterOffsetFromLastLinkM;
+        if (!std::isfinite(cfg.linkMassKg)) cfg.linkMassKg = defaults.linkMassKg;
+        if (!std::isfinite(cfg.headMassKg)) cfg.headMassKg = defaults.headMassKg;
+        if (!std::isfinite(cfg.dampingPer90Hz)) cfg.dampingPer90Hz = defaults.dampingPer90Hz;
+        if (!isFinite(cfg.gravityMps2)) cfg.gravityMps2 = defaults.gravityMps2;
         cfg.linkCount = std::max<std::size_t>(1, cfg.linkCount);
         cfg.firstLinkCenterOffsetM = std::max(0.001f, cfg.firstLinkCenterOffsetM);
         cfg.linkCenterSpanM = std::max(0.0f, cfg.linkCenterSpanM);
@@ -207,6 +224,7 @@ public:
     explicit FixedStepChain(ChainConfig cfg = {}) : solver_(cfg) {}
 
     void reset(Vec3 anchor, Vec3 direction = {0,0,-1}) {
+        if (!isFinite(anchor)) return;
         accumulator_ = 0.0f;
         solver_.reset(anchor, direction);
         lastInputAnchor_ = anchor;
@@ -214,6 +232,8 @@ public:
     }
 
     int update(float frameDt, Vec3 anchor) {
+        // Invalid tracking/time samples must never poison the persistent simulation.
+        if (!std::isfinite(frameDt) || !isFinite(anchor)) return 0;
         frameDt = std::clamp(frameDt, 0.0f, 0.05f);
         if (!hasInputAnchor_) {
             lastInputAnchor_ = anchor;
@@ -224,14 +244,16 @@ public:
             return 0;
         }
 
-        constexpr float h = 1.0f / 90.0f;
-        const float accumulatorAtFrameStart = accumulator_;
+        // A float 1/90 is slightly too long: the old accumulator lost an entire
+        // fixed step at 72/80/144 Hz. Keep clock arithmetic in double precision.
+        constexpr double h = 1.0 / 90.0;
+        const double accumulatorAtFrameStart = accumulator_;
         accumulator_ += frameDt;
 
         int steps = 0;
-        float sampleTimeInFrame = h - accumulatorAtFrameStart;
+        double sampleTimeInFrame = h - accumulatorAtFrameStart;
         while (accumulator_ >= h && steps < 5) {
-            const float alpha = std::clamp(sampleTimeInFrame / frameDt, 0.0f, 1.0f);
+            const float alpha = static_cast<float>(std::clamp(sampleTimeInFrame / frameDt, 0.0, 1.0));
             solver_.step90Hz(lerp(lastInputAnchor_, anchor, alpha));
             accumulator_ -= h;
             sampleTimeInFrame += h;
@@ -245,12 +267,12 @@ public:
 
     [[nodiscard]] ChainSolver& solver() { return solver_; }
     [[nodiscard]] const ChainSolver& solver() const { return solver_; }
-    [[nodiscard]] float accumulatorSeconds() const { return accumulator_; }
+    [[nodiscard]] float accumulatorSeconds() const { return static_cast<float>(accumulator_); }
 
 private:
     ChainSolver solver_;
     Vec3 lastInputAnchor_{};
-    float accumulator_{};
+    double accumulator_{};
     bool hasInputAnchor_{};
 };
 
@@ -262,18 +284,30 @@ struct SweepHit {
 
 inline SweepHit sweptSphereVsSphere(Vec3 start, Vec3 end, float movingRadius,
                                     Vec3 targetCenter, float targetRadius) {
-    const float r = movingRadius + targetRadius;
+    if (!isFinite(start) || !isFinite(end) || !isFinite(targetCenter) ||
+        !std::isfinite(movingRadius) || !std::isfinite(targetRadius) ||
+        movingRadius < 0.0f || targetRadius < 0.0f) return {};
+    const double r = static_cast<double>(movingRadius) + targetRadius;
     const Vec3 v = end - start;
     const Vec3 m = start - targetCenter;
-    const float c = dot(m,m) - r*r;
+    if (!isFinite(v) || !isFinite(m)) return {};
+    const auto preciseDot = [](Vec3 a, Vec3 b) {
+        return static_cast<double>(a.x)*b.x + static_cast<double>(a.y)*b.y +
+            static_cast<double>(a.z)*b.z;
+    };
+    const double c = preciseDot(m,m) - r*r;
     if (c <= 0.0f) return {true, 0.0f, start};
-    const float a = dot(v,v);
+    const double a = preciseDot(v,v);
     if (a < 1.0e-10f) return {};
-    const float b = dot(m,v);
+    const double b = preciseDot(m,v);
     if (b > 0.0f) return {};
-    const float disc = b*b - a*c;
+    const double disc = b*b - a*c;
     if (disc < 0.0f) return {};
-    const float t = std::clamp((-b - std::sqrt(disc)) / a, 0.0f, 1.0f);
+    // A ray intersection past end is not a segment hit. Clamping it to 1 used
+    // to fabricate contacts with distant targets in the swing direction.
+    const double entry = (-b - std::sqrt(disc)) / a;
+    if (entry < 0.0 || entry > 1.0) return {};
+    const float t = static_cast<float>(entry);
     return {true, t, lerp(start,end,t)};
 }
 

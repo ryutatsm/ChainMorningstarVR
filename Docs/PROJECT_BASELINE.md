@@ -1,60 +1,39 @@
-# ChainMorningstarVR — clean-room project baseline
+# ChainMorningstarVR — audited baseline
 
-This repository is the NEW Chain Morningstar VR implementation.
+This is the independent ChainMorningstarVR project. Do not mix historical
+symptoms or assets from the earlier ChainedMorningstarVR implementation into its
+runtime evidence. User-provided unmodified vanilla records in ReferenceBundle
+are primary inputs, not an older mod implementation.
 
-## Isolation rule
+Audited main: `0777e257d64fcab908df03ff94e7a9af4ff1a0ee` (2026-10-06).
+Current work: `astra/zero-base-audit-v050`, 0.5.0 audit preview.
 
-Do not use implementation details, NIFs, ESPs, collision placement, hit results, Papyrus/SKSE
-logs, or bug symptoms from any previously-created chain morning star / morning star mod as
-evidence for this project.
+## Requirements
 
-Historical failures from another weapon build are not regression cases here unless they are
-reproduced independently by this repository on the target Skyrim VR installation.
+Skyrim VR; one-hand mace; damage44, weight17, value550; Eorlund sale; faithful
+reference appearance; physical chain with chain sounds; head/spike actual
+contact damage; enemy head/weapon contact drops the corresponding equipment
+with 1/3 probability per distinct impact.
 
-## Authoritative design for this project
+## Current geometry contract
 
-- Target: Skyrim VR.
-- One-handed mace.
-- Damage 44.
-- Weight 17.
-- Value 550.
-- Approximately 2x the supplied blueprint dimensions.
-- Handle: 56 cm.
-- Chain first-to-last link centre span: 84 cm.
-- Iron-ball core: 32 cm diameter.
-- Spikes: 8 cm.
-- Runtime chain: 14 links, fixed 90 Hz simulation.
-- Head centre straight reach from chain anchor: 106.5 cm.
-- Head hit geometry: 16 cm core + 14 spike proxies; 24 cm sphere is broadphase only.
-- Realistic forged-steel surface with authored normal/specular/environment response.
+- Handle56cm; 14 links; first-to-last link-centre span84cm.
+- Iron core diameter32cm; spike tips at radius24cm.
+- Head centre straight reach from anchor106.5cm.
+- Fourteen spike directions shared by mesh/core; 24cm envelope is broadphase,
+  never a substitute for actual narrowphase shape.
+- These are authored dimensions retained from the audited source. The supplied
+  image has no physical scale ruler, so exact real-world scale cannot be derived
+  from it alone. In-game size still requires user visual verification.
 
-## Runtime evidence accepted so far
+## Evidence boundaries
 
-Only evidence collected from this clean-room repository counts.
+Earlier CI passes establish only earlier commits' build status. Earlier target
+logs mentioned in the handoff were not attached in this turn and are not proof
+of this build's runtime behavior. No new Windows DLL or in-game pass is claimed.
+Local portable core tests, source-schema audit and generated asset checks are
+recorded separately from runtime gates.
 
-- Windows/MSVC CommonLibSSE-NG VR release and read-only diagnostic DLLs compile in CI.
-- Target runtime log detected PLANCK API revision 1, build 80100.
-- Read-only VRMeleeData candidates are present for both hands at the PLANCK-published
-  PlayerCharacter offsets. Their world/collision pointers and scalar/flag fields are
-  structurally plausible.
-- Equality between VRMeleeData.offsetNode and CommonLib's named MeleeWeaponOffsetNode is NOT
-  a validity requirement. PLANCK's published structure does not document that identity.
-- In the target read-only log, both hands retained the same VRMeleeData candidate/world/offset
-  fields while collisionNode changed between two samples. Therefore collisionNode is treated
-  as externally mutable runtime state, not a stable owned pointer.
-- The old diagnostic status=3 was caused by the now-removed offset-node identity requirement.
-  Because that old probe returned early, a new read-only v0.4.2 diagnostic run is required
-  before any write-enabled proxy test is authorized.
-
-## Native proxy safety state
-
-- Normal release build: VRMeleeData writes OFF.
-- Read-only diagnostic build: VRMeleeData writes OFF.
-- Native-proxy-test build: compiled separately and TEST ONLY. It is gated to PLANCK build 80100,
-  requires the VRMeleeData layout probe to be plausible, requires CMS_HeadNode to own collision,
-  detects current-hand CMS node ownership, and restores the prior collisionNode only while CMS
-  still owns that field.
-- If PlayerCharacter changes or collisionNode changes externally, the proxy fails closed and does
-  not write an old value back.
-- The native-proxy-test build is NOT approved for target-machine use until the new v0.4.2
-  read-only diagnostic reports plausible layout for both hands.
+The former native-proxy-test mode is removed. A plausible read-only layout or
+PLANCK version cannot authorize native writes. See NATIVE_BRIDGE_AUDIT_20261006.md
+for the replacement design and unsolved collision adapter requirements.

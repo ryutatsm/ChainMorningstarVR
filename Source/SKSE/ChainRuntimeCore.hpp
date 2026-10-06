@@ -89,7 +89,8 @@ public:
         }
 
         float rel = 0.0f;
-        Vec3 prevV{};
+        // Whole-chain translation is not relative link motion.
+        Vec3 prevV = s.anchorVelocity90Hz();
         for (std::size_t i = 0; i < s.linkCount(); ++i) {
             const Vec3 v = s.linkVelocity90Hz(i);
             rel = std::max(rel, length(v - prevV));
@@ -123,6 +124,10 @@ public:
     explicit ChainController(ChainConfig cfg = {}) : chain_(cfg) {}
 
     void onEquip(Vec3 anchorWorldSU, Vec3 initialDirectionWorld = {0,0,-1}) {
+        if (!isFinite(anchorWorldSU)) {
+            onUnequip();
+            return;
+        }
         equipped_ = true;
         const Vec3 anchorM = anchorWorldSU * kMetersPerSkyrimUnit;
         chain_.reset(anchorM, initialDirectionWorld);
@@ -142,6 +147,11 @@ public:
 
     bool update(float frameDt, Vec3 anchorWorldSU) {
         if (!equipped_) return false;
+        if (!std::isfinite(frameDt) || !isFinite(anchorWorldSU)) {
+            previousHeadM_ = chain_.solver().headPosition();
+            lastSimulatedDt_ = 0.0f;
+            return false;
+        }
         const Vec3 anchorM = anchorWorldSU * kMetersPerSkyrimUnit;
 
         if (length(anchorM - lastAnchorM_) > teleportResetDistanceM_) {
@@ -149,6 +159,7 @@ public:
             previousHeadM_ = chain_.solver().headPosition();
             lastSimulatedDt_ = 0.0f;
             hasPreviousHead_ = true;
+            sound_.reset();
         } else {
             if (hasPreviousHead_) previousHeadM_ = chain_.solver().headPosition();
             const int steps = chain_.update(frameDt, anchorM);

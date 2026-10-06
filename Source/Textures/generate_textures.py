@@ -34,24 +34,24 @@ for _ in range(260):
     hammer -= np.exp(-d2/(2*r*r))*rng.uniform(.08,.28)
 
 scr=np.zeros((N,N),np.float32)
-for _ in range(420):
+for _ in range(240):
     ang=rng.choice([0,math.pi/2,math.pi/4,-math.pi/4])+rng.normal(0,.08)
     cx=rng.uniform(0,N); cy=rng.uniform(0,N)
     L=rng.uniform(20,180); w=rng.uniform(.5,1.8)
     ca,sa=math.cos(ang),math.sin(ang)
     u=(x-cx)*ca+(y-cy)*sa; v=-(x-cx)*sa+(y-cy)*ca
-    scr -= np.exp(-(v*v)/(2*w*w))*((np.abs(u)<L/2).astype(np.float32))*rng.uniform(.02,.09)
+    scr -= np.exp(-(v*v)/(2*w*w))*((np.abs(u)<L/2).astype(np.float32))*rng.uniform(.01,.045)
 
 height_m=np.clip(.50 + (pits-.5)*.18 + hammer + scr,0,1)
 oxide=blur(rng.random((N,N)),26)
-base=np.array([105,111,116],np.float32)
+base=np.array([68,72,76],np.float32)
 metal=np.empty((N,N,3),np.float32)
 for c in range(3):
     metal[:,:,c]=base[c]*(0.76+0.34*height_m)*(0.92+0.12*oxide)
 metal += ((noise2-.5)*12)[...,None]
 metal=np.clip(metal,24,190)
 save_rgb(metal,'cms_metal_d.png')
-n=normal_from_height(height_m,8.5); a=np.clip(55+95*(height_m**1.6),40,150).astype('uint8'); Image.fromarray(np.dstack([n,a]),'RGBA').save(OUT/'cms_metal_n.png')
+n=normal_from_height(height_m,4.0); a=np.clip(55+95*(height_m**1.6),40,150).astype('uint8'); Image.fromarray(np.dstack([n,a]),'RGBA').save(OUT/'cms_metal_n.png')
 mask=np.clip(0.18 + 0.72*(height_m**1.35) - .18*(oxide-.5),0.05,0.92)
 Image.fromarray((mask*255).astype('uint8'),'L').save(OUT/'cms_metal_m.png')
 
@@ -61,9 +61,9 @@ grain=0.5+0.22*np.sin(xx*0.055 + np.sin(y*0.012)*1.5)+0.08*np.sin(xx*0.19)
 pores=blur(rng.random((N,N)),1.0)
 height_w=np.clip(.5+(grain-.5)*.55+(pores-.5)*.10,0,1)
 wood=np.zeros((N,N,3),np.float32)
-wood[:,:,0]=80+75*grain
-wood[:,:,1]=38+45*grain
-wood[:,:,2]=14+22*grain
+wood[:,:,0]=73+43*grain
+wood[:,:,1]=58+34*grain
+wood[:,:,2]=42+25*grain
 wood*= (0.90+0.16*blur(rng.random((N,N)),12))[...,None]
 save_rgb(wood,'cms_wood_d.png')
 n=normal_from_height(height_w,5.0); a=np.clip(28+34*height_w,24,68).astype('uint8'); Image.fromarray(np.dstack([n,a]),'RGBA').save(OUT/'cms_wood_n.png')
@@ -73,9 +73,9 @@ fine=blur(rng.random((N,N)),0.7)
 height_l=np.clip(.5+(coarse-.5)*.35+(fine-.5)*.15,0,1)
 wear=0.5+0.5*np.sin((x+y)*0.055)
 leather=np.zeros((N,N,3),np.float32)
-leather[:,:,0]=42+35*height_l+7*wear
-leather[:,:,1]=20+20*height_l+4*wear
-leather[:,:,2]=12+12*height_l+2*wear
+leather[:,:,0]=27+20*height_l+4*wear
+leather[:,:,1]=21+15*height_l+3*wear
+leather[:,:,2]=17+12*height_l+2*wear
 save_rgb(leather,'cms_leather_d.png')
 n=normal_from_height(height_l,4.8); a=np.clip(16+26*height_l,12,48).astype('uint8'); Image.fromarray(np.dstack([n,a]),'RGBA').save(OUT/'cms_leather_n.png')
 

@@ -1,7 +1,7 @@
 unit userscript;
 
 var
-  ModFile, G, Rec, WeaponRec, KWDA, KW: IInterface;
+  ModFile, G, Rec, WeaponRec, FirstPersonRec, KWDA, KW: IInterface;
   i, j: integer;
   HasVendorItemWeapon: boolean;
 
@@ -91,6 +91,33 @@ begin
     Exit;
   end;
 
+  FirstPersonRec := LinksTo(ElementBySignature(WeaponRec, 'WNAM'));
+  if not Assigned(FirstPersonRec) then begin
+    Fail('WNAM first-person model reference is missing.');
+    Exit;
+  end;
+  if Signature(FirstPersonRec) <> 'STAT' then begin
+    Fail('WNAM does not reference a STAT record.');
+    Exit;
+  end;
+  if GetFileName(GetFile(FirstPersonRec)) <> GetFileName(ModFile) then begin
+    Fail('WNAM still points outside this plugin (possible inherited SteelMace model).');
+    Exit;
+  end;
+  if (GetLoadOrderFormID(FirstPersonRec) and $00FFFFFF) <> $00000801 then begin
+    Fail('First-person STAT local FormID is not 00000801.');
+    Exit;
+  end;
+  if GetElementEditValues(FirstPersonRec, 'EDID') <> 'CMS_ChainMorningstarFirstPerson' then begin
+    Fail('First-person STAT editor ID mismatch.');
+    Exit;
+  end;
+  if LowerCase(GetElementEditValues(FirstPersonRec, 'Model\MODL')) <>
+     'weapons\chainmorningstarvr\chainmorningstar.nif' then begin
+    Fail('First-person STAT model path mismatch.');
+    Exit;
+  end;
+
   // The ESP must contain no merchant chest or leveled-list override.
   G := GroupBySignature(ModFile, 'CONT');
   if Assigned(G) then
@@ -110,6 +137,7 @@ begin
   AddMessage('PASS: WEAP CMS_ChainMorningstar [local FormID 00000800].');
   AddMessage('PASS: One-Hand Mace / VendorItemWeapon / Damage 44 / Weight 17 / Value 550.');
   AddMessage('PASS: Model path weapons\ChainMorningstarVR\ChainMorningstar.nif.');
+  AddMessage('PASS: WNAM uses custom first-person STAT [00000801] with the same NIF.');
   AddMessage('PASS: No CONT or LVLI overrides are present.');
   AddMessage('NEXT: run xEdit Check for Errors on ChainMorningstarVR.esp.');
   Result := 0;

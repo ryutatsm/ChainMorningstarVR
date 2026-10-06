@@ -41,7 +41,8 @@ enum class NativeMeleeProbeStatus : std::uint8_t {
     kInvalidThreshold,
     kInvalidCollisionFlag,
     kInvalidImpulseFlag,
-    kInvalidSwingDirection
+    kInvalidSwingDirection,
+    kInvalidTimers
 };
 
 [[nodiscard]] constexpr const char* nativeMeleeProbeStatusName(NativeMeleeProbeStatus status) noexcept
@@ -55,6 +56,7 @@ enum class NativeMeleeProbeStatus : std::uint8_t {
     case NativeMeleeProbeStatus::kInvalidCollisionFlag: return "invalid-enable-flag";
     case NativeMeleeProbeStatus::kInvalidImpulseFlag: return "invalid-impulse-flag";
     case NativeMeleeProbeStatus::kInvalidSwingDirection: return "invalid-swing-direction";
+    case NativeMeleeProbeStatus::kInvalidTimers: return "invalid-timers";
     }
     return "unknown";
 }
@@ -72,6 +74,8 @@ struct NativeMeleeProbeResult {
     float cooldown{};
     float duration{};
 
+    // Diagnostic scalar plausibility only. This does NOT establish pointer
+    // readability, object type, world lifetime, or permission to mutate this layout.
     [[nodiscard]] bool plausible() const noexcept { return status==NativeMeleeProbeStatus::kPlausible; }
 };
 
@@ -105,6 +109,11 @@ inline NativeMeleeProbeResult inspectNativeMeleeDataReadOnly(
     if (d.applyImpulseOnHit>1) { r.status=NativeMeleeProbeStatus::kInvalidImpulseFlag; return r; }
     if (d.swingDirection==2 || d.swingDirection>6) {
         r.status=NativeMeleeProbeStatus::kInvalidSwingDirection; return r;
+    }
+    // PLANCK documents a cooldown that legitimately becomes negative. Reject
+    // nonfinite values but do not invent a positive-only range for these timers.
+    if (!std::isfinite(d.cooldown) || !std::isfinite(d.duration)) {
+        r.status=NativeMeleeProbeStatus::kInvalidTimers; return r;
     }
     r.status=NativeMeleeProbeStatus::kPlausible;
     return r;

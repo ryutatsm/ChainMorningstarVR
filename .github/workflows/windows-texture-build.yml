@@ -1,88 +1,27 @@
-name: Windows Skyrim VR texture build gate
-
+name: Authored Skyrim VR texture gate
 on:
   workflow_dispatch:
   push:
-    paths:
-      - "Source/Textures/**"
-      - ".github/workflows/windows-texture-build.yml"
+    paths: ["Source/Textures/**", "Source/NIF/requirements-assets.txt", ".github/workflows/windows-texture-build.yml"]
   pull_request:
-    paths:
-      - "Source/Textures/**"
-      - ".github/workflows/windows-texture-build.yml"
-
+    paths: ["Source/Textures/**", "Source/NIF/requirements-assets.txt", ".github/workflows/windows-texture-build.yml"]
+permissions:
+  contents: read
 jobs:
   textures:
     runs-on: windows-2022
-    defaults:
-      run:
-        shell: pwsh
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install Python dependencies
-        run: |
-          python -m pip install --disable-pip-version-check pillow numpy
-
-      - name: Install ImageMagick
-        run: |
-          choco install imagemagick --no-progress -y
-          magick -version
-
-      - name: Generate texture sources
-        run: python Source/Textures/generate_textures.py
-
-      - name: Convert PNG sources to DXT5 DDS with mipmaps
-        run: |
-          $dir = "$env:GITHUB_WORKSPACE\build\textures\weapons\ChainMorningstarVR"
-          Get-ChildItem $dir -Filter *.png | ForEach-Object {
-            $dds = [System.IO.Path]::ChangeExtension($_.FullName, ".dds")
-            magick $_.FullName -define dds:compression=dxt5 $dds
-          }
-          Remove-Item "$dir\*.png"
-
-      - name: Validate DDS headers
-        run: |
-          @'
-          from pathlib import Path
-          import struct, hashlib
-          root=Path("build/textures/weapons/ChainMorningstarVR")
-          expected={
-            "cms_metal_d.dds","cms_metal_n.dds","cms_metal_m.dds",
-            "cms_wood_d.dds","cms_wood_n.dds",
-            "cms_leather_d.dds","cms_leather_n.dds"
-          }
-          got={p.name for p in root.glob("*.dds")}
-          if got != expected:
-              raise SystemExit(f"DDS set mismatch: {got}")
-          for p in sorted(root.glob("*.dds")):
-              b=p.read_bytes()
-              if b[:4] != b"DDS ":
-                  raise SystemExit(f"Bad DDS magic: {p}")
-              h=struct.unpack_from("<31I", b, 4)
-              height,width,mips=h[2],h[3],h[6]
-              fourcc=b[84:88]
-              if (width,height)!=(1024,1024):
-                  raise SystemExit(f"Bad DDS dimensions: {p} {width}x{height}")
-              if mips != 11:
-                  raise SystemExit(f"Bad mip count: {p} {mips}")
-              if fourcc != b"DXT5":
-                  raise SystemExit(f"Bad compression: {p} {fourcc!r}")
-              print("DDS_PASS",p.name,hashlib.sha256(b).hexdigest())
-          '@ | python -
-
-      - name: Decode-check DDS files
-        run: |
-          $dir = "$env:GITHUB_WORKSPACE\build\textures\weapons\ChainMorningstarVR"
-          Get-ChildItem $dir -Filter *.dds | ForEach-Object {
-            magick identify $_.FullName
-          }
-
-      - name: Upload texture artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          name: ChainMorningstarVR-textures-dev
-          path: build/textures
+          python-version: "3.12"
+      - run: python -m pip install -r Source/NIF/requirements-assets.txt
+      - run: python Source/Textures/generate_textures.py
+      - run: python Source/Textures/encode_dds.py build/textures/weapons/ChainMorningstarVR
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ChainMorningstarVR-authored-textures-dev
+          path: |
+            build/textures/**/*.dds
+            build/textures/**/texture_validation.json
           if-no-files-found: error

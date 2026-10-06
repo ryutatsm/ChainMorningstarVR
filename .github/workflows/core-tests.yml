@@ -1,26 +1,16 @@
-name: Chain physics core tests
+name: Physics and equipment policy tests
 
 on:
   workflow_dispatch:
   push:
     paths:
-      - "Source/SKSE/ChainPhysicsCore.hpp"
-      - "Source/SKSE/ChainRuntimeCore.hpp"
-      - "Source/SKSE/SceneTransformCore.hpp"
-      - "Source/SKSE/NativeMeleeDataProbeCore.hpp"
-      - "Source/SKSE/HeadCompoundCore.hpp"
-      - "Source/SKSE/NativeProxyOwnershipCore.hpp"
-      - "Tests/physics_core_ci.cpp"
+      - "Source/SKSE/**"
+      - "Tests/**"
       - ".github/workflows/core-tests.yml"
   pull_request:
     paths:
-      - "Source/SKSE/ChainPhysicsCore.hpp"
-      - "Source/SKSE/ChainRuntimeCore.hpp"
-      - "Source/SKSE/SceneTransformCore.hpp"
-      - "Source/SKSE/NativeMeleeDataProbeCore.hpp"
-      - "Source/SKSE/HeadCompoundCore.hpp"
-      - "Source/SKSE/NativeProxyOwnershipCore.hpp"
-      - "Tests/physics_core_ci.cpp"
+      - "Source/SKSE/**"
+      - "Tests/**"
       - ".github/workflows/core-tests.yml"
 
 jobs:
@@ -28,7 +18,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Compile dependency-free physics tests
-        run: g++ -std=c++23 -O2 -Wall -Wextra -Werror -pedantic -I. Tests/physics_core_ci.cpp -o cms_core_tests
-      - name: Run physics tests
-        run: ./cms_core_tests
+      - name: Compile and run dependency-free behavior tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          for test in Tests/*_ci.cpp; do
+            name=$(basename "$test" .cpp)
+            g++ -std=c++23 -O2 -Wall -Wextra -Werror -pedantic -I. "$test" -o "$name"
+            "./$name"
+          done

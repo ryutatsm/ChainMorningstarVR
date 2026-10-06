@@ -23,17 +23,24 @@ public:
     explicit RuntimeDriver(IGameBridge& bridge) : bridge_(bridge) {}
 
     void onEquip() {
+        // Re-equipping or a failed reacquire must not leave the previous hand
+        // active, nor retain a partial scene graph/native proxy installation.
+        onUnequip();
         Vec3 anchor{}, direction{0,0,-1};
-        if (!bridge_.reacquireWeaponNodes()) return;
-        if (!bridge_.tryGetChainAnchorWorldSU(anchor, direction)) return;
+        if (!bridge_.reacquireWeaponNodes() ||
+            !bridge_.tryGetChainAnchorWorldSU(anchor, direction)) {
+            bridge_.releaseWeaponNodes();
+            return;
+        }
         controller_.onEquip(anchor, direction);
-        active_ = true;
+        active_ = controller_.equipped();
+        if (!active_) bridge_.releaseWeaponNodes();
     }
 
     void onUnequip() {
+        active_ = false;
         controller_.onUnequip();
         bridge_.releaseWeaponNodes();
-        active_ = false;
     }
 
     void update(float frameDt) {
@@ -43,6 +50,10 @@ public:
             onUnequip();
             return;
         }
+
+        // Paused/invalid frame time is not a motion or collision sample. Keep
+        // ownership checking above this guard so unequip during a pause is safe.
+        if (!std::isfinite(frameDt) || frameDt <= 0.0f) return;
 
         if (!controller_.update(frameDt, anchor)) return;
         const VisualFrame frame = controller_.visualFrame();

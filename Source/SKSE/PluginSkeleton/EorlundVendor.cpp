@@ -9,6 +9,7 @@ namespace cms::skyrimvr {
 namespace {
 
 constexpr RE::FormID kChainMorningstarLocalFormID = 0x00000800;
+constexpr RE::FormID kFirstPersonLocalFormID = 0x00000801;
 constexpr RE::FormID kEorlundMerchantChestLocalFormID = 0x0010FDE6;
 constexpr RE::FormID kVendorItemWeaponLocalFormID = 0x0008F958;
 constexpr std::string_view kPluginName = "ChainMorningstarVR.esp";
@@ -36,6 +37,12 @@ bool EnsureEorlundSellsChainMorningstar()
     if (!weapon->IsOneHandedMace()) {
         SKSE::log::error(
             "ChainMorningstarVR: Eorlund vendor injection refused: CMS weapon is not One-Hand Mace");
+        return false;
+    }
+    auto* firstPerson = data->LookupForm<RE::TESObjectSTAT>(kFirstPersonLocalFormID, kPluginName);
+    if (!firstPerson || weapon->firstPersonModelObject != firstPerson) {
+        SKSE::log::error(
+            "ChainMorningstarVR: Eorlund vendor injection refused: custom first-person STAT 00000801 is missing or WNAM still uses a different model");
         return false;
     }
     if (weapon->attackDamage != 44 || weapon->value != 550 || std::fabs(weapon->weight - 17.0f) > 0.001f) {
@@ -70,6 +77,11 @@ bool EnsureEorlundSellsChainMorningstar()
     }
 
     const auto before = chest->CountObjectsInContainer(weapon);
+    if (before < 0) {
+        SKSE::log::error(
+            "ChainMorningstarVR: Eorlund vendor injection refused: invalid negative base stock count={}", before);
+        return false;
+    }
     if (before > 0) {
         SKSE::log::info(
             "ChainMorningstarVR: Eorlund vendor already contains CMS weapon (base count={}); no duplicate added",

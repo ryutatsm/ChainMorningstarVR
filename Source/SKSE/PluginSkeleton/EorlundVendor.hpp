@@ -2,8 +2,9 @@
 
 namespace cms::skyrimvr {
 
-// Adds exactly one Chain Morningstar to Eorlund Gray-Mane's merchant chest base
-// in memory. Safe to call repeatedly: an existing entry is left unchanged.
+// Adds one Chain Morningstar when Eorlund's chest base contains none.
+// Existing positive stock is preserved. This does not reset a saved reference
+// inventory or establish that the barter menu has already refreshed.
 bool EnsureEorlundSellsChainMorningstar();
 
 } // namespace cms::skyrimvr

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(ChainMorningstarVR VERSION 0.4.2 LANGUAGES CXX)
+project(ChainMorningstarVR VERSION 0.5.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -8,10 +8,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(CMS_ENABLE_READONLY_VRMELEE_PROBE
     "Read PLANCK-published VRMeleeData candidate layout for diagnostics; NO writes"
-    OFF)
-
-option(CMS_ENABLE_NATIVE_MELEE_PROXY
-    "Temporarily replace Skyrim VR's current-hand VRMeleeData collisionNode with CMS_HeadNode; TEST ONLY until validated in game"
     OFF)
 
 find_package(CommonLibSSE CONFIG REQUIRED)
@@ -30,6 +26,9 @@ add_commonlibsse_plugin(${PROJECT_NAME}
         PlanckBuildProbe.hpp
         EorlundVendor.cpp
         EorlundVendor.hpp
+        EquipmentDrop.cpp
+        EquipmentDrop.hpp
+        ../EquipmentDropCore.hpp
         ../ChainPhysicsCore.hpp
         ../ChainRuntimeCore.hpp
         ../SceneTransformCore.hpp
@@ -45,17 +44,11 @@ target_precompile_headers(${PROJECT_NAME}
         PCH.h
 )
 
-target_compile_definitions(${PROJECT_NAME} PRIVATE CMS_VERSION_STRING="0.4.2-dev")
+target_compile_definitions(${PROJECT_NAME} PRIVATE CMS_VERSION_STRING="0.5.0-audit-preview")
 if(CMS_ENABLE_READONLY_VRMELEE_PROBE)
     target_compile_definitions(${PROJECT_NAME} PRIVATE CMS_ENABLE_READONLY_VRMELEE_PROBE=1)
 else()
     target_compile_definitions(${PROJECT_NAME} PRIVATE CMS_ENABLE_READONLY_VRMELEE_PROBE=0)
-endif()
-
-if(CMS_ENABLE_NATIVE_MELEE_PROXY)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE CMS_ENABLE_NATIVE_MELEE_PROXY=1)
-else()
-    target_compile_definitions(${PROJECT_NAME} PRIVATE CMS_ENABLE_NATIVE_MELEE_PROXY=0)
 endif()
 
 if(MSVC)

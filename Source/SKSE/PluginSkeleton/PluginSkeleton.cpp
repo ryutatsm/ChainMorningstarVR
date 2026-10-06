@@ -37,6 +37,9 @@ void onSKSEMessage(SKSE::MessagingInterface::Message* msg)
         cms::skyrimvr::EnsureEorlundSellsChainMorningstar();
         runtime.requestReacquire();
         break;
+    case SKSE::MessagingInterface::kPreLoadGame:
+        runtime.shutdown();
+        break;
     case SKSE::MessagingInterface::kPostLoadGame:
     case SKSE::MessagingInterface::kNewGame:
         runtime.requestReacquire();
@@ -59,8 +62,8 @@ SKSEPluginLoad(const SKSE::LoadInterface* skse)
         return false;
     }
 
-    if (!REL::Module::IsVR()) {
-        SKSE::log::critical("Refusing to load: Skyrim VR runtime was not detected.");
+    if (!REL::Module::IsVR() || REL::Module::get().version() != REL::Version{1, 4, 15, 0}) {
+        SKSE::log::critical("Refusing to load: this audited build requires Skyrim VR 1.4.15.0.");
         return false;
     }
 
@@ -76,17 +79,9 @@ SKSEPluginLoad(const SKSE::LoadInterface* skse)
     constexpr auto probeMode = "OFF";
 #endif
 
-#if CMS_ENABLE_NATIVE_MELEE_PROXY
-    constexpr auto proxyMode = "ON (TEST; guarded collisionNode swap + restore)";
-#else
-    constexpr auto proxyMode = "OFF";
-#endif
-
     SKSE::log::info(
-        "ChainMorningstarVR {} loading (VR-only; native melee proxy={}; VRMeleeData probe={})",
-        CMS_VERSION_STRING,
-        proxyMode,
-        probeMode);
+        "ChainMorningstarVR {} loading: VISUAL/AUDIO PREVIEW; physical head damage=DISABLED; equipment drop=DISABLED; VRMeleeData probe={}",
+        CMS_VERSION_STRING, probeMode);
 
     if (!cms::skyrimvr::InstallPlayerUpdateHook()) {
         SKSE::log::critical("PlayerCharacter VR Update hook installation failed.");

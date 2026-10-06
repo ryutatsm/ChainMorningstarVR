@@ -1,0 +1,9 @@
+build/
+__pycache__/
+*.pyc
+.pynifly/
+.vcpkg-binary-cache/
+vcpkg/
+ci-artifact/
+nif-artifact/
+.deps/

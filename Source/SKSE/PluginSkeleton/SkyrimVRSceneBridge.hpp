@@ -38,8 +38,7 @@ private:
     void writeNodeWorldPose(RE::NiAVObject* node, Vec3 centerWorldM, Vec3 localZWorld, float rollRadians);
     void runReadOnlyNativeMeleeProbe();
     bool currentHandStillOwnsAnchor() const;
-    bool installNativeMeleeHeadProxy();
-    void restoreNativeMeleeHeadProxy();
+    void playChainSound(float intensity);
 
     RE::NiPointer<RE::NiAVObject> meleeRoot_{};
     RE::NiPointer<RE::NiAVObject> anchor_{};
@@ -47,14 +46,16 @@ private:
     RE::NiPointer<RE::NiAVObject> head_{};
     bool isLeftHand_{};
     bool warnedNativeProxy_{};
-    bool nativeProxyInstalled_{};
+    bool warnedChainSound_{};
     bool readOnlyNativeMotionStateKnown_{};
     bool readOnlyNativeProbeRejectedWarned_{};
     bool readOnlyNativeEnableCollision_{};
     std::uint32_t readOnlyNativeSwingDirection_{};
     std::uintptr_t readOnlyNativeCollisionNode_{};
-    RE::NiPointer<RE::NiNode> originalNativeCollisionNode_{};
-    std::uintptr_t nativeProxyPlayerAddress_{};
+    std::uintptr_t ownerPlayerAddress_{};
+    std::uintptr_t ownerCellAddress_{};
+    std::array<RE::BSSoundHandle, 4> chainSounds_{};
+    std::size_t nextChainSound_{};
 };
 
 } // namespace cms::skyrimvr
