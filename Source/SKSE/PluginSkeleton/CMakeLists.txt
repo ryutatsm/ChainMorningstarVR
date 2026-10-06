@@ -28,6 +28,8 @@ add_commonlibsse_plugin(${PROJECT_NAME}
         PlayerUpdateHook.hpp
         PlanckBuildProbe.cpp
         PlanckBuildProbe.hpp
+        EorlundVendor.cpp
+        EorlundVendor.hpp
         ../ChainPhysicsCore.hpp
         ../ChainRuntimeCore.hpp
         ../SceneTransformCore.hpp
