@@ -20,9 +20,9 @@ At DataLoaded, ChainMorningstarVR.dll:
 5. adds exactly one item only when the current count is zero,
 6. verifies the resulting count is exactly one and logs the result.
 
-This modifies only the process's in-memory winning container record. It does not create a
-merchant-container or leveled-list override in the ESP and it does not write the vendor
-modification into the save file.
+This modifies the process's in-memory winning container base record and creates no merchant-container
+or leveled-list override in the ESP. Once a merchant reference inventory is instantiated, Skyrim's
+normal save/restock behavior applies to that inventory just as it does to vanilla vendor stock.
 
 On an existing save whose merchant inventory is already instantiated, the new base item may not
 appear until Eorlund's merchant inventory next resets/restocks. Do not force-reset inventory
