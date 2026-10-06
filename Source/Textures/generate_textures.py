@@ -51,7 +51,7 @@ for c in range(3):
 metal += ((noise2-.5)*12)[...,None]
 metal=np.clip(metal,24,190)
 save_rgb(metal,'cms_metal_d.png')
-Image.fromarray(normal_from_height(height_m,8.5),'RGB').save(OUT/'cms_metal_n.png')
+n=normal_from_height(height_m,8.5); a=np.clip(55+95*(height_m**1.6),40,150).astype('uint8'); Image.fromarray(np.dstack([n,a]),'RGBA').save(OUT/'cms_metal_n.png')
 mask=np.clip(0.18 + 0.72*(height_m**1.35) - .18*(oxide-.5),0.05,0.92)
 Image.fromarray((mask*255).astype('uint8'),'L').save(OUT/'cms_metal_m.png')
 
@@ -66,7 +66,7 @@ wood[:,:,1]=38+45*grain
 wood[:,:,2]=14+22*grain
 wood*= (0.90+0.16*blur(rng.random((N,N)),12))[...,None]
 save_rgb(wood,'cms_wood_d.png')
-Image.fromarray(normal_from_height(height_w,5.0),'RGB').save(OUT/'cms_wood_n.png')
+n=normal_from_height(height_w,5.0); a=np.clip(28+34*height_w,24,68).astype('uint8'); Image.fromarray(np.dstack([n,a]),'RGBA').save(OUT/'cms_wood_n.png')
 
 coarse=blur(rng.random((N,N)),2.4)
 fine=blur(rng.random((N,N)),0.7)
@@ -77,6 +77,6 @@ leather[:,:,0]=42+35*height_l+7*wear
 leather[:,:,1]=20+20*height_l+4*wear
 leather[:,:,2]=12+12*height_l+2*wear
 save_rgb(leather,'cms_leather_d.png')
-Image.fromarray(normal_from_height(height_l,4.8),'RGB').save(OUT/'cms_leather_n.png')
+n=normal_from_height(height_l,4.8); a=np.clip(16+26*height_l,12,48).astype('uint8'); Image.fromarray(np.dstack([n,a]),'RGBA').save(OUT/'cms_leather_n.png')
 
 print('CMS_TEXTURE_SOURCE_OK', OUT)
