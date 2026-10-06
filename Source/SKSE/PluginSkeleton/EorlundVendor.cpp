@@ -35,6 +35,11 @@ bool EnsureEorlundSellsChainMorningstar()
             "ChainMorningstarVR: Eorlund vendor injection refused: CMS weapon is not One-Hand Mace");
         return false;
     }
+    if (!weapon->HasKeywordByEditorID("VendorItemWeapon")) {
+        SKSE::log::error(
+            "ChainMorningstarVR: Eorlund vendor injection refused: CMS weapon lacks VendorItemWeapon");
+        return false;
+    }
 
     auto* chest = data->LookupForm<RE::TESObjectCONT>(kEorlundMerchantChestLocalFormID, kSkyrimMaster);
     if (!chest) {
