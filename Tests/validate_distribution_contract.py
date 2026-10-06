@@ -60,3 +60,5 @@ print("CID_CONTRACT_PASS")
 print("target=0x10FDE6~Skyrim.esm")
 print("item=CMS_ChainMorningstar count=1")
 print("plugin_record_conflicts=CONT:0 LVLI:0")
+
+# verification-only trigger r3
