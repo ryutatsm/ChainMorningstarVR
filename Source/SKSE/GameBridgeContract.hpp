@@ -13,6 +13,10 @@ public:
     virtual void releaseWeaponNodes() = 0;
     virtual void applyVisualFrame(const VisualFrame& frame) = 0;
     virtual bool updateNativeMeleeHeadProxy(const HeadSweep& sweep) = 0;
+    virtual void submitNativePose(const HeadPose&, const HeadSweep& sweep, float) {
+        updateNativeMeleeHeadProxy(sweep);
+    }
+    virtual std::vector<HeadWorldContact> consumeWorldContacts() { return {}; }
     virtual float consumeWorldContactImpulse() = 0;
     virtual void playChainRattle(float intensity) = 0;
     virtual void playChainClank(float intensity) = 0;
@@ -55,12 +59,20 @@ public:
         // ownership checking above this guard so unequip during a pause is safe.
         if (!std::isfinite(frameDt) || frameDt <= 0.0f) return;
 
-        if (!controller_.update(frameDt, anchor)) return;
+        // Invalidate native ownership and queued equipment impacts before any
+        // contact is consumed at a discontinuous controller/world position.
+        const bool teleported = controller_.wouldTeleportReset(anchor);
+        if (teleported) {
+            onEquip();
+            if (!active_) return;
+        }
+        const float contactImpulse = controller_.applyWorldContacts(bridge_.consumeWorldContacts());
+        if (!controller_.update(teleported ? 0.0f : frameDt, anchor)) return;
         const VisualFrame frame = controller_.visualFrame();
         bridge_.applyVisualFrame(frame);
-        bridge_.updateNativeMeleeHeadProxy(controller_.headSweep());
+        bridge_.submitNativePose(frame.head, controller_.headSweep(), frameDt);
 
-        const float impulse = bridge_.consumeWorldContactImpulse();
+        const float impulse = std::max(contactImpulse, bridge_.consumeWorldContactImpulse());
         const ChainSoundEvent ev = controller_.soundEvent(frameDt, impulse);
         if (ev.type == ChainSoundEventType::kRattle) bridge_.playChainRattle(ev.intensity);
         if (ev.type == ChainSoundEventType::kHeavyClank) bridge_.playChainClank(ev.intensity);

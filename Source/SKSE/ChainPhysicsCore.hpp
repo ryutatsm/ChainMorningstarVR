@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
+#include <limits>
 #include <vector>
 
 namespace cms {
@@ -37,6 +39,30 @@ inline Vec3 normalized(Vec3 a) {
     return std::isfinite(l) && l > 1.0e-7f ? a / l : Vec3{};
 }
 inline Vec3 lerp(Vec3 a, Vec3 b, float t) { return a + (b-a)*t; }
+
+// One native Havok contact sample. All vectors are world-space metres, and
+// normalWorld points from the other body towards this weapon head. The native
+// bridge supplies the body's centre at the contact callback, not its requested
+// (possibly already penetrating) keyframe target. signedDistanceM is Havok's
+// signed contact separation: negative means penetration.
+struct HeadWorldContact {
+    std::uint64_t physicsStep{};
+    Vec3 headCenterM{};
+    Vec3 normalWorld{};
+    Vec3 surfaceVelocityMps{};
+    Vec3 headVelocityMps{};
+    Vec3 pointM{};
+    float signedDistanceM{};
+    std::uintptr_t otherBodyIdentity{};
+};
+
+struct HeadContactPlane {
+    Vec3 centerLimitM{};
+    Vec3 normalWorld{};
+    Vec3 surfaceVelocityMps{};
+    std::uintptr_t otherBodyIdentity{};
+    float remainingS{};
+};
 
 struct Particle {
     Vec3 position{};
@@ -77,6 +103,7 @@ public:
             points_[c + 1].previous = p;
         }
         initialized_ = true;
+        clearWorldContacts();
     }
 
     void teleport(Vec3 anchor, Vec3 direction = {0.0f, 0.0f, -1.0f}) {
@@ -87,6 +114,16 @@ public:
         constexpr float dt = 1.0f / 90.0f;
         if (!isFinite(anchor)) return;
         if (!initialized_) reset(anchor);
+
+        // Contacts are refreshed by Havok physics steps. A short bounded cache
+        // bridges render/physics scheduling without keeping an infinite plane
+        // after the head leaves a finite object. Advance moving surfaces once
+        // per simulation step, never once per distance-constraint iteration.
+        for (auto& contact : contacts_) {
+            contact.centerLimitM += contact.surfaceVelocityMps * dt;
+            contact.remainingS -= dt;
+        }
+        std::erase_if(contacts_, [](const HeadContactPlane& c) { return c.remainingS < 0.0f; });
 
         const Vec3 oldAnchor = points_[0].position;
         points_[0].previous = oldAnchor;
@@ -112,9 +149,92 @@ public:
                     solveDistance(c, c + 1, constraintLengthsM_[c]);
                 }
             }
+            projectHeadOutsideContacts();
         }
         points_[0].position = anchor;
+        // Position constraints may pull the head back into a wall. Projection
+        // keeps its centre outside; cancel only the remaining inward velocity.
+        // Restitution belongs to applyWorldContacts(), once per native sample.
+        Vec3 velocity = headVelocity90Hz();
+        constrainContactVelocity(velocity);
+        points_.back().previous = points_.back().position - velocity * dt;
     }
+
+    void clearWorldContacts() {
+        contacts_.clear();
+        lastContactPhysicsStep_ = 0;
+    }
+
+    // Consume a callback batch before advancing the chain. Only the newest
+    // complete physics step is used; stale/repeated steps cannot bounce the
+    // head repeatedly or move it back to an earlier collision location.
+    float applyWorldContacts(const std::vector<HeadWorldContact>& samples) {
+        if (!initialized_ || samples.empty()) return 0.0f;
+        std::uint64_t newest = lastContactPhysicsStep_;
+        for (const auto& sample : samples)
+            if (validContact(sample)) newest = std::max(newest, sample.physicsStep);
+        if (newest <= lastContactPhysicsStep_) return 0.0f;
+
+        std::vector<HeadContactPlane> next;
+        next.reserve(kMaxContactPlanes);
+        for (const auto& sample : samples) {
+            if (sample.physicsStep != newest || !validContact(sample)) continue;
+            const Vec3 normal = normalized(sample.normalWorld);
+            const Vec3 limit = sample.headCenterM - normal * sample.signedDistanceM;
+            const auto duplicate = std::find_if(next.begin(), next.end(), [&](const auto& c) {
+                return c.otherBodyIdentity == sample.otherBodyIdentity &&
+                    dot(c.normalWorld, normal) > 0.995f &&
+                    std::fabs(dot(c.centerLimitM - limit, normal)) < 0.005f;
+            });
+            if (duplicate != next.end()) {
+                // Multiple points on the same face describe one impulse plane.
+                // Keep the most restrictive centre boundary.
+                if (dot(limit - duplicate->centerLimitM, normal) > 0.0f)
+                    duplicate->centerLimitM = limit;
+                continue;
+            }
+            if (next.size() == kMaxContactPlanes) break;
+            next.push_back({limit, normal, sample.surfaceVelocityMps,
+                            sample.otherBodyIdentity, kContactLifetimeS});
+        }
+        if (next.empty()) return 0.0f;
+        contacts_ = std::move(next);
+        lastContactPhysicsStep_ = newest;
+
+        Vec3 velocity = headVelocity90Hz();
+        const Vec3 originalHead = headPosition();
+        projectHeadOutsideContacts();
+        // A late callback can correct a visibly penetrating keyframe target.
+        // Position recovery must not become a large outward Verlet velocity.
+        points_.back().previous += headPosition() - originalHead;
+
+        float normalImpulse = 0.0f;
+        for (const auto& contact : contacts_) {
+            const float gap = dot(headPosition() - contact.centerLimitM, contact.normalWorld);
+            if (gap > kContactSlopM * 2.0f) continue;
+            const float closing = dot(velocity - contact.surfaceVelocityMps, contact.normalWorld);
+            if (closing >= 0.0f) continue;
+            // Low restitution suits an eight-kilogram iron head. Tangential
+            // friction is Coulomb-limited, so a grazing touch cannot erase a
+            // fast swing or inject energy. No engine impulse is fabricated.
+            const float normalDelta = -(1.0f + kHeadRestitution) * closing;
+            velocity += contact.normalWorld * normalDelta;
+            const Vec3 relative = velocity - contact.surfaceVelocityMps;
+            const Vec3 tangent = relative - contact.normalWorld * dot(relative, contact.normalWorld);
+            const float tangentSpeed = length(tangent);
+            if (tangentSpeed > 1.0e-6f)
+                velocity -= tangent * (std::min(tangentSpeed, kHeadFriction * normalDelta) / tangentSpeed);
+            normalImpulse += cfg_.headMassKg * normalDelta;
+        }
+        // Coupled contact normals (corners) must all have non-inward velocity.
+        constrainContactVelocity(velocity);
+        points_.back().previous = headPosition() - velocity * (1.0f / 90.0f);
+        reconcileLinksToCorrectedHead();
+        return normalImpulse;
+    }
+
+    [[nodiscard]] std::size_t activeContactCount() const { return contacts_.size(); }
+    [[nodiscard]] std::uint64_t lastContactPhysicsStep() const { return lastContactPhysicsStep_; }
 
     [[nodiscard]] const ChainConfig& config() const { return cfg_; }
     [[nodiscard]] const std::vector<Particle>& points() const { return points_; }
@@ -156,6 +276,70 @@ public:
     }
 
 private:
+    static constexpr std::size_t kMaxContactPlanes = 12;
+    static constexpr float kContactLifetimeS = 0.05f;
+    static constexpr float kContactSlopM = 0.0005f;
+    static constexpr float kHeadRestitution = 0.08f;
+    static constexpr float kHeadFriction = 0.28f;
+
+    bool validContact(const HeadWorldContact& contact) const {
+        if (contact.physicsStep == 0 || !isFinite(contact.headCenterM) ||
+            !isFinite(contact.normalWorld) || !isFinite(contact.surfaceVelocityMps) ||
+            !isFinite(contact.headVelocityMps) || !isFinite(contact.pointM) ||
+            !std::isfinite(contact.signedDistanceM)) return false;
+        const float normalLength = lengthSq(contact.normalWorld);
+        return normalLength > 0.25f && normalLength < 4.0f &&
+            contact.signedDistanceM >= -1.0f && contact.signedDistanceM <= 0.03f &&
+            lengthSq(contact.surfaceVelocityMps) <= 2500.0f &&
+            lengthSq(contact.headCenterM - headPosition()) <= 4.0f;
+    }
+
+    void projectHeadOutsideContacts() {
+        // A small manifold may contain a floor/wall corner. Projection alone
+        // is safe to repeat during distance solving: it never applies impulse.
+        for (int pass = 0; pass < 4; ++pass) {
+            for (const auto& contact : contacts_) {
+                const float distance = dot(headPosition() - contact.centerLimitM, contact.normalWorld);
+                if (distance < kContactSlopM)
+                    points_.back().position += contact.normalWorld * (kContactSlopM - distance);
+            }
+        }
+    }
+
+    void constrainContactVelocity(Vec3& velocity) const {
+        for (int pass = 0; pass < 4; ++pass) {
+            for (const auto& contact : contacts_) {
+                const float gap = dot(headPosition() - contact.centerLimitM, contact.normalWorld);
+                if (gap > kContactSlopM * 2.0f) continue;
+                const float inward = dot(velocity - contact.surfaceVelocityMps, contact.normalWorld);
+                if (inward < 0.0f) velocity -= contact.normalWorld * inward;
+            }
+        }
+    }
+
+    void reconcileLinksToCorrectedHead() {
+        std::vector<Vec3> before;
+        before.reserve(points_.size());
+        for (const auto& point : points_) before.push_back(point.position);
+        const float headInvMass = points_.back().invMass;
+        points_.back().invMass = 0.0f;
+        for (int iteration = 0; iteration < cfg_.solverIterations; ++iteration) {
+            if ((iteration & 1) == 0) {
+                for (std::size_t c = 0; c < constraintLengthsM_.size(); ++c)
+                    solveDistance(c, c + 1, constraintLengthsM_[c]);
+            } else {
+                for (std::size_t c = constraintLengthsM_.size(); c-- > 0;)
+                    solveDistance(c, c + 1, constraintLengthsM_[c]);
+            }
+        }
+        points_.back().invMass = headInvMass;
+        // This is sample reconciliation, not elapsed simulation time. Retain
+        // each link's velocity while moving its previous position by the same
+        // correction; the following simulation step transmits chain tension.
+        for (std::size_t i = 1; i + 1 < points_.size(); ++i)
+            points_[i].previous += points_[i].position - before[i];
+    }
+
     static ChainConfig sanitize(ChainConfig cfg) {
         const ChainConfig defaults{};
         if (!std::isfinite(cfg.firstLinkCenterOffsetM)) cfg.firstLinkCenterOffsetM = defaults.firstLinkCenterOffsetM;
@@ -217,6 +401,8 @@ private:
     std::vector<Particle> points_{};
     std::vector<float> constraintLengthsM_{};
     bool initialized_{false};
+    std::vector<HeadContactPlane> contacts_{};
+    std::uint64_t lastContactPhysicsStep_{};
 };
 
 class FixedStepChain {

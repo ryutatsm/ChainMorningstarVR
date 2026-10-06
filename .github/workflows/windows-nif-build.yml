@@ -2,9 +2,9 @@ name: Reference mesh and Skyrim VR NIF build gate
 on:
   workflow_dispatch:
   push:
-    paths: ["Source/NIF/**", "Source/Textures/**", "Tests/test_material_maps.py", "Tools/write_asset_provenance.py", "Tools/package_visual_test.py", ".github/workflows/windows-nif-build.yml"]
+    paths: ["Source/SKSE/**", "Source/ThirdParty/**", "Source/NIF/**", "Source/Textures/**", "Tests/test_material_maps.py", "Tools/write_asset_provenance.py", "Tools/package_visual_test.py", ".github/workflows/windows-nif-build.yml", ".github/workflows/windows-vr-build.yml"]
   pull_request:
-    paths: ["Source/NIF/**", "Source/Textures/**", "Tests/test_material_maps.py", "Tools/write_asset_provenance.py", "Tools/package_visual_test.py", ".github/workflows/windows-nif-build.yml"]
+    paths: ["Source/SKSE/**", "Source/ThirdParty/**", "Source/NIF/**", "Source/Textures/**", "Tests/test_material_maps.py", "Tools/write_asset_provenance.py", "Tools/package_visual_test.py", ".github/workflows/windows-nif-build.yml", ".github/workflows/windows-vr-build.yml"]
 permissions:
   contents: read
 jobs:
@@ -47,6 +47,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Mesh generation failed" }
           python Source/NIF/validate_reference_assets.py --build build
           if ($LASTEXITCODE -ne 0) { throw "Geometry validation failed" }
+          python Source/NIF/export_contact_planes.py build/visual-preview/reference_mesh.cms --check
+          if ($LASTEXITCODE -ne 0) { throw "Native contact planes do not match generated NIF collision" }
           New-Item -ItemType Directory -Force build/meshes/weapons/ChainMorningstarVR | Out-Null
           & build/asset-exporter/Release/export_reference_nif.exe build/visual-preview/reference_mesh.cms build/meshes/weapons/ChainMorningstarVR/ChainMorningstar.nif
           if ($LASTEXITCODE -ne 0) { throw "NIF roundtrip failed" }

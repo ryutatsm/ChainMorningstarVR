@@ -45,8 +45,8 @@ ChainedMorningstarVR project or a different build combination.
 - Only the struck equipment drops. Tempering/enchantment and exact instance retained.
 - Teammates/player, protected quest items and invalid/stale instances are excluded.
 - Empty/unarmed/nonhumanoid targets handled without invented equipment.
-- Fatal hits and dead-actor policy explicitly implemented/tested; current foundation
-  rejects dead actors, which must be revisited if queued contact follows a killing blow.
+- Fatal hits and dead-actor policy explicitly implemented/tested: a queued hit may
+  drop only an instance still worn after the target was captured alive and hostile.
 - New game/load/equip generations invalidate pending contacts; no dangling pointers.
 
 Only after all gates pass may a completed release archive be offered.

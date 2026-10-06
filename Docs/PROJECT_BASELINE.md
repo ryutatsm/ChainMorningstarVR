@@ -6,7 +6,7 @@ runtime evidence. User-provided unmodified vanilla records in ReferenceBundle
 are primary inputs, not an older mod implementation.
 
 Audited main: `0777e257d64fcab908df03ff94e7a9af4ff1a0ee` (2026-10-06).
-Current work: `astra/zero-base-audit-v050`, 0.5.3 visual/audio test.
+Current work: `astra/zero-base-audit-v050`, 0.6.0 physics test.
 
 ## Requirements
 
@@ -36,14 +36,16 @@ logs mentioned in the handoff were not attached in this turn and are not proof
 of this build's runtime behavior. The audited source at `4639e0cc` passed Windows
 DLL and asset builds (runs `37420567376`, `37420567388`). The 0.5.2 contour revision
 at `da283957c76f4f1c2a0a2539d1ecb7f9ada8fad8` also passed Windows DLL and asset
-builds (runs `37425555050`, `37425555046`). The 0.5.3 material and geometry revision
+builds (runs `37425555050`, `37425555046`). The approved 0.5.3 appearance is retained. The 0.6.0 native physics revision
 must pass the same gates at its own commit. No in-game pass is claimed.
 Local portable core tests, source-schema audit and generated asset checks are
 recorded separately from runtime gates.
 
 The former native-proxy-test mode is removed. A plausible read-only layout or
 PLANCK version cannot authorize native writes. See NATIVE_BRIDGE_AUDIT_20261006.md
-for the replacement design and unsolved collision adapter requirements.
+for the replacement design and source audit. The 0.6.0 implementation uses the
+HIGGS API body, exact head compound, contact feedback and instance-aware drops;
+see PHYSICS_TEST_060.md for remaining runtime gates.
 
 The redundant Conan workflow was retired after its JFrog package host returned
 an HTML landing page instead of Conan API JSON. The pinned vcpkg Windows build

@@ -12,8 +12,8 @@ constexpr RE::FormID kWeaponLocalID = 0x800;
 EquipmentDropPolicy g_policy;
 
 // Initialized only when a verified contact starts an actual game-thread
-// equipment session. Merely loading this currently disconnected module does
-// not access entropy or change inventory.
+// equipment session. Merely loading the module does not access entropy or
+// change inventory.
 class LazyRandomGenerator {
 public:
     using result_type = std::mt19937::result_type;
@@ -39,12 +39,52 @@ bool WornInRequestedSlot(RE::ExtraDataList* extra, EquipmentContactPart part)
 {
     if (!extra) return false;
     if (part == EquipmentContactPart::kLeftWeapon) {
-        return extra->HasType<RE::ExtraWornLeft>();
+        return extra->HasType<RE::ExtraWornLeft>() && !extra->HasType<RE::ExtraWorn>();
+    }
+    if (part == EquipmentContactPart::kRightWeapon) {
+        return extra->HasType<RE::ExtraWorn>() && !extra->HasType<RE::ExtraWornLeft>();
     }
     return extra->HasType<RE::ExtraWorn>();
 }
 
 } // namespace
+
+WornEquipmentInstance ResolveWornEquipment(RE::Actor& actor,
+    EquipmentContactPart part, RE::FormID baseForm)
+{
+    if (part == EquipmentContactPart::kHead && baseForm == 0) {
+        using Slot = RE::BGSBipedObjectForm::BipedObjectSlot;
+        for (auto slot : {Slot::kHead, Slot::kHair, Slot::kCirclet}) {
+            if (auto* armor = actor.GetWornArmor(slot)) {
+                baseForm = armor->GetFormID();
+                break;
+            }
+        }
+    }
+    if (!baseForm) return {};
+    if (part == EquipmentContactPart::kLeftWeapon ||
+        part == EquipmentContactPart::kRightWeapon) {
+        auto* equipped = actor.GetEquippedObject(part == EquipmentContactPart::kLeftWeapon);
+        if (!equipped || !equipped->IsWeapon() || equipped->GetFormID() != baseForm) return {};
+    } else if (part != EquipmentContactPart::kHead) {
+        return {};
+    }
+    WornEquipmentInstance result{};
+    auto inventory = actor.GetInventory([&](RE::TESBoundObject& item) {
+        return item.GetFormID() == baseForm;
+    });
+    for (auto& [item, countedEntry] : inventory) {
+        auto& [count, entry] = countedEntry;
+        if (!item || count <= 0 || !entry || !entry->extraLists ||
+            (part == EquipmentContactPart::kHead && !IsHeadgear(item))) continue;
+        for (auto* extra : *entry->extraLists) {
+            if (!WornInRequestedSlot(extra, part)) continue;
+            if (result.instance) return {}; // Cannot prove which duplicate was worn.
+            result = {baseForm, reinterpret_cast<std::uintptr_t>(extra)};
+        }
+    }
+    return result;
+}
 
 void BeginEquipmentDropSession(std::uint64_t generation,
                                std::uintptr_t rightHeadBody,
@@ -79,8 +119,9 @@ EquipmentDropResult TryDropForConfirmedImpact(const ConfirmedEquipmentImpact& re
         return result;
     }
 
-    evidence.enemyOfPlayer = !target->IsDead() && !target->IsPlayerTeammate() &&
-                            target->IsHostileToActor(player);
+    evidence.enemyOfPlayer = !target->IsPlayerTeammate() &&
+        ((!target->IsDead() && target->IsHostileToActor(player)) ||
+         (target->IsDead() && request.enemyAliveAtImpact));
     if (!evidence.verifiedIronBallContact || !evidence.enemyOfPlayer) {
         result.decision = g_policy.evaluate(evidence, random);
         return result;

@@ -1,4 +1,4 @@
-"""Package one matched Windows visual/audio test build, never a combat release."""
+"""Package one matched Windows physics test build; in-game behavior is unverified."""
 from pathlib import Path, PurePosixPath
 import argparse
 import hashlib
@@ -6,6 +6,8 @@ import json
 import math
 import re
 import struct
+import subprocess
+import sys
 import zipfile
 
 
@@ -113,8 +115,27 @@ def main():
         require(sha((assets / path).read_bytes()) == expected, f'Windows asset hash mismatch: {relative}')
     dll_status = (win / 'BUILD_STATUS.txt').read_text(encoding='utf-8-sig')
     require(f'Commit: {args.commit}' in dll_status and f' {version} ' in dll_status, 'Windows DLL commit/version mismatch')
+    require('physics test -- NOT A RELEASE' in dll_status, 'DLL artifact is not the physics test build')
     dll_sources = read_json(win / 'DLL_SOURCE_SHA256.json')
-    dll_source_count = verify_sources({item['path']: item['sha256'] for item in dll_sources}, ROOT / 'Source/SKSE')
+    dll_records = {item['path']: item['sha256'] for item in dll_sources}
+    dll_root = ROOT / 'Source/SKSE'
+    expected_dll_sources = {path.relative_to(dll_root).as_posix() for path in dll_root.rglob('*')
+                            if path.is_file() and 'build' not in path.relative_to(dll_root).parts}
+    require(set(dll_records) == expected_dll_sources, 'DLL source provenance does not cover the complete runtime')
+    dll_source_count = verify_sources(dll_records, dll_root)
+    third_party = read_json(win / 'DLL_THIRD_PARTY_SHA256.json')
+    third_party_records = {item['path']: item['sha256'] for item in third_party}
+    require(set(third_party_records) == {path.relative_to(ROOT).as_posix()
+            for path in (ROOT / 'Source/ThirdParty').rglob('*') if path.is_file()},
+            'DLL third-party source provenance is incomplete')
+    third_party_source_count = verify_sources(third_party_records, ROOT)
+    header = 'Source/SKSE/HeadContactPlanes.hpp'
+    cms_path = 'visual-preview/reference_mesh.cms'
+    require(header in asset_provenance['source_files'] and 'HeadContactPlanes.hpp' in dll_records,
+            'Native contact planes must be covered by both asset and DLL source provenance')
+    require(cms_path in asset_provenance['output_files'], 'NIF collision source missing from asset provenance')
+    subprocess.run([sys.executable, str(ROOT / 'Source/NIF/export_contact_planes.py'),
+                    str(assets / cms_path), '--check'], check=True, cwd=ROOT)
     files = {
         'ChainMorningstarVR.esp': (args.plugin_dir / 'ChainMorningstarVR.esp').read_bytes(),
         'SKSE/Plugins/ChainMorningstarVR.dll': (win / 'SKSE/Plugins/ChainMorningstarVR.dll').read_bytes(),
@@ -126,7 +147,9 @@ def main():
     require(sha(dll) == (win / 'ChainMorningstarVR.dll.sha256').read_text(encoding='utf-8-sig').strip(), 'DLL checksum mismatch')
     require(len(dll) >= 64 and dll[:2] == b'MZ', 'DLL DOS header missing')
     pe = struct.unpack_from('<I', dll, 60)[0]
-    require(len(dll) >= pe + 6 and dll[pe:pe + 4] == b'PE\0\0' and struct.unpack_from('<H', dll, pe + 4)[0] == 0x8664,
+    require(len(dll) >= pe + 26 and dll[pe:pe + 4] == b'PE\0\0'
+            and struct.unpack_from('<H', dll, pe + 4)[0] == 0x8664
+            and struct.unpack_from('<H', dll, pe + 24)[0] == 0x20b,
             'DLL must be Windows PE x64')
     nif = files[NIF_PATH]
     for name in ['CMS_ChainAnchor', 'CMS_HeadNode'] + [f'CMS_LinkNode_{i:02d}' for i in range(14)]:
@@ -147,39 +170,53 @@ def main():
     geometry = read_json(assets / 'visual-preview/asset_manifest.json')
     materials = read_json(assets / TEXTURE_DIR / 'material_generation.json')
     provenance = {
-        'version': f'{version}-visual-test', 'source_commit': args.commit,
+        'version': f'{version}-physics-test', 'source_commit': args.commit,
         'repository': 'https://github.com/ryutatsm/ChainMorningstarVR',
         'windows_dll_run': args.dll_run, 'windows_asset_run': args.asset_run,
         'windows_dll_artifact': args.dll_artifact, 'windows_asset_artifact': args.asset_artifact,
         'source_verification': {'dll_files': dll_source_count, 'asset_files': asset_source_count,
+                                'third_party_files': third_party_source_count,
+                                'native_contact_planes_match_nif_input': True,
                                 'text_line_endings': 'LF/CRLF normalized; binary input hashes exact'},
-        'in_game_validated': False, 'native_head_contacts': False, 'equipment_drop_connected': False,
+        'in_game_validated': False, 'native_head_contacts': True, 'equipment_drop_connected': True,
+        'chain_link_world_colliders': False,
+        'physics_status': 'implemented test paths; Windows build validation is not in-game proof',
+        'runtime_requirements': {'Skyrim VR': '1.4.15.0', 'SKSEVR': '2.0.12',
+                                 'HIGGS': '1.6.0 or newer (interface001)',
+                                 'PLANCK': 'required for NPC physical contacts and melee damage'},
         'plugin_provenance': esp, 'asset_build_provenance': asset_provenance,
         'emblem': geometry['emblem'], 'material_generation': materials,
         'custom_texture_count': len(custom), 'vanilla_texture_dependencies': sorted(vanilla),
         'files': {name: {'bytes': len(data), 'sha256': sha(data)} for name, data in files.items()},
     }
-    readme = f'''ChainMorningstarVR {version} — 外観・音のテスト版
+    readme = f'''ChainMorningstarVR {version} — 物理・装備落下のテスト版
 ソース: {args.commit}
 
-完成した戦闘MODではありません。Skyrim VR実機での起動・表示・音は未確認です。
-鎖は表示用のシミュレーションです。壁・床・敵との物理接触、鉄球の実位置の
-攻撃判定、頭／武器への命中時に装備を1/3で落とすゲーム内処理は未接続です。
+Skyrim VR実機での起動・戦闘・安定性は未確認です。正式リリースではありません。
+鉄球と棘の複合衝突形状をHIGGSの武器剛体へ設定し、物理ステップ直前に実位置へ
+反映します。接触情報を鎖のシミュレーションへ戻す処理を接続しました。
+敵の頭部／装備中の武器への確認済み接触から、対応する装備を1/3の確率で
+外して落とす処理を接続しています。接触が続く間の重複抽選を抑制します。
+鎖の各リンクに独立した壁・床用の衝突剛体はありません。
 
-変更: 新しい紋章画像を球面に沿う菱形台座へ割り当て、浅い浮き彫りを加えました。
-提供された各部のテクスチャを加工し、鉄球・棘・鎖・金具・木・革・革紐へ使用。
+球面に沿った紋章と、提供画像から加工した各部位の材質を引き継いでいます。
 片手メイス、攻撃44・重量17・価値550。エオルンドの商品追加を実装。
 
 対象: Skyrim VR 1.4.15.0 / SKSEVR 2.0.12。
+物理機能にはHIGGS 1.6.0以上、NPCとの物理接触とダメージにはPLANCKが必要です。
+依存MODが不足した状態は、物理機能の動作確認にはなりません。
 通常プレイと別のMODマネージャープロファイルで旧版を無効化してから、
 このZIPをVortex/MO2でインストールし、ChainMorningstarVR.espを有効にします。
 同名の古いDLL/NIF/テクスチャを混ぜず、SKSEVRで起動してください。
 エオルンド販売、またはコンソール help "Chain Morningstar" 4 で確認できます。
 FormID先頭はロード順で変わります。
 
-右手または左手に1本ずつ装備し、紋章の湾曲、各部の質感、鎖の見た目と音を確認。
-両手同時の2本には未対応。装備解除、メニュー、ロード、セル移動も確認します。
-表示の揺れや通常のメイス攻撃は、この鉄球の物理攻撃が完成した証拠になりません。
+片手だけに1本を装備し、右手と左手をそれぞれ確認してください。両手同時の2本は未対応。
+床・壁で鉄球が止まるか、敵の胴への命中で装備が落ちないか、頭／装備武器への
+独立した命中でのみ該当装備が落ちるかを確認します。1/3は各独立接触の確率で、
+3回ごとに必ず1回という意味ではありません。武器の空白部分への近接は命中に含めません。
+装備解除、メニュー、ロード、セル移動後に古い接触が再利用されないことも確認します。
+攻撃力やNPCの衝突はPLANCKの設定にも影響されます。
 
 確認結果とログは別添 ChainMorningstarVR-{version}-feedback-tools.zip で収集できます。
 ゲーム終了後、解凍した Collect_CMS_Logs.cmd を実行してください。
@@ -190,11 +227,18 @@ Windows DLL CI: https://github.com/ryutatsm/ChainMorningstarVR/actions/runs/{arg
 Windows NIF CI: https://github.com/ryutatsm/ChainMorningstarVR/actions/runs/{args.asset_run}
 '''
     game_file_count = len(files)
-    files['README_Visual_Test_JA.txt'] = readme.encode('utf-8-sig')
+    files['README_Physics_Test_JA.txt'] = readme.encode('utf-8-sig')
+    files['LICENSES/HIGGS_GPL-3.0.txt'] = (ROOT / 'Source/ThirdParty/HIGGS/LICENSE').read_bytes()
+    files['THIRD_PARTY_NOTICES.txt'] = (
+        'HIGGS interface declarations and documented native integration are adapted from HIGGS by adamhynek.\n'
+        'HIGGS upstream: https://github.com/adamhynek/higgs/tree/93bf67b1bc4c4a11a20ccaef0d5012781d0d7eee\n'
+        'See LICENSES/HIGGS_GPL-3.0.txt. Adaptation preserves interface order and uses CommonLib types.\n'
+        f'Exact build source: https://github.com/ryutatsm/ChainMorningstarVR/tree/{args.commit}\n'
+    ).encode('utf-8')
     files['BUILD_PROVENANCE.json'] = (json.dumps(provenance, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
     files['SHA256SUMS.txt'] = ''.join(f'{sha(data)}  {name}\n' for name, data in sorted(files.items())).encode('utf-8')
     args.out.mkdir(parents=True, exist_ok=True)
-    archive = args.out / f'ChainMorningstarVR-{version}-visual-test.zip'
+    archive = args.out / f'ChainMorningstarVR-{version}-physics-test.zip'
     write_zip(archive, files)
     feedback = args.out / f'ChainMorningstarVR-{version}-feedback-tools.zip'
     feedback_files = {name: (ROOT / 'Tools' / name).read_bytes() for name in ['Collect_CMS_Logs.cmd', 'Collect_CMS_Logs.ps1']}

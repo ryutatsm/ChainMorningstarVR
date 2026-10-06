@@ -5,16 +5,24 @@ on:
   push:
     paths:
       - "Source/SKSE/**"
+      - "Source/ThirdParty/**"
       - "Source/NIF/**"
       - "Source/Textures/**"
+      - "Tests/test_material_maps.py"
+      - "Tools/write_asset_provenance.py"
       - "Tools/package_visual_test.py"
+      - ".github/workflows/windows-nif-build.yml"
       - ".github/workflows/windows-vr-build.yml"
   pull_request:
     paths:
       - "Source/SKSE/**"
+      - "Source/ThirdParty/**"
       - "Source/NIF/**"
       - "Source/Textures/**"
+      - "Tests/test_material_maps.py"
+      - "Tools/write_asset_provenance.py"
       - "Tools/package_visual_test.py"
+      - ".github/workflows/windows-nif-build.yml"
       - ".github/workflows/windows-vr-build.yml"
 
 concurrency:
@@ -53,6 +61,12 @@ jobs:
             "$env:PLUGIN_SRC\PlayerUpdateHook.cpp",
             "$env:PLUGIN_SRC\SkyrimVRSceneBridge.cpp",
             "$env:PLUGIN_SRC\PlanckBuildProbe.cpp",
+            "$env:PLUGIN_SRC\NativePhysicsBackend.cpp",
+            "$env:PLUGIN_SRC\NativeWorldSweep.cpp",
+            "$env:PLUGIN_SRC\NativeContactRouter.cpp",
+            "$env:PLUGIN_SRC\WeaponMeshContact.cpp",
+            "$env:GITHUB_WORKSPACE\Source\SKSE\HeadContactPlanes.hpp",
+            "$env:GITHUB_WORKSPACE\Source\ThirdParty\HIGGS\HiggsInterface001.hpp",
             "$env:GITHUB_WORKSPACE\Source\SKSE\ChainPhysicsCore.hpp",
             "$env:GITHUB_WORKSPACE\Source\SKSE\ChainRuntimeCore.hpp",
             "$env:GITHUB_WORKSPACE\Source\SKSE\GameBridgeContract.hpp"
@@ -90,21 +104,21 @@ jobs:
           cmake --version
           ninja --version
 
-      - name: Configure read-only diagnostic build
+      - name: Configure physics test build
         working-directory: ${{ env.PLUGIN_SRC }}
-        run: cmake --preset vr-diagnostic
+        run: cmake --preset vr-physics-test
 
-      - name: Compile read-only diagnostic DLL
+      - name: Compile physics test DLL
         working-directory: ${{ env.PLUGIN_SRC }}
-        run: cmake --build --preset vr-diagnostic
+        run: cmake --build --preset vr-physics-test
 
-      - name: Stage audited preview DLL and checksum
+      - name: Stage physics test DLL and checksum
         run: |
-          $diag = Get-ChildItem "$env:PLUGIN_SRC\build\vr-diagnostic" -Recurse -Filter ChainMorningstarVR.dll | Select-Object -First 1
-          if (-not $diag) { throw "Diagnostic ChainMorningstarVR.dll not found" }
+          $builtDll = Get-ChildItem "$env:PLUGIN_SRC\build\vr-physics-test" -Recurse -Filter ChainMorningstarVR.dll | Select-Object -First 1
+          if (-not $builtDll) { throw "Physics test ChainMorningstarVR.dll not found" }
           $dir = "$env:GITHUB_WORKSPACE\ci-artifact\SKSE\Plugins"
           New-Item -ItemType Directory -Force -Path $dir | Out-Null
-          Copy-Item $diag.FullName "$dir\ChainMorningstarVR.dll"
+          Copy-Item $builtDll.FullName "$dir\ChainMorningstarVR.dll"
           (Get-FileHash "$dir\ChainMorningstarVR.dll" -Algorithm SHA256).Hash.ToLower() |
             Set-Content "$env:GITHUB_WORKSPACE\ci-artifact\ChainMorningstarVR.dll.sha256"
           $sourceRoot = "$env:GITHUB_WORKSPACE\Source\SKSE"
@@ -119,16 +133,29 @@ jobs:
             }
           ConvertTo-Json -InputObject @($sourceHashes) -Depth 3 |
             Set-Content "$env:GITHUB_WORKSPACE\ci-artifact\DLL_SOURCE_SHA256.json"
+          $thirdPartyRoot = "$env:GITHUB_WORKSPACE\Source\ThirdParty"
+          $thirdPartyHashes = Get-ChildItem $thirdPartyRoot -Recurse -File |
+            Sort-Object FullName |
+            ForEach-Object {
+              [ordered]@{
+                path = $_.FullName.Substring($env:GITHUB_WORKSPACE.Length + 1).Replace('\', '/')
+                sha256 = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+              }
+            }
+          ConvertTo-Json -InputObject @($thirdPartyHashes) -Depth 3 |
+            Set-Content "$env:GITHUB_WORKSPACE\ci-artifact\DLL_THIRD_PARTY_SHA256.json"
           @"
-          ChainMorningstarVR 0.5.3 visual/audio test -- NOT A RELEASE
+          ChainMorningstarVR 0.6.0 physics test -- NOT A RELEASE
           Commit: $env:GITHUB_SHA
-          Visual chain simulation + base-game chain audio + vendor only.
-          No native collision pointer writes. Physical flail damage and equipment drops are disabled.
+          HIGGS head-compound collision and solver contact feedback are connected.
+          Enemy head/weapon contacts feed the one-in-three worn-instance drop policy.
+          Requires HIGGS >= 1.6.0; PLANCK supplies NPC physics and melee damage.
+          In-game behavior is unverified. Separate chain-link world colliders are not implemented.
           "@ | Set-Content "$env:GITHUB_WORKSPACE\ci-artifact\BUILD_STATUS.txt"
 
-      - name: Upload audited preview artifact
+      - name: Upload physics test artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ChainMorningstarVR-v0.5.3-visual-test-dll
+          name: ChainMorningstarVR-v0.6.0-physics-test-dll
           path: ci-artifact
           if-no-files-found: error

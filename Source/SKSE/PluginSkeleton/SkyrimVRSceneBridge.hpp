@@ -21,12 +21,13 @@ public:
     void releaseWeaponNodes() override;
     void applyVisualFrame(const VisualFrame& frame) override;
     bool updateNativeMeleeHeadProxy(const HeadSweep& sweep) override;
+    void submitNativePose(const HeadPose& pose, const HeadSweep& sweep, float frameDt) override;
+    std::vector<HeadWorldContact> consumeWorldContacts() override;
     float consumeWorldContactImpulse() override;
     void playChainRattle(float intensity) override;
     void playChainClank(float intensity) override;
 
     [[nodiscard]] bool visualNodesReady() const noexcept { return anchor_ && head_; }
-    [[nodiscard]] bool nativeProxyVerified() const noexcept { return false; }
 
 private:
     RE::NiAVObject* findUnder(RE::NiAVObject* root, std::string_view name) const;
@@ -45,7 +46,7 @@ private:
     std::array<RE::NiPointer<RE::NiAVObject>,14> links_{};
     RE::NiPointer<RE::NiAVObject> head_{};
     bool isLeftHand_{};
-    bool warnedNativeProxy_{};
+    std::uint64_t nativeGeneration_{};
     bool warnedChainSound_{};
     bool readOnlyNativeMotionStateKnown_{};
     bool readOnlyNativeProbeRejectedWarned_{};

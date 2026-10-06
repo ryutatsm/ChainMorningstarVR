@@ -6,6 +6,7 @@
 #include "PlayerUpdateHook.hpp"
 #include "PlanckBuildProbe.hpp"
 #include "EorlundVendor.hpp"
+#include "NativePhysicsBackend.hpp"
 
 namespace {
 
@@ -32,6 +33,7 @@ void onSKSEMessage(SKSE::MessagingInterface::Message* msg)
     switch (msg->type) {
     case SKSE::MessagingInterface::kPostPostLoad:
         cms::skyrimvr::ProbePlanckBuildNumber();
+        cms::skyrimvr::NativePhysicsBackend::GetSingleton().Initialize();
         break;
     case SKSE::MessagingInterface::kDataLoaded:
         cms::skyrimvr::EnsureEorlundSellsChainMorningstar();
@@ -80,7 +82,7 @@ SKSEPluginLoad(const SKSE::LoadInterface* skse)
 #endif
 
     SKSE::log::info(
-        "ChainMorningstarVR {} loading: VISUAL/AUDIO PREVIEW; physical head damage=DISABLED; equipment drop=DISABLED; VRMeleeData probe={}",
+        "ChainMorningstarVR {} loading: PHYSICS TEST; HIGGS head backend requested; equipment drop requires certified contact; in-game verification=PENDING; VRMeleeData probe={}",
         CMS_VERSION_STRING, probeMode);
 
     if (!cms::skyrimvr::InstallPlayerUpdateHook()) {

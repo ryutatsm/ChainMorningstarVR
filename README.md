@@ -3,9 +3,14 @@
 Skyrim VR chain morningstar, under development. Audited against main commit
 `0777e257d64fcab908df03ff94e7a9af4ff1a0ee` on 2026-10-06.
 
-**0.5.3 visual/audio test is not a completed combat mod or a release.**
-The moving head has no verified native collision backend. Enemy helmet/weapon
-drops have tested source logic but are not connected to gameplay.
+**0.6.0 physics test: Vortex-installable development build.**
+The HIGGS weapon body follows the simulated iron head using the NIF's actual
+15 convex collision hulls. Native head contacts feed back into the chain solver.
+Certified enemy head or equipped-weapon contacts enter a single 1/3 drop draw;
+weapon meshes without usable CPU geometry are conservatively skipped.
+Windows compilation and portable tests do not establish in-game compatibility.
+Individual chain-link/world colliders are not implemented; both-hands-at-once
+use is unsupported. See the installation guide for requirements and test limits.
 
 The current appearance revision curves the emblem plaque around the iron ball
 and uses the supplied texture images for the corresponding weapon parts.

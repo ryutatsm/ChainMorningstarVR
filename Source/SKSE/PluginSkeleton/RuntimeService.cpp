@@ -13,6 +13,7 @@ void RuntimeService::tick(float frameDt)
     if (suspended_ || !std::isfinite(frameDt)) return;
     auto* ui = RE::UI::GetSingleton();
     if (!ui || ui->GameIsPaused()) {
+        if (!wasPaused_) driver_.onUnequip();
         wasPaused_ = true;
         return;
     }

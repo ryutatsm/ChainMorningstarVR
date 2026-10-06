@@ -7,22 +7,22 @@
   },
   "configurePresets": [
     {
-      "name": "vr-diagnostic",
-      "displayName": "Skyrim VR Read-only Diagnostic",
+      "name": "vr-physics-test",
+      "displayName": "Skyrim VR Physics Test",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/vr-diagnostic",
+      "binaryDir": "${sourceDir}/build/vr-physics-test",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_TOOLCHAIN_FILE": "$env{CMS_VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
         "VCPKG_TARGET_TRIPLET": "x64-windows",
-        "CMS_ENABLE_READONLY_VRMELEE_PROBE": "ON"
+        "CMS_ENABLE_READONLY_VRMELEE_PROBE": "OFF"
       }
     }
   ],
   "buildPresets": [
     {
-      "name": "vr-diagnostic",
-      "configurePreset": "vr-diagnostic"
+      "name": "vr-physics-test",
+      "configurePreset": "vr-physics-test"
     }
   ]
 }

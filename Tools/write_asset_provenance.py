@@ -24,6 +24,7 @@ def main():
         raise ValueError('Requested commit does not match the checkout')
     paths = subprocess.check_output([
         'git', 'ls-files', '-z', '--', 'Source/NIF', 'Source/Textures',
+        'Source/SKSE/HeadContactPlanes.hpp',
         'Tests/test_material_maps.py', 'Tools/write_asset_provenance.py',
         'Tools/package_visual_test.py', '.github/workflows/windows-nif-build.yml',
     ], cwd=root).decode('utf-8').split('\0')
@@ -33,6 +34,7 @@ def main():
     outputs += list(build.glob('textures/**/material_generation.json'))
     outputs += list(build.glob('textures/**/texture_validation.json'))
     outputs += [build / 'visual-preview/asset_manifest.json']
+    outputs += [build / 'visual-preview/reference_mesh.cms']
     if not any(path.suffix == '.nif' for path in outputs) or not any(path.suffix == '.dds' for path in outputs):
         raise ValueError('Generated NIF and DDS files are required')
     data = {

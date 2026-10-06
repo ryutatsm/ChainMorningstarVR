@@ -10,14 +10,28 @@ namespace cms::skyrimvr {
 // Integration boundary, deliberately NOT an ordinary hit-event listener.
 // The native contact collector must first prove that its CMS iron-ball body
 // touched the named enemy part, and supply one serial per physical impact.
-// Current scene-only simulation cannot provide this evidence, so the plugin
-// does not call this API until a native body/contact adapter is implemented.
 struct ConfirmedEquipmentImpact {
     EquipmentImpactEvidence evidence{};
     RE::ActorHandle target{};
     RE::FormID sourceWeapon{};
     RE::NiPoint3 contactPosition{};  // Skyrim world units, captured at contact
+    // Captured by the game-thread equipment snapshot before the physical step.
+    // A fatal physical hit may complete before the queued drop is handled.
+    bool enemyAliveAtImpact{};
 };
+
+struct WornEquipmentInstance {
+    RE::FormID baseForm{};
+    // Identity only. Never dereference a stored value; resolve it in inventory
+    // again immediately before mutation. No extra-list pointer crosses threads.
+    std::uintptr_t instance{};
+};
+
+// Game thread only. Head requests may omit baseForm to choose the currently
+// worn head/hair/circlet item, in that priority order. Ambiguous worn instances
+// are rejected. Weapon requests identify both the hand and base form.
+[[nodiscard]] WornEquipmentInstance ResolveWornEquipment(
+    RE::Actor& actor, EquipmentContactPart part, RE::FormID baseForm = 0);
 
 struct EquipmentDropResult {
     EquipmentDropDecision decision{EquipmentDropDecision::kUnverifiedContact};

@@ -142,7 +142,15 @@ public:
         equipped_ = false;
         hasPreviousHead_ = false;
         lastSimulatedDt_ = 0.0f;
+        chain_.solver().clearWorldContacts();
         sound_.reset();
+    }
+
+    // Called on the owning game/update thread after draining native callbacks.
+    // Native collectors must also discard their queued contacts on release.
+    float applyWorldContacts(const std::vector<HeadWorldContact>& contacts) {
+        if (!equipped_) return 0.0f;
+        return chain_.solver().applyWorldContacts(contacts);
     }
 
     bool update(float frameDt, Vec3 anchorWorldSU) {
@@ -154,7 +162,7 @@ public:
         }
         const Vec3 anchorM = anchorWorldSU * kMetersPerSkyrimUnit;
 
-        if (length(anchorM - lastAnchorM_) > teleportResetDistanceM_) {
+        if (wouldTeleportReset(anchorWorldSU)) {
             chain_.reset(anchorM, {0,0,-1});
             previousHeadM_ = chain_.solver().headPosition();
             lastSimulatedDt_ = 0.0f;
@@ -168,6 +176,15 @@ public:
         lastAnchorM_ = anchorM;
         hasPreviousHead_ = true;
         return true;
+    }
+
+    // The native owner must release/reacquire before draining callbacks when
+    // tracking crosses the same threshold used by update(). This lets the
+    // RuntimeDriver discard old-generation contacts and suppress damage sweeps.
+    [[nodiscard]] bool wouldTeleportReset(Vec3 anchorWorldSU) const {
+        if (!equipped_ || !isFinite(anchorWorldSU)) return false;
+        const Vec3 anchorM = anchorWorldSU * kMetersPerSkyrimUnit;
+        return length(anchorM - lastAnchorM_) > teleportResetDistanceM_;
     }
 
     [[nodiscard]] bool equipped() const { return equipped_; }

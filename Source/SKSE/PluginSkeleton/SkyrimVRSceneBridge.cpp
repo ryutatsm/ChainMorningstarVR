@@ -1,5 +1,8 @@
 #include "SkyrimVRSceneBridge.hpp"
 #include "PlanckBuildProbe.hpp"
+#include "NativePhysicsBackend.hpp"
+#include "NativeContactRouter.hpp"
+#include "WeaponMeshContact.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -195,6 +198,8 @@ bool SkyrimVRSceneBridge::reacquireWeaponNodes()
         return false;
     }
     SKSE::log::info("ChainMorningstarVR: acquired {}-hand VR scene nodes (14 links + head)", isLeftHand_ ? "left" : "right");
+    if (++nativeGeneration_ == 0) ++nativeGeneration_;
+    NativePhysicsBackend::GetSingleton().BeginSession(head_.get(), isLeftHand_, nativeGeneration_);
     runReadOnlyNativeMeleeProbe();
     return true;
 }
@@ -250,6 +255,8 @@ bool SkyrimVRSceneBridge::currentHandStillOwnsAnchor() const
 
 void SkyrimVRSceneBridge::releaseWeaponNodes()
 {
+    NativePhysicsBackend::GetSingleton().EndSession();
+    WeaponMeshContact::GetSingleton().Reset();
     for (auto& sound : chainSounds_) {
         if (sound.soundID != RE::BSSoundHandle::kInvalidID) sound.Stop();
         sound = RE::BSSoundHandle{};
@@ -363,13 +370,31 @@ bool SkyrimVRSceneBridge::updateNativeMeleeHeadProxy(const HeadSweep& sweep)
     readOnlyNativeCollisionNode_ = probe.collisionNode;
     return false;
 #else
-    if (!warnedNativeProxy_) {
-        SKSE::log::warn(
-            "ChainMorningstarVR: native moving melee proxy is disabled in this build; visual bridge only");
-        warnedNativeProxy_=true;
-    }
+    (void)sweep;
     return false;
 #endif
+}
+
+void SkyrimVRSceneBridge::submitNativePose(const HeadPose& pose, const HeadSweep& sweep, float frameDt)
+{
+    if (!currentHandStillOwnsAnchor()) return;
+    NativePhysicsBackend::GetSingleton().SubmitPose(pose, frameDt);
+    auto* player = RE::PlayerCharacter::GetSingleton();
+    auto* weapon = player ? player->GetEquippedObject(isLeftHand_) : nullptr;
+    WeaponMeshContact::GetSingleton().Update(
+        NativePhysicsBackend::GetSingleton().Snapshot(), frameDt,
+        weapon ? weapon->GetFormID() : 0);
+#if defined(CMS_ENABLE_READONLY_VRMELEE_PROBE) && CMS_ENABLE_READONLY_VRMELEE_PROBE
+    updateNativeMeleeHeadProxy(sweep);
+#else
+    (void)sweep;
+#endif
+}
+
+std::vector<HeadWorldContact> SkyrimVRSceneBridge::consumeWorldContacts()
+{
+    NativeContactRouter::GetSingleton().DrainAndRefresh();
+    return NativePhysicsBackend::GetSingleton().ConsumeContacts();
 }
 
 float SkyrimVRSceneBridge::consumeWorldContactImpulse() { return 0.0f; }
