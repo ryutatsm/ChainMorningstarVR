@@ -25,18 +25,27 @@ def bilinear(levels,uv,lod):
     return (v00*(1-fx)+v10*fx)*(1-fy)+(v01*(1-fx)+v11*fx)*fy
 
 def render(texture_dir,out,size=1600,part="full"):
-    head_only=part=="head"
-    cam=g.unit([.19,-.065,1]);bx=g.unit([cam[2],0,-cam[0]]);by=np.cross(cam,bx)
-    a=.78 if part!="handle" else .28
+    head_only=part=="head";emblem_only=part.startswith("emblem_")
+    cam=g.unit([0,0,1] if part=="emblem_front" else [.38,-.10,1] if emblem_only else [.19,-.065,1]);bx=g.unit([cam[2],0,-cam[0]]);by=np.cross(cam,bx)
+    a=math.pi/4 if emblem_only else .78 if part!="handle" else .28
     u=math.cos(a)*bx-math.sin(a)*by;v=math.sin(a)*bx+math.cos(a)*by
     basis=np.array([u,v,cam]);allv=[];objects=[]
-    for (par,mat),m in g.MESHES.items():
-        if head_only and par!=16:continue
-        if part=="handle" and par!=0:continue
-        r,t=g.world_transform(par);world=np.asarray(m.v)@r.T+t;n=np.asarray(m.n)@r.T
-        objects.append((world@basis.T,n,np.asarray(m.uv),np.asarray(m.f),mat,world));allv.extend(world@basis.T)
+    selected=[]
+    if emblem_only:
+        for part_info in g.EMBLEM['parts']:
+            par,mat=part_info['parent'],part_info['material'];m=g.MESHES[(par,mat)]
+            start=part_info['vertex_start'];end=start+part_info['vertex_count'];fs=part_info['face_start'];fe=fs+part_info['face_count']
+            selected.append((par,mat,np.asarray(m.v[start:end]),np.asarray(m.n[start:end]),np.asarray(m.uv[start:end]),np.asarray(m.f[fs:fe])-start))
+    else:
+        for (par,mat),m in g.MESHES.items():
+            if head_only and par!=16:continue
+            if part=="handle" and par!=0:continue
+            selected.append((par,mat,np.asarray(m.v),np.asarray(m.n),np.asarray(m.uv),np.asarray(m.f)))
+    for par,mat,mv,mn,muv,mf in selected:
+        r,t=g.world_transform(par);world=mv@r.T+t;n=mn@r.T
+        objects.append((world@basis.T,n,muv,mf,mat,world));allv.extend(world@basis.T)
     arr=np.asarray(allv);mi=arr.min(0);ma=arr.max(0);scale=(size-180)/max(ma[0]-mi[0],ma[1]-mi[1]);center=(mi+ma)/2
-    img=np.full((size,size,3),242,dtype=np.float32);depth=np.full((size,size),-1e10)
+    img=np.full((size,size,3),12 if emblem_only else 242,dtype=np.float32);depth=np.full((size,size),-1e10)
     tex={k:mip_chain(texture_dir/f'cms_{k}_d.png','RGB') for k in ['metal','wood','leather']}
     normal_rgba={k:mip_chain(texture_dir/f'cms_{k}_n.png','RGBA') for k in ['metal','wood','leather']}
     envmask=mip_chain(texture_dir/'cms_metal_m.png','L')
@@ -67,7 +76,7 @@ def render(texture_dir,out,size=1600,part="full"):
             color=bilinear(tex['wood' if mat=='cord' else base],tx,lod)*tint
             sampled_normal=bilinear(normal_rgba[base],tx,lod)
             e1=world[ids[1]]-world[ids[0]];e2=world[ids[2]]-world[ids[0]];d1=uv[ids[1]]-uv[ids[0]];d2=uv[ids[2]]-uv[ids[0]];det=d1[0]*d2[1]-d1[1]*d2[0]
-            if abs(det)>1e-6:
+            if abs(det)>1e-14:
                 tangent=g.unit((e1*d2[1]-e2*d1[1])/det);bitangent=g.unit((e2*d1[0]-e1*d2[0])/det)
                 nm=sampled_normal[:,:3]/127.5-1;norm=norm*nm[:,2,None]+tangent*nm[:,0,None]+bitangent*nm[:,1,None];norm/=np.maximum(np.linalg.norm(norm,axis=1)[:,None],1e-10)
             diffuse=.28+.82*np.maximum(norm@light,0)+.25*np.maximum(norm@fill,0)
@@ -80,11 +89,12 @@ def render(texture_dir,out,size=1600,part="full"):
             target[mask]=z[mask];img[lo[1]:hi[1]+1,lo[0]:hi[0]+1][mask]=rgb
     im=Image.fromarray(img.astype('uint8'));d=ImageDraw.Draw(im)
     font=ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',22)
-    title={'full':'CHAIN MORNINGSTAR / SCULPTED MESH','head':'FORGED IRON / SCULPTED MESH','handle':'TAPERED WOOD + WORN LEATHER / SCULPTED MESH'}[part]
-    d.text((38,26),title,fill=(35,41,46),font=font)
+    title={'full':'CHAIN MORNINGSTAR / SCULPTED MESH','head':'FORGED IRON / SCULPTED MESH','handle':'TAPERED WOOD + WORN LEATHER / SCULPTED MESH','emblem_front':'REFERENCE CONTOUR / ORTHOGRAPHIC FRONT','emblem_relief':'REFERENCE CONTOUR / EXTRUDED METAL RELIEF'}[part]
+    d.text((38,26),title,fill=(210,214,218) if emblem_only else (35,41,46),font=font)
     d.text((38,size-46),f'Asset preview  |  {sum(len(m.f) for m in g.MESHES.values()):,} triangles  |  Skyrim VR verification pending',fill=(75,79,84),font=font)
     im.save(out)
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('--textures',type=Path,required=True);p.add_argument('--out',type=Path,required=True);args=p.parse_args();g.build();args.out.mkdir(parents=True,exist_ok=True)
-    render(args.textures,args.out/'ChainMorningstar_mesh_preview.png');render(args.textures,args.out/'ChainMorningstar_head_detail.png',part='head');render(args.textures,args.out/'ChainMorningstar_handle_detail.png',part='handle')
+    p=argparse.ArgumentParser();p.add_argument('--textures',type=Path,required=True);p.add_argument('--out',type=Path,required=True);p.add_argument('--parts',nargs='+',default=['full','head','handle','emblem_front','emblem_relief']);args=p.parse_args();g.build();args.out.mkdir(parents=True,exist_ok=True)
+    filenames={'full':'ChainMorningstar_mesh_preview.png','head':'ChainMorningstar_head_detail.png','handle':'ChainMorningstar_handle_detail.png','emblem_front':'ChainMorningstar_emblem_front.png','emblem_relief':'ChainMorningstar_emblem_relief.png'}
+    for part in args.parts:render(args.textures,args.out/filenames[part],part=part)

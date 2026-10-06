@@ -76,8 +76,9 @@ These are development assets. A NIF parser round-trip cannot prove that Skyrim
 VR instantiates the Havok body correctly, that its collision follows the
 runtime solver, or that the weapon deals native melee damage.
 
-The front reference does not specify the back and underside. The dragon relief
-and metal engravings are modelled interpretations, not an exact surface scan.
+The front reference does not specify the back and underside. The dragon silhouette is now traced from the separately supplied emblem JPG;
+its extrusion depth and the metal engravings remain authored geometry, not an
+exact surface scan.
 Collar ornament, spike profile and etched surface details are still less rich
 than the supplied reference. The previews use a software material illustration;
 the actual game's lighting, mip bias and environment shader remain unverified.
@@ -87,8 +88,8 @@ The GLB uses simplified PBR materials and is intended for geometry inspection.
 ## Sculpt revision — 2026-10-06
 
 The rejected smooth first model has been revised at the mesh level, not merely
-recolored. The current mesh has 41,951 vertices and 75,994 triangles across the
-same 24 material shapes. Ball surface radii vary from 148.0 to 159.6 mm due to
+recolored. Before the exact emblem replacement below, this revision had 41,951 vertices
+and 75,994 triangles across the same 24 material shapes. Ball surface radii vary from 148.0 to 159.6 mm due to
 actual hammer depressions. Spike roots penetrate the core; their sides have
 recessed facets and tips end in small closed worn faces. Every vertex of these
 surfaces is validated inside the existing core/spike collision union.
@@ -144,3 +145,49 @@ absent. The independent emitted-asset validator requires exact pole position
 and normal equality and outward normals. It rejects the earlier Windows
 artifact and accepts the corrected local build. Windows parity is rechecked
 through the next CI build; the local check alone is not a Windows result.
+
+
+## Exact emblem revision — 2026-10-06
+
+The invented dragon has been removed. `skyrim_emblem_contours.json` and its
+review SVG trace the user's `26f5726c33767d5215c05bbbac1fd8cf.jpg` (480 x 800,
+SHA-256 `a5112dac7cc8ff41ca7cc300d6bbf82611d95a4d605fe66c5e2b92850c3b27b6`).
+`trace_emblem_reference.py` records extraction, simplification and triangulation.
+The build consumes the frozen JSON, so it does not require the source JPEG or
+retrace the silhouette differently on another platform.
+
+The connected outline has 1,398 vertices and 1,396 constrained front triangles.
+The trace preserves the source asymmetry, open upper wings, curved neck, lower
+limb gaps and crooked tail. Its large negative spaces are open bays, not sealed
+holes. Against the extracted source mask, the trace has 99.2549% intersection
+over union and a 1.414-pixel maximum boundary distance. Small dark metal pits
+inside the symbol are surface shading rather than through-holes.
+
+`emblem_relief.py` uniformly scales this exact outline to 152.51 mm high and
+extrudes it as opaque metal geometry with closed sides and back. The fit uses
+the inner diamond's half-width and half-height, leaving an 8% margin; it does
+not squeeze the mark horizontally or fill its bays. The authored depth is
+11.6 mm. This is a straight extrusion, not a recovered 3D scan or a bevelled
+reconstruction of every facet in the photograph. The clean face samples a
+small existing iron texture patch; there is no decal, alpha-cutout replacement,
+or additional material slot.
+
+The complete model now has 49,415 vertices and 80,528 triangles, still in
+24 material shapes and the same 17 nodes. The 15 collision hulls and runtime
+contracts are unchanged. Its Skyrim-unit AABB is
+`(-15.382532, -20.052493, -11.095414)` to
+`(15.382610, 117.866746, 11.926509)`, within the existing ESP bounds.
+
+`validate_reference_assets.py` independently reverses the emitted crest
+rotation and compares every contour point and front triangle with the trace.
+It checks projected area, inner-diamond clearance and each full-depth side
+wall. The local NIF writer reloads the actual exported file and verifies its
+hierarchy, meshes and compound collision. These passed locally; the matching
+Windows build and actual Skyrim appearance are separate checks.
+
+The CPU renderer additionally writes `ChainMorningstar_emblem_front.png`
+(upright orthographic front) and `ChainMorningstar_emblem_relief.png` (oblique
+view of actual depth). Those views isolate the real relief vertices from the
+same model that is exported to NIF/GLB. Full weapon and head views include the
+new mounted emblem. The renderer applies tangent-space normals even to the
+small UV triangles of the traced contour, avoiding triangle-dependent shading.

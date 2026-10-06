@@ -3,7 +3,7 @@
 Skyrim VR chain morningstar, under development. Audited against main commit
 `0777e257d64fcab908df03ff94e7a9af4ff1a0ee` on 2026-10-06.
 
-**0.5.1 visual/audio test is not a completed combat mod or a release.**
+**0.5.2 visual/audio test is not a completed combat mod or a release.**
 The moving head has no verified native collision backend. Enemy helmet/weapon
 drops have tested source logic but are not connected to gameplay.
 

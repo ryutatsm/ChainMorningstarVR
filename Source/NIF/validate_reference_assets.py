@@ -48,6 +48,41 @@ def validate(build):
     for d,v in zip(dirs,hulls[1:]):
         assert np.min(np.linalg.norm(v-np.array(d)*.24,axis=1))<1e-6,'Wrong spike direction'
     manifest=json.loads((build/'visual-preview/asset_manifest.json').read_text())
+    # Read the emitted front geometry independently of its generator. The exact
+    # traced triangulation forbids new faces across the wing/leg/tail bays.
+    emblem=manifest['emblem']
+    contour=json.loads(Path(__file__).with_name('skyrim_emblem_contours.json').read_text())
+    assert emblem['source']==contour['source'] and len(contour['polygons'])==1 and not contour['polygons'][0]['holes']
+    names=['metal','wood','leather','darksteel','edge','cord','bronze'];parts={}
+    for part in emblem['parts']:
+        matches=[m for m in meshes if m[1]==part['parent'] and m[2]==names.index(part['material'])];assert len(matches)==1
+        data=matches[0][3];tri=matches[0][4];vs=part['vertex_start'];ve=vs+part['vertex_count'];fs=part['face_start'];fe=fs+part['face_count']
+        assert ve<=len(data) and fe<=len(tri)
+        local_tri=tri[fs:fe]-vs;assert local_tri.min()>=0 and local_tri.max()<ve-vs
+        parts[part['name']]=(data[vs:ve],local_tri)
+    front,front_tri=parts['front'];angle=emblem['crest_rotation_rad']
+    rot=np.array([[np.cos(angle),0,np.sin(angle)],[0,1,0],[-np.sin(angle),0,np.cos(angle)]])
+    flat=front[:,:3]@rot
+    pixels=np.column_stack([flat[:,0]/emblem['scale_m_per_pixel']+emblem['center_pixel'][0],emblem['center_pixel'][1]-flat[:,2]/emblem['scale_m_per_pixel']])
+    outline=np.asarray(contour['polygons'][0]['outer']);expected_tri=np.asarray(contour['mesh2d']['triangles'])[:,[0,2,1]]
+    assert pixels.shape==outline.shape and np.max(np.abs(pixels-outline))<1e-5,'Emblem boundary differs from reference trace'
+    assert np.array_equal(front_tri,expected_tri),'Emblem triangulation bridges or changes reference bays'
+    assert np.max(abs(flat[:,1]-emblem['front_y']))<1e-9
+    u=pixels[front_tri[:,1]]-pixels[front_tri[:,0]];w=pixels[front_tri[:,2]]-pixels[front_tri[:,0]]
+    area=np.abs(u[:,0]*w[:,1]-u[:,1]*w[:,0]).sum()/2
+    source_area=contour['fidelity']['polygon_area']
+    assert abs(area/source_area-1)<1e-6,'Emblem projected area changed'
+    fit=np.max(abs(flat[:,0])/.0501+abs(flat[:,2])/.1063)
+    assert fit<=.920001,'Emblem intersects inner diamond frame'
+    assert parts['back'][0].shape[0]==len(outline) and parts['sides'][0].shape[0]==4*len(outline)
+    # Every original contour segment has a full-depth side wall; the opaque
+    # relief has real thickness, with no decal image standing in for the mark.
+    back=parts['back'][0][:,:3]@rot;sides=parts['sides'][0][:,:3]@rot
+    assert np.max(abs(back[:,1]-emblem['back_y']))<1e-9
+    assert np.allclose(back[:,[0,2]],flat[:,[0,2]],atol=1e-9)
+    assert np.allclose(sides.reshape(-1,4,3)[:,0],flat,atol=1e-9)
+    assert np.allclose(sides.reshape(-1,4,3)[:,2],np.roll(back,-1,axis=0),atol=1e-9)
+    print(f'EMBLEM_CONTOUR_PASS {len(outline)} exact contour points; {len(front_tri)} source triangles; area={area:.3f}px2; diamond_fit={fit:.6f}; source_IoU={contour["fidelity"]["raster_intersection_over_union"]:.6f}')
     feature_vertices={};feature_data={}
     material_names=['metal','wood','leather','darksteel','edge','cord','bronze']
     for feature in manifest.get('sculpt_features',[]):

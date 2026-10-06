@@ -6,7 +6,7 @@ runtime evidence. User-provided unmodified vanilla records in ReferenceBundle
 are primary inputs, not an older mod implementation.
 
 Audited main: `0777e257d64fcab908df03ff94e7a9af4ff1a0ee` (2026-10-06).
-Current work: `astra/zero-base-audit-v050`, 0.5.1 visual/audio test.
+Current work: `astra/zero-base-audit-v050`, 0.5.2 visual/audio test.
 
 ## Requirements
 
@@ -31,7 +31,7 @@ with 1/3 probability per distinct impact.
 Earlier CI passes establish only earlier commits' build status. Earlier target
 logs mentioned in the handoff were not attached in this turn and are not proof
 of this build's runtime behavior. The audited source at `4639e0cc` passed Windows
-DLL and asset builds (runs `37420567376`, `37420567388`). The 0.5.1 material and
+DLL and asset builds (runs `37420567376`, `37420567388`). The 0.5.2 material and
 geometry revision must pass the same gates at its own commit. No in-game pass is claimed.
 Local portable core tests, source-schema audit and generated asset checks are
 recorded separately from runtime gates.

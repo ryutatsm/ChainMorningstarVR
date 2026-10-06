@@ -10,12 +10,14 @@ import json, math, struct, argparse, io
 from pathlib import Path
 import numpy as np
 from PIL import Image
+from emblem_relief import create_relief
 
 SU = 69.99125
 NODES = []
 MESHES = {}
 COLLISION = []
 FEATURES = []
+EMBLEM = {}
 MATERIALS = ['metal', 'wood', 'leather', 'darksteel', 'edge', 'cord', 'bronze']
 
 def unit(v):
@@ -330,24 +332,20 @@ def build():
     lathe(head,'metal',[(-.202,.023),(-.198,.035),(-.167,.035),(-.154,.028)],axis=(0,0,1))
     rune_band(head,(0,0,-.181),axis=(0,0,1),radius=.0355,length=.026,segments=6)
     ring(head,'metal',.029,.008,(0,0,-.212),axis=(0,1,0),stretch=1.13)
-    # Diamond frame + black recessed field + raised hand-traced dragon silhouette.
+    # Diamond frame + black recessed field + exact traced Imperial dragon relief.
     crest_starts={k:len(m.v) for k,m in MESHES.items() if k[0]==head}
     diamond=[(0,.146),(-.070,0),(0,-.146),(.070,0)]
     plate(head,'metal',diamond,-.150,-.125)
     for scale,rad,yy in [(1,.004,-.155),(.88,.0026,-.158),(.74,.0017,-.162)]:
         tube(head,'edge',[[x*scale,yy,z*scale] for x,z in diamond],rad,6,True)
     plate(head,'darksteel',[(x*.77,z*.77) for x,z in diamond],-.159,-.148)
-    # Curved central body, antlers, split wings and tapered tail. This is modelled
-    # relief, not a projected image; the unseen rear remains unadorned.
-    dragon=[(-.004,.103),(.006,.088),(.002,.078),(.004,.069),(.014,.067),(.018,.058),(.015,.047),(.005,.038),(-.005,.029),(-.009,.018),(-.006,.007),(.002,-.002),(.007,-.016),(.003,-.039),(-.007,-.064),(-.009,-.083),(-.003,-.106),(-.015,-.090),(-.017,-.072),(-.012,-.051),(-.008,-.032),(-.013,-.013),(-.019,.005),(-.019,.023),(-.013,.037),(.001,.048),(.008,.056),(.005,.061),(-.006,.060),(-.012,.066),(-.012,.080)]
-    wing_left=[(-.016,.036),(-.026,.051),(-.031,.077),(-.035,.050),(-.032,.031),(-.028,.017),(-.032,.005),(-.026,.008),(-.020,-.003),(-.024,-.018),(-.017,-.012),(-.012,-.022),(-.014,.005),(-.022,.021)]
-    # Wings, horns and talons are separate pieces of filled embossed steel.
-    wing_right=[(-x,z-.008) for x,z in wing_left]
-    horn=[(-.009,.080),(-.021,.093),(-.017,.073),(-.008,.068)]
-    talon=[(-.009,-.024),(-.025,-.033),(-.029,-.053),(-.023,-.045),(-.018,-.053),(-.018,-.039),(-.006,-.035)]
-    for outline in [dragon,wing_left,wing_right,horn,talon,[(-x,z) for x,z in talon]]:
-        plate(head,'edge',outline,-.170,-.164)
-        tube(head,'edge',[[x,-.1708,z] for x,z in outline],.0006,5,True)
+    front,back,sides,info=create_relief(Path(__file__).with_name('skyrim_emblem_contours.json'))
+    parts=[]
+    for name,material,part in [('front','edge',front),('back','metal',back),('sides','metal',sides)]:
+        target=mesh(head,material);vstart=len(target.v);fstart=len(target.f)
+        target.add(part['v'],part['n'],part['uv'],part['f'])
+        parts.append(dict(name=name,parent=head,material=material,vertex_start=vstart,vertex_count=len(target.v)-vstart,face_start=fstart,face_count=len(target.f)-fstart))
+    EMBLEM.update(info,parts=parts)
     # The reference emblem stands almost upright while the weapon lies diagonally.
     angle=math.pi/4;rot=np.array([[math.cos(angle),0,math.sin(angle)],[0,1,0],[-math.sin(angle),0,math.cos(angle)]])
     for k,m in MESHES.items():
@@ -432,7 +430,7 @@ def write(out,texture_dir):
     for (parent,_),m in MESHES.items():
         r,t=world_transform(parent);vertices.extend(np.asarray(m.v)@r.T+t)
     v=np.asarray(vertices)
-    manifest=dict(generator='reference_mesh_v2_sculpt',visual_only_preview=True,head_directions=dirs,vertices=len(v),triangles=sum(len(m.f) for m in MESHES.values()),skyrim_units_per_meter=SU,bounds_m=[v.min(0).tolist(),v.max(0).tolist()],bounds_skyrim_units=[(v.min(0)*SU).tolist(),(v.max(0)*SU).tolist()],nodes=NODES,collision_hulls=len(COLLISION),sculpt_features=FEATURES,reference_fidelity_limitations=['Single reference image has no rear/underside views; rear decoration is inferred.','Dragon relief is hand-modelled from the visible silhouette, not an exact scan.','Surface response requires Skyrim VR lighting verification.'])
+    manifest=dict(generator='reference_mesh_v2_sculpt',visual_only_preview=True,head_directions=dirs,vertices=len(v),triangles=sum(len(m.f) for m in MESHES.values()),skyrim_units_per_meter=SU,bounds_m=[v.min(0).tolist(),v.max(0).tolist()],bounds_skyrim_units=[(v.min(0)*SU).tolist(),(v.max(0)*SU).tolist()],nodes=NODES,collision_hulls=len(COLLISION),sculpt_features=FEATURES,emblem=EMBLEM,reference_fidelity_limitations=['Single reference image has no rear/underside views; rear decoration is inferred.','Dragon outline is traced from the supplied emblem image; its unseen depth is an extruded reconstruction.','Surface response requires Skyrim VR lighting verification.'])
     (out/'asset_manifest.json').write_text(json.dumps(manifest,indent=2))
     print(json.dumps({k:v for k,v in manifest.items() if k not in ['nodes','head_directions','sculpt_features']},indent=2))
 
