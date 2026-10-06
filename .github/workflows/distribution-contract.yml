@@ -1,17 +1,19 @@
-name: Vendor distribution contract
+name: Vendor runtime contract
 
 on:
   workflow_dispatch:
   push:
     paths:
       - "Source/xEdit/**"
-      - "Distribution/**"
+      - "Source/SKSE/PluginSkeleton/EorlundVendor.*"
+      - "Source/SKSE/PluginSkeleton/PluginSkeleton.cpp"
       - "Tests/validate_distribution_contract.py"
       - ".github/workflows/distribution-contract.yml"
   pull_request:
     paths:
       - "Source/xEdit/**"
-      - "Distribution/**"
+      - "Source/SKSE/PluginSkeleton/EorlundVendor.*"
+      - "Source/SKSE/PluginSkeleton/PluginSkeleton.cpp"
       - "Tests/validate_distribution_contract.py"
       - ".github/workflows/distribution-contract.yml"
 
@@ -20,5 +22,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Validate CID and xEdit conflict contract
+      - name: Validate self-contained vendor injection contract
         run: python Tests/validate_distribution_contract.py
