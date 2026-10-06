@@ -199,7 +199,12 @@ bool SkyrimVRSceneBridge::reacquireWeaponNodes()
     }
     SKSE::log::info("ChainMorningstarVR: acquired {}-hand VR scene nodes (14 links + head)", isLeftHand_ ? "left" : "right");
     if (++nativeGeneration_ == 0) ++nativeGeneration_;
-    NativePhysicsBackend::GetSingleton().BeginSession(head_.get(), isLeftHand_, nativeGeneration_);
+    acquiredScale_ = anchor_->world.scale;
+    auto& native = NativePhysicsBackend::GetSingleton();
+    nativePrepared_ = native.BeginSession(head_.get(), isLeftHand_, nativeGeneration_);
+    nativePrepareRetries_ = !nativePrepared_ && native.Available() ? 3 : 0;
+    nativePrepareCooldownS_ = 0.5f;
+    if (!nativePrepared_) SKSE::log::warn("Native head preparation pending/unavailable; retries={}", nativePrepareRetries_);
     runReadOnlyNativeMeleeProbe();
     return true;
 }
@@ -257,6 +262,9 @@ void SkyrimVRSceneBridge::releaseWeaponNodes()
 {
     NativePhysicsBackend::GetSingleton().EndSession();
     WeaponMeshContact::GetSingleton().Reset();
+    nativePrepared_ = false;
+    nativePrepareRetries_ = 0;
+    nativePrepareCooldownS_ = 0.0f;
     for (auto& sound : chainSounds_) {
         if (sound.soundID != RE::BSSoundHandle::kInvalidID) sound.Stop();
         sound = RE::BSSoundHandle{};
@@ -284,6 +292,8 @@ bool SkyrimVRSceneBridge::tryGetChainAnchorWorldSU(Vec3& outPositionSU, Vec3& ou
     const RigidTransform t=anchorWorldTransformSU();
     if (!isFinite(t.translation) || !std::isfinite(t.scale) || t.scale <= 1.0e-6f ||
         !approximatelyOrthonormal(t.rotation, 0.02f)) return false;
+    // A VRIK/model scale change invalidates the cloned collision shape too.
+    if (std::fabs(t.scale - acquiredScale_) > 0.001f * acquiredScale_) return false;
     outPositionSU=t.translation;
     outInitialDirectionWorld=normalized(mul(t.rotation,Vec3{0,0,1}));
     return true;
@@ -378,7 +388,18 @@ bool SkyrimVRSceneBridge::updateNativeMeleeHeadProxy(const HeadSweep& sweep)
 void SkyrimVRSceneBridge::submitNativePose(const HeadPose& pose, const HeadSweep& sweep, float frameDt)
 {
     if (!currentHandStillOwnsAnchor()) return;
-    NativePhysicsBackend::GetSingleton().SubmitPose(pose, frameDt);
+    auto& native = NativePhysicsBackend::GetSingleton();
+    if (!nativePrepared_ && nativePrepareRetries_) {
+        nativePrepareCooldownS_ -= frameDt;
+        if (nativePrepareCooldownS_ <= 0.0f) {
+            --nativePrepareRetries_;
+            nativePrepareCooldownS_ = 0.5f;
+            nativePrepared_ = native.BeginSession(head_.get(), isLeftHand_, nativeGeneration_);
+            if (!nativePrepared_ && !nativePrepareRetries_)
+                SKSE::log::warn("Native head preparation failed after bounded retries; re-equip after resolving dependencies/shape warnings");
+        }
+    }
+    native.SubmitPose(pose, frameDt);
     auto* player = RE::PlayerCharacter::GetSingleton();
     auto* weapon = player ? player->GetEquippedObject(isLeftHand_) : nullptr;
     WeaponMeshContact::GetSingleton().Update(

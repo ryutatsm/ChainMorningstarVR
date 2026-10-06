@@ -47,6 +47,10 @@ private:
     RE::NiPointer<RE::NiAVObject> head_{};
     bool isLeftHand_{};
     std::uint64_t nativeGeneration_{};
+    bool nativePrepared_{};
+    std::uint8_t nativePrepareRetries_{};
+    float nativePrepareCooldownS_{};
+    float acquiredScale_{1.0f};
     bool warnedChainSound_{};
     bool readOnlyNativeMotionStateKnown_{};
     bool readOnlyNativeProbeRejectedWarned_{};
