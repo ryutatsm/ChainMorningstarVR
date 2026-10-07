@@ -1,4 +1,5 @@
 #include "SkyrimVRSceneBridge.hpp"
+#include "WeaponAudio.hpp"
 #include "PlanckBuildProbe.hpp"
 #include "NativePhysicsBackend.hpp"
 #include "NativeContactRouter.hpp"
@@ -286,6 +287,7 @@ bool SkyrimVRSceneBridge::currentHandStillOwnsAnchor() const
 
 void SkyrimVRSceneBridge::releaseWeaponNodes()
 {
+    WeaponAudio::GetSingleton().Reset();
     resetPlayerInteraction();
     NativePhysicsBackend::GetSingleton().EndSession();
     WeaponMeshContact::GetSingleton().Reset();
@@ -563,5 +565,8 @@ void SkyrimVRSceneBridge::playChainSound(float intensity, bool heavyImpact)
 
 void SkyrimVRSceneBridge::playChainRattle(float intensity) { playChainSound(intensity, false); }
 void SkyrimVRSceneBridge::playChainClank(float intensity) { playChainSound(intensity, true); }
+void SkyrimVRSceneBridge::updateMotionAudio(MotionAudioMix mix) {
+    WeaponAudio::GetSingleton().Update(mix,currentHandStillOwnsAnchor()?head_.get():nullptr);
+}
 
 } // namespace cms::skyrimvr

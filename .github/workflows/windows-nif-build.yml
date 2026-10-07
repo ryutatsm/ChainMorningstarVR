@@ -2,9 +2,9 @@ name: Reference mesh and Skyrim VR NIF build gate
 on:
   workflow_dispatch:
   push:
-    paths: ["Source/SKSE/**", "Source/ThirdParty/**", "Source/NIF/**", "Source/Textures/**", "Tests/test_material_maps.py", "Tools/write_asset_provenance.py", "Tools/package_visual_test.py", ".github/workflows/windows-nif-build.yml", ".github/workflows/windows-vr-build.yml"]
+    paths: ["Source/SKSE/**", "Source/ThirdParty/**", "Source/NIF/**", "Source/Textures/**", "Source/Audio/**", "Source/xEdit/build_plugin.py", "Tests/test_plugin_binary.py", "Tests/test_material_maps.py", "Tools/write_asset_provenance.py", "Tools/package_visual_test.py", ".github/workflows/windows-nif-build.yml", ".github/workflows/windows-vr-build.yml"]
   pull_request:
-    paths: ["Source/SKSE/**", "Source/ThirdParty/**", "Source/NIF/**", "Source/Textures/**", "Tests/test_material_maps.py", "Tools/write_asset_provenance.py", "Tools/package_visual_test.py", ".github/workflows/windows-nif-build.yml", ".github/workflows/windows-vr-build.yml"]
+    paths: ["Source/SKSE/**", "Source/ThirdParty/**", "Source/NIF/**", "Source/Textures/**", "Source/Audio/**", "Source/xEdit/build_plugin.py", "Tests/test_plugin_binary.py", "Tests/test_material_maps.py", "Tools/write_asset_provenance.py", "Tools/package_visual_test.py", ".github/workflows/windows-nif-build.yml", ".github/workflows/windows-vr-build.yml"]
 permissions:
   contents: read
 jobs:
@@ -41,6 +41,12 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "DDS validation failed" }
           python Tests/test_material_maps.py
           if ($LASTEXITCODE -ne 0) { throw "Material direction/specular regression failed" }
+      - name: Build and validate original audio and ESP descriptor layout
+        run: |
+          python Source/Audio/generate_audio.py
+          if ($LASTEXITCODE -ne 0) { throw "Original audio generation/validation failed" }
+          python Tests/test_plugin_binary.py
+          if ($LASTEXITCODE -ne 0) { throw "ESP audio descriptor regression failed" }
       - name: Build and inspect actual geometry
         run: |
           python Source/NIF/generate_reference_mesh.py --out build/visual-preview --textures build/textures/weapons/ChainMorningstarVR
@@ -62,6 +68,7 @@ jobs:
           name: ChainMorningstarVR-reference-assets-dev
           path: |
             build/meshes/
+            build/sound/
             build/ASSET_BUILD_PROVENANCE.json
             build/textures/**/*.dds
             build/textures/**/texture_validation.json

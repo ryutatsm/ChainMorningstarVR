@@ -5,12 +5,14 @@ on:
   push:
     paths:
       - "Tools/Collect_CMS_Logs.*"
+      - "Tools/build_feedback_launcher.py"
       - "Tools/Feedback_README_JA.txt"
       - "Tests/test_feedback_collector.ps1"
       - ".github/workflows/windows-feedback-test.yml"
   pull_request:
     paths:
       - "Tools/Collect_CMS_Logs.*"
+      - "Tools/build_feedback_launcher.py"
       - "Tools/Feedback_README_JA.txt"
       - "Tests/test_feedback_collector.ps1"
       - ".github/workflows/windows-feedback-test.yml"
@@ -24,6 +26,11 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
+      - name: Verify embedded collector matches source
+        shell: pwsh
+        run: |
+          python Tools/build_feedback_launcher.py --check
+          if ($LASTEXITCODE -ne 0) { throw "Embedded collector differs from source" }
       - name: Exercise CMD launcher with Windows PowerShell 5.1
         shell: pwsh
         run: ./Tests/test_feedback_collector.ps1

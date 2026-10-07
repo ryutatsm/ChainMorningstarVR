@@ -8,6 +8,9 @@ on:
       - "Source/ThirdParty/**"
       - "Source/NIF/**"
       - "Source/Textures/**"
+      - "Source/Audio/**"
+      - "Source/xEdit/build_plugin.py"
+      - "Tests/test_plugin_binary.py"
       - "Tests/test_material_maps.py"
       - "Tools/write_asset_provenance.py"
       - "Tools/package_visual_test.py"
@@ -19,6 +22,9 @@ on:
       - "Source/ThirdParty/**"
       - "Source/NIF/**"
       - "Source/Textures/**"
+      - "Source/Audio/**"
+      - "Source/xEdit/build_plugin.py"
+      - "Tests/test_plugin_binary.py"
       - "Tests/test_material_maps.py"
       - "Tools/write_asset_provenance.py"
       - "Tools/package_visual_test.py"
@@ -173,6 +179,8 @@ jobs:
           Native pose restores and head stability samples are logged for VR verification.
           Audit4 adds exact hand-body and shield mapping, two-handed slot ownership, and sustained mesh/native deduplication.
           Every eligible lottery outcome logs slot and surface; actual drop-reference success is recorded separately.
+          Audit5 adds persistent support friction and original scrape/air/disarm audio.
+          All original sound descriptors and WAV assets must accompany this DLL.
           This CI artifact is for investigation, not a verified fix or a Vortex release.
           "@ | Set-Content "$env:GITHUB_WORKSPACE\ci-artifact\BUILD_STATUS.txt"
 

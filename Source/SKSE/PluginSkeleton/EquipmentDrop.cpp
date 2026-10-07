@@ -1,5 +1,6 @@
 #include "EquipmentDrop.hpp"
 #include "VRFrameContext.hpp"
+#include "WeaponAudio.hpp"
 
 #include <SKSE/SKSE.h>
 #include <cmath>
@@ -214,6 +215,7 @@ EquipmentDropResult TryDropForConfirmedImpact(const ConfirmedEquipmentImpact& re
         RE::ITEM_REMOVE_REASON::kDropping, selectedExtra, nullptr,
         &request.contactPosition, nullptr);
     if (auto dropped = result.droppedObject.get()) {
+        WeaponAudio::GetSingleton().EquipmentDropped(request.contactPosition);
         SKSE::log::info(
             "CMS equipment drop: actor={:08X}, item={:08X}, reference={:08X}, impact={}",
             evidence.targetActor, evidence.equippedBaseForm, dropped->GetFormID(), evidence.impactSerial);

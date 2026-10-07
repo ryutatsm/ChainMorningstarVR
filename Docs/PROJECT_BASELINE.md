@@ -3,7 +3,7 @@
 This is the independent ChainMorningstarVR project. Do not mix runtime evidence
 or assets from the older ChainedMorningstarVR project.
 Audited main: `0777e257d64fcab908df03ff94e7a9af4ff1a0ee` (2026-10-06).
-Current work: `astra/zero-base-audit-v050`, 1.0.0-audit4 (completed release blocked; user-requested diagnostic distribution). Main remains unchanged.
+Current work: `astra/zero-base-audit-v050`, 1.0.0-audit5 (completed release blocked; user-requested diagnostic distribution). Main remains unchanged.
 
 One-hand mace: damage44, weight17, value550; Japanese name
 「チェーンドモーニングスター」; Eorlund sale; physical chain without chain damage;
@@ -46,3 +46,12 @@ The obsolete native-proxy-test mode remains removed. No PlayerCharacter
 collision-node writes are permitted. The HIGGS-owned head compound, certified
 contact router and synchronous exact-instance inventory removal remain in place.
 Source/dependency revisions and complete output hashes accompany every package.
+
+## Audit5 additions
+
+The user reports audit4 equipment-drop behavior succeeded, without a feedback
+archive. Audit5 applies supported static/kinetic friction (0.80/0.55) once per
+90 Hz step. Three original PCM16 WAVs use new SNDR 802-804; WEAP/STAT remain
+800/801. Source-generated audio and private-template ESP build are verified
+by provenance. Single-file CMD collection creates a persistent ZIP despite
+individual log errors and opens its location. See SURFACE_AUDIO_AUDIT5.md.

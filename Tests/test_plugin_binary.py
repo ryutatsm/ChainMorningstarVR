@@ -73,6 +73,28 @@ def inspect_binary(raw):
 
 
 class PluginBinaryTests(unittest.TestCase):
+    def test_original_audio_descriptors_keep_weapon_ids_and_spatial_template(self):
+        weapon, chest = synthetic_source()
+        template = cms.Record(b'SNDR',0,0x3D128,40,(
+            (b'EDID', b'PHYChainSD\0'), (b'CNAM', bytes([10,84,239,30])),
+            (b'GNAM', struct.pack('<I',0x1234)), (b'ONAM', struct.pack('<I',0x5678)),
+            (b'ANAM',b'old1.wav\0'), (b'ANAM',b'old2.wav\0'),
+            (b'LNAM', bytes([1,0,0,0])), (b'BNAM',bytes(6))))
+        records, groups = inspect_binary(cms.build_plugin(weapon,chest,(-1,-1,-1,1,1,1),template))
+        self.assertEqual(groups,[b'STAT',b'WEAP',b'SNDR'])
+        self.assertEqual(struct.unpack('<fII',records[(b'TES4',0)][b'HEDR'])[1:],(8,0x805))
+        self.assertEqual(records[(b'WEAP',0x1000800)][b'WNAM'],struct.pack('<I',0x1000801))
+        for ident, name, filename, loop in cms.AUDIO_RECORDS:
+            record = records[(b'SNDR',ident)]
+            self.assertEqual(record[b'ANAM'],('fx\\ChainMorningstarVR\\'+filename+'\0').encode())
+            self.assertEqual(record[b'EDID'],name.encode()+b'\0')
+            self.assertEqual(record[b'LNAM'][1],8 if loop else 0)
+            self.assertEqual(record[b'ONAM'],template.field(b'ONAM'))
+            self.assertEqual(record[b'GNAM'],template.field(b'GNAM'))
+            self.assertEqual(record[b'BNAM'],bytes([0,0,128,0,0,0]))
+        conditional = cms.Record(template.signature,0,template.form_id,40,template.fields+((b'CTDA',bytes(32)),))
+        with self.assertRaises(ValueError): cms.build_audio_records(conditional)
+
     def test_output_formids_models_native_fields_and_no_overrides(self):
         weapon, chest = synthetic_source()
         raw = cms.build_plugin(weapon, chest, (-30, -20, -60, 30, 160, 60))

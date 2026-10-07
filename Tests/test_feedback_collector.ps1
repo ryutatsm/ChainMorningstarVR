@@ -9,11 +9,14 @@ New-Item -ItemType Directory -Path $logRoot -Force | Out-Null
 $fixture = Join-Path $logRoot 'ChainMorningstarVR.log'
 if (Test-Path -LiteralPath $fixture) { throw 'Refusing to overwrite an existing Skyrim log' }
 $payload = @'
-[info] ChainMorningstarVR 1.0.0-audit4 loading: INVESTIGATION BUILD
+[info] ChainMorningstarVR 1.0.0-audit5 loading: INVESTIGATION BUILD
 [info] CMS native pose restored before sweep: displacementM=0.52 total=1 held=true
 [info] CMS head stability: step=500 held=true targetStepM=0 rotationStepRad=0 sweepRecoveryM=0 poseRestores=1
 [info] CMS offhand input registered: button=left-trigger mask=0x200000000 priority=65 final-filter=true side-grip=unchanged
 [info] Native head attached: generation=1
+[info] CMS motion audio: cue=iron-scrape state=start accepted=true volume=0.2
+[info] CMS motion audio: cue=air-cut state=start accepted=true volume=0.2
+[info] CMS equipment-drop audio: cue=disarm-strike accepted=true
 [info] CMS player-body chain contact: samples=2 total=2 damage=false
 [info] CMS offhand grip attempt: result=rejected reason=higgs-not-grabbable distanceM=0.10 captured=false
 [info] CMS offhand head grip: held physical-left=true right-weapon=true
@@ -34,11 +37,12 @@ $payload = @'
 '@
 [IO.File]::WriteAllText($fixture, $payload)
 
-function Run-Launcher([string]$Launcher) {
+function Run-Launcher([string]$Launcher, [string]$OutputFolder = (Split-Path $Launcher -Parent)) {
     $info = [Diagnostics.ProcessStartInfo]::new()
     $info.FileName = $env:ComSpec
     $info.Arguments = '/d /s /c ""' + $Launcher + '" --no-pause"'
     $info.UseShellExecute = $false
+    $info.EnvironmentVariables['CMS_FEEDBACK_OUTPUT'] = $OutputFolder
     $info.RedirectStandardOutput = $true
     $info.RedirectStandardError = $true
     $process = [Diagnostics.Process]::new()
@@ -56,25 +60,10 @@ function Run-Launcher([string]$Launcher) {
 }
 
 try {
-    # Reproduce the precise old invocation. The final slash escapes its quote
-    # in powershell.exe's native argument parsing and reaches New-Item as ".
-    $legacy = Join-Path $testRoot 'legacy'
-    New-Item -ItemType Directory -Path $legacy | Out-Null
-    Copy-Item (Join-Path $repository 'Tools/Collect_CMS_Logs.ps1') $legacy
-    $bad = '@echo off',
-        'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Collect_CMS_Logs.ps1" -OutputDirectory "%~dp0"',
-        'exit /b %ERRORLEVEL%'
-    $bad | Set-Content -LiteralPath (Join-Path $legacy 'Collect_CMS_Logs.cmd') -Encoding ascii
-    $old = Run-Launcher (Join-Path $legacy 'Collect_CMS_Logs.cmd')
-    if ($old.Code -eq 0 -or $old.Err -notmatch 'New-Item') {
-        throw "Old trailing-slash bug was not reproduced: $($old.Out) $($old.Err)"
-    }
-    Write-Host 'LEGACY_TRAILING_SLASH_FAILURE_REPRODUCED'
-
-    foreach ($folder in @('plain', 'folder with spaces', 'ログ収集 用 (テスト)')) {
+    foreach ($folder in @('plain', 'folder with spaces', 'ログ収集 用 (テスト)', 'CMS [audit5]', 'archive viewer only CMD')) {
         $target = Join-Path $testRoot $folder
         New-Item -ItemType Directory -Path $target | Out-Null
-        foreach ($name in @('Collect_CMS_Logs.cmd', 'Collect_CMS_Logs.ps1')) {
+        foreach ($name in @('Collect_CMS_Logs.cmd')) {
             Copy-Item (Join-Path $repository "Tools/$name") $target
         }
         $run = Run-Launcher (Join-Path $target 'Collect_CMS_Logs.cmd')
@@ -96,7 +85,9 @@ try {
             finally { $summaryReader.Dispose() }
             if ($summary.head_stability_entries -ne 1 -or $summary.native_pose_restore_entries -ne 1 -or
                 $summary.native_pose_restore_max_displacement_m -ne 0.52 -or
-                $summary.cms_version -ne '1.0.0-audit4' -or $summary.offhand_held_entries -ne 3 -or
+                $summary.scrape_audio_start_entries -ne 1 -or $summary.air_audio_start_entries -ne 1 -or
+                $summary.equipment_drop_audio_accepted_entries -ne 1 -or $summary.summary_error -or
+                $summary.cms_version -ne '1.0.0-audit5' -or $summary.offhand_held_entries -ne 3 -or
                 $summary.offhand_grab_button -ne 'left-trigger' -or
                 $summary.offhand_released_entries -ne 3 -or $summary.equipment_drop_references -ne 1 -or
                 $summary.offhand_release_reasons.'input-stale' -ne 1 -or
@@ -124,11 +115,59 @@ try {
         Write-Host "COLLECTOR_PATH_PASS $folder"
     }
 
+    # A locked optional log used to stop Copy-Item before any ZIP existed.
+    $lockedPath = Join-Path $logRoot 'higgs_vr.log'
+    if (Test-Path -LiteralPath $lockedPath) { throw 'Refusing to overwrite an existing HIGGS log' }
+    $locked = [IO.File]::Open($lockedPath,[IO.FileMode]::CreateNew,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
+    try {
+        $target = Join-Path $testRoot 'locked optional log'
+        New-Item -ItemType Directory -Path $target | Out-Null
+        $launcher = Join-Path $target 'Collect_CMS_Logs.cmd'
+        Copy-Item (Join-Path $repository 'Tools/Collect_CMS_Logs.cmd') $launcher
+        $run = Run-Launcher $launcher
+        if ($run.Code -ne 0) { throw "Locked optional log blocked ZIP: $($run.Err)" }
+        $archive = @(Get-ChildItem -LiteralPath $target -Filter '*.zip')[0]
+        $zip = [IO.Compression.ZipFile]::OpenRead($archive.FullName)
+        try {
+            $reader = [IO.StreamReader]::new($zip.GetEntry('collection.txt').Open())
+            try { if ($reader.ReadToEnd() -notmatch 'LOG ERROR: SKSE\\higgs_vr.log') { throw 'Missing locked-log explanation' } }
+            finally { $reader.Dispose() }
+            if (-not $zip.GetEntry('ChainMorningstarVR.log')) { throw 'Readable log was not collected' }
+        } finally { $zip.Dispose() }
+        Write-Host 'COLLECTOR_LOCKED_LOG_PASS'
+    } finally { $locked.Dispose(); Remove-Item -LiteralPath $lockedPath -Force }
+
+    # Failure while summarizing must preserve the copied logs and generate ZIP.
+    [IO.File]::WriteAllText($fixture,$payload+"`r`nCMS native pose restored before sweep: displacementM=1e9999")
+    $target = Join-Path $testRoot 'invalid numeric log'
+    New-Item -ItemType Directory -Path $target | Out-Null
+    $launcher = Join-Path $target 'Collect_CMS_Logs.cmd'
+    Copy-Item (Join-Path $repository 'Tools/Collect_CMS_Logs.cmd') $launcher
+    $run = Run-Launcher $launcher
+    if ($run.Code -ne 0 -or @(Get-ChildItem -LiteralPath $target -Filter '*.zip').Count -ne 1) {
+        throw "Summary error blocked archive: $($run.Err)"
+    }
+    Write-Host 'COLLECTOR_SUMMARY_FAILURE_PASS'
+    [IO.File]::WriteAllText($fixture,$payload)
+
+    # An unwritable/invalid selected output must choose a writable fallback.
+    $blocker = Join-Path $testRoot 'file instead of directory'
+    [IO.File]::WriteAllText($blocker,'blocks directory creation')
+    $run = Run-Launcher $launcher $blocker
+    $created = [regex]::Match($run.Out,'(?m)^Created: (.+)')
+    if ($run.Code -ne 0 -or -not $created.Success) { throw "No output fallback: $($run.Err)" }
+    $fallback = $created.Groups[1].Value.Trim()
+    if (-not [IO.File]::Exists($fallback) -or $fallback.StartsWith($blocker)) { throw 'Invalid fallback ZIP' }
+    Remove-Item -LiteralPath $fallback -Force
+    Remove-Item -LiteralPath ($fallback.Substring(0,$fallback.Length-4)) -Recurse -Force
+    Write-Host 'COLLECTOR_OUTPUT_FALLBACK_PASS'
+
     $failure = Join-Path $testRoot 'expected-failure'
     New-Item -ItemType Directory -Path $failure | Out-Null
-    Copy-Item (Join-Path $repository 'Tools/Collect_CMS_Logs.cmd') $failure
-    "throw 'Synthetic failure for exit-code verification'" |
-        Set-Content -LiteralPath (Join-Path $failure 'Collect_CMS_Logs.ps1') -Encoding ascii
+    $launcherText = [IO.File]::ReadAllText((Join-Path $repository 'Tools/Collect_CMS_Logs.cmd'))
+    $marker = '# CMS_EMBEDDED_POWERSHELL'
+    $launcherText = $launcherText.Substring(0,$launcherText.LastIndexOf($marker)+$marker.Length)+"`r`nthrow 'Synthetic failure'`r`n"
+    [IO.File]::WriteAllText((Join-Path $failure 'Collect_CMS_Logs.cmd'),$launcherText)
     $failed = Run-Launcher (Join-Path $failure 'Collect_CMS_Logs.cmd')
     if ($failed.Code -eq 0) { throw 'Launcher swallowed the PowerShell failure' }
     Write-Host 'COLLECTOR_ERROR_EXIT_PASS'

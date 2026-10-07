@@ -21,6 +21,7 @@ public:
     virtual float consumeWorldContactImpulse() = 0;
     virtual void playChainRattle(float intensity) = 0;
     virtual void playChainClank(float intensity) = 0;
+    virtual void updateMotionAudio(MotionAudioMix) {}
 };
 
 class RuntimeDriver {
@@ -79,6 +80,7 @@ public:
         const ChainSoundEvent ev = controller_.soundEvent(frameDt, impulse);
         if (ev.type == ChainSoundEventType::kRattle) bridge_.playChainRattle(ev.intensity);
         if (ev.type == ChainSoundEventType::kHeavyClank) bridge_.playChainClank(ev.intensity);
+        bridge_.updateMotionAudio(controller_.motionAudio(frameDt));
     }
 
     [[nodiscard]] bool active() const { return active_; }

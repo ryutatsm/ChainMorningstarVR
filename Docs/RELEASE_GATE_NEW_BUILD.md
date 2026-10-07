@@ -21,7 +21,9 @@ ChainedMorningstarVR project or a different build combination.
 - Eorlund sells weapon; purchase, buy-back and stock reset work on new and existing saves.
 - Right/left single-hand equip displays the reference design and correct scale.
 - Chains, collar, wood, leather, plaque and metal surface judged in VR lighting.
-- Sounds audible, spatially correct, no stuck sound on sheathe/unequip/load.
+- Impact, scrape, air-cut and confirmed equipment-drop cues audible and spatially correct.
+- No idle scrape/air noise or stuck loop on pause/sheathe/unequip/load.
+- Original PCM WAV files match SNDR paths and loop flags.
 - Pause/resume, tracking discontinuity, cell/fast-travel and save/load stable.
 - Repeated equip/unequip and at least 10 minutes of combat produce no CTD or detached bodies.
 
@@ -30,6 +32,7 @@ ChainedMorningstarVR project or a different build combination.
 - Actual head compound aligns with core and spike surfaces at every simulated pose.
 - Each link and head have justified physical world contacts; no wall penetration.
 - Contact feedback stops/rebounds the simulated head, not merely its rendered mesh.
+- Supported floor friction resists incidental drift while deliberate taut pulling still moves the head.
 - Test both fast sweep and tip-only contacts; empty gaps between spikes do not hit.
 - No stale handle/steel-mace-position damage or duplicated native + custom damage.
 - Native block, armor, perks, stagger, kill credit, hostility and crime behavior preserved.

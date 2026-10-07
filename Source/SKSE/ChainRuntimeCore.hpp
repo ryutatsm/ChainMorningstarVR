@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "ChainPhysicsCore.hpp"
+#include "MotionAudioCore.hpp"
 
 namespace cms {
 
@@ -137,6 +138,7 @@ public:
         lastSimulatedDt_ = 0.0f;
         hasPreviousHead_ = true;
         sound_.reset();
+        motionSound_.reset();
     }
 
     void onUnequip() {
@@ -146,6 +148,7 @@ public:
         chain_.solver().clearWorldContacts();
         linkRotations_.clear();
         sound_.reset();
+        motionSound_.reset();
     }
 
     // Called on the owning game/update thread after draining native callbacks.
@@ -172,6 +175,7 @@ public:
             lastSimulatedDt_ = 0.0f;
             hasPreviousHead_ = true;
             sound_.reset();
+            motionSound_.reset();
         } else {
             if (hasPreviousHead_) previousHeadM_ = chain_.solver().headPosition();
             const int steps = chain_.update(frameDt, anchorM, query, hold);
@@ -222,6 +226,11 @@ public:
     ChainSoundEvent soundEvent(float frameDt, float contactImpulse = 0.0f) {
         return sound_.update(frameDt, chain_.solver(), contactImpulse);
     }
+    MotionAudioMix motionAudio(float dt) {
+        const auto& s=chain_.solver();
+        return motionSound_.update(dt,s.headSurfaceSlipMps(),
+            length(s.headVelocity90Hz()-s.anchorVelocity90Hz()),s.headTouchesSurface(),held_);
+    }
 
     void setTeleportResetDistanceM(float d) { teleportResetDistanceM_ = std::max(0.25f, d); }
 
@@ -238,6 +247,7 @@ private:
     std::vector<Mat3> linkRotations_;
     bool held_{};
     ChainSoundGate sound_{};
+    MotionAudioGate motionSound_{};
     Vec3 previousHeadM_{};
     Vec3 lastAnchorM_{};
     float teleportResetDistanceM_{1.5f};

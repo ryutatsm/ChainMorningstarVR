@@ -84,6 +84,8 @@ struct ChainConfig {
 
     float dampingPer90Hz{0.995f};
     float headDampingPer90Hz{0.990f};
+    float headStaticFriction{0.80f};
+    float headSlidingFriction{0.55f};
     // Same enclosing capsule for all 19 links, scaled with the authored mesh.
     // The hole is intentionally solid for robust contact.
     float linkCollisionRadiusM{0.0474f * kModelScale};
@@ -185,6 +187,7 @@ public:
             constrainChainVelocities(oldAxes);
         }
         points_[0].position = anchor;
+        if (!held) applySupportFriction(oldHead, dt);
         // Position constraints may pull the head back into a wall. Projection
         // keeps its centre outside; cancel only the remaining inward velocity.
         // Restitution belongs to applyWorldContacts(), once per native sample.
@@ -275,6 +278,17 @@ public:
     [[nodiscard]] std::size_t activeContactCount() const { return contacts_.size(); }
     [[nodiscard]] std::size_t activeChainContactCount() const { return chainContacts_.size(); }
     [[nodiscard]] std::uint64_t lastContactPhysicsStep() const { return lastContactPhysicsStep_; }
+    [[nodiscard]] bool headTouchesSurface() const {
+        return std::any_of(contacts_.begin(),contacts_.end(),[&](const auto& c) {
+            return dot(headPosition()-c.centerLimitM,c.normalWorld)<=kContactSlopM*2;
+        });
+    }
+    [[nodiscard]] float headSurfaceSlipMps() const {
+        const auto* contact = supportContact();
+        if (!contact) return 0.0f;
+        const Vec3 relative = headVelocity90Hz()-contact->surfaceVelocityMps;
+        return length(relative-contact->normalWorld*dot(relative,contact->normalWorld));
+    }
 
     [[nodiscard]] const ChainConfig& config() const { return cfg_; }
     [[nodiscard]] const std::vector<Particle>& points() const { return points_; }
@@ -326,6 +340,38 @@ private:
     static constexpr float kHeadRestitution = 0.025f;
     static constexpr float kHeadFriction = 0.38f;
     static constexpr std::size_t kMaxContactsPerLink = 3;
+
+    const HeadContactPlane* supportContact() const {
+        const HeadContactPlane* best=nullptr;
+        float load=0.0f;
+        for(const auto& c:contacts_) {
+            if(dot(headPosition()-c.centerLimitM,c.normalWorld)>kContactSlopM*2) continue;
+            const float candidate=-dot(cfg_.gravityMps2,c.normalWorld);
+            if(candidate>load) {load=candidate;best=&c;}
+        }
+        return best;
+    }
+
+    void applySupportFriction(Vec3 previousHead,float dt) {
+        const auto* contact=supportContact();
+        if(!contact || cfg_.headStaticFriction<=0.0f) return;
+        const Vec3 relative=headPosition()-previousHead-contact->surfaceVelocityMps*dt;
+        const Vec3 tangent=relative-contact->normalWorld*dot(relative,contact->normalWorld);
+        const float distance=length(tangent);
+        if(distance<=1.0e-9f) return;
+        // Gravity's support load survives normal-velocity projection. Apply
+        // Coulomb friction ONCE per fixed step, not per callback/manifold or
+        // solver iteration. This also resists slow constraint-driven creep.
+        const float load=-dot(cfg_.gravityMps2,contact->normalWorld)*dt*dt;
+        const float removed=distance<=cfg_.headStaticFriction*load?distance:
+            std::min(distance,cfg_.headSlidingFriction*load);
+        if(removed<=0.0f) return;
+        const Vec3 old=headPosition();
+        points_.back().position-=tangent*(removed/distance);
+        // Friction changes displacement AND velocity; unlike penetration
+        // recovery it must not translate previous along with current.
+        reconcileLinksToCorrectedHead(old);
+    }
 
     float linkSupport(std::size_t i, Vec3 normal) const {
         return collisionScale_ * (cfg_.linkCollisionRadiusM +
@@ -510,6 +556,8 @@ private:
         if (!std::isfinite(cfg.headMassKg)) cfg.headMassKg = defaults.headMassKg;
         if (!std::isfinite(cfg.dampingPer90Hz)) cfg.dampingPer90Hz = defaults.dampingPer90Hz;
         if (!std::isfinite(cfg.headDampingPer90Hz)) cfg.headDampingPer90Hz = defaults.headDampingPer90Hz;
+        if (!std::isfinite(cfg.headStaticFriction)) cfg.headStaticFriction = defaults.headStaticFriction;
+        if (!std::isfinite(cfg.headSlidingFriction)) cfg.headSlidingFriction = defaults.headSlidingFriction;
         if (!std::isfinite(cfg.linkCollisionRadiusM)) cfg.linkCollisionRadiusM = defaults.linkCollisionRadiusM;
         if (!std::isfinite(cfg.linkCollisionHalfSegmentM)) cfg.linkCollisionHalfSegmentM = defaults.linkCollisionHalfSegmentM;
         if (!isFinite(cfg.gravityMps2)) cfg.gravityMps2 = defaults.gravityMps2;
@@ -521,6 +569,8 @@ private:
         cfg.headMassKg = std::max(0.001f, cfg.headMassKg);
         cfg.dampingPer90Hz = std::clamp(cfg.dampingPer90Hz, 0.0f, 1.0f);
         cfg.headDampingPer90Hz = std::clamp(cfg.headDampingPer90Hz, 0.0f, 1.0f);
+        cfg.headStaticFriction = std::clamp(cfg.headStaticFriction, 0.0f, 2.0f);
+        cfg.headSlidingFriction = std::clamp(cfg.headSlidingFriction, 0.0f, cfg.headStaticFriction);
         cfg.linkCollisionRadiusM = std::clamp(cfg.linkCollisionRadiusM, 0.001f, 0.15f);
         cfg.linkCollisionHalfSegmentM = std::clamp(cfg.linkCollisionHalfSegmentM, 0.001f, 0.15f);
         cfg.solverIterations = std::max(1, cfg.solverIterations);

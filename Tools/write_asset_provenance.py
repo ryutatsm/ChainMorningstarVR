@@ -23,7 +23,8 @@ def main():
     if actual != args.commit:
         raise ValueError('Requested commit does not match the checkout')
     paths = subprocess.check_output([
-        'git', 'ls-files', '-z', '--', 'Source/NIF', 'Source/Textures',
+        'git', 'ls-files', '-z', '--', 'Source/NIF', 'Source/Textures', 'Source/Audio',
+        'Source/xEdit/build_plugin.py', 'Tests/test_plugin_binary.py',
         'Source/SKSE/HeadContactPlanes.hpp',
         'Source/SKSE/WeaponDimensions.hpp',
         'Tests/test_material_maps.py', 'Tools/write_asset_provenance.py',
@@ -32,6 +33,7 @@ def main():
     source = {path: sha256(root / path) for path in sorted(paths) if path}
     build = args.build.resolve()
     outputs = list(build.glob('meshes/**/*.nif')) + list(build.glob('textures/**/*.dds'))
+    outputs += list(build.glob('sound/**/*.wav')) + list(build.glob('sound/**/audio_validation.json'))
     outputs += list(build.glob('textures/**/material_generation.json'))
     outputs += list(build.glob('textures/**/texture_validation.json'))
     outputs += [build / 'visual-preview/asset_manifest.json']

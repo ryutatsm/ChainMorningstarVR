@@ -25,6 +25,9 @@ SOURCE_WEAPON_ID = 0x00013988
 CHEST_ID = 0x0010FDE6
 VENDOR_KEYWORD = 0x0008F958
 MAX_RECORD_BYTES = 1 << 20
+AUDIO_RECORDS = [(0x01000802, 'CMS_IronScrape', 'iron_scrape.wav', True),
+                 (0x01000803, 'CMS_AirCut', 'air_cut.wav', True),
+                 (0x01000804, 'CMS_DisarmStrike', 'disarm_strike.wav', False)]
 
 
 @dataclass(frozen=True)
@@ -127,7 +130,30 @@ def validate_source(weapon: Record, chest: Record) -> None:
         raise ValueError("Vendor chest does not respawn")
 
 
-def build_plugin(weapon: Record, chest: Record, bounds: tuple[int, ...]) -> bytes:
+def build_audio_records(template: Record) -> bytes:
+    # Clone the user's verified standard, spatial physics descriptor metadata;
+    # replace every sample with our original audio. No vanilla WAV is copied.
+    if (template.signature, template.form_id, template.version, template.field(b'EDID')) != (
+            b'SNDR', 0x3D128, 40, b'PHYChainSD\0'):
+        raise ValueError('Expected verified Skyrim VR PHYChainSD template')
+    if set(tag for tag, _ in template.fields) != {b'EDID', b'CNAM', b'GNAM', b'ANAM', b'ONAM', b'LNAM', b'BNAM'}:
+        raise ValueError('Unsupported sound descriptor/conditions')
+    for tag, size in [(b'CNAM',4),(b'GNAM',4),(b'ONAM',4),(b'LNAM',4),(b'BNAM',6)]:
+        if len(template.field(tag)) != size: raise ValueError('Unsupported SNDR field size')
+    records = b''
+    for form_id, edid, name, loop in AUDIO_RECORDS:
+        length = bytearray(template.field(b'LNAM'))
+        length[1] = (length[1] & ~0x38) | (0x08 if loop else 0)
+        fields = [(b'EDID', edid.encode()+b'\0'), (b'CNAM', template.field(b'CNAM')),
+                  (b'GNAM', template.field(b'GNAM')),
+                  (b'ANAM', ('fx\\ChainMorningstarVR\\'+name+'\0').encode()),
+                  (b'ONAM', template.field(b'ONAM')), (b'LNAM', bytes(length)),
+                  (b'BNAM', bytes([0,0,128,0,0,0]))]
+        records += encode_record(b'SNDR', form_id, fields)
+    return records
+
+
+def build_plugin(weapon: Record, chest: Record, bounds: tuple[int, ...], sound_template: Record | None = None) -> bytes:
     validate_source(weapon, chest)
     if len(bounds) != 6 or any(bounds[i] >= bounds[i + 3] for i in range(3)):
         raise ValueError("Bounds must be xmin ymin zmin xmax ymax zmax")
@@ -147,13 +173,14 @@ def build_plugin(weapon: Record, chest: Record, bounds: tuple[int, ...]) -> byte
                    (b"MODL", MODEL), (b"DNAM", struct.pack("<fIB3x", 90.0, 0, 0))]
     # HEDR counts two records and their two top-level groups. Regular ESP, no
     # ESL or localized flag; 0x802 is the first unused local form ID.
-    header = encode_record(b"TES4", 0, [(b"HEDR", struct.pack("<fII", 1.7, 4, 0x802)),
+    audio = build_audio_records(sound_template) if sound_template else b''
+    header = encode_record(b"TES4", 0, [(b"HEDR", struct.pack("<fII", 1.7, 8 if audio else 4, 0x805 if audio else 0x802)),
                                         (b"CNAM", b"ChainMorningstarVR\0"),
                                         (b"SNAM", b"Private development build; in-game validation required.\0"),
                                         (b"MAST", b"Skyrim.esm\0"), (b"DATA", bytes(8)),
                                         (b"INCC", bytes(4))])
     return header + encode_group(b"STAT", encode_record(b"STAT", FIRST_PERSON_ID, stat_fields)) + encode_group(
-        b"WEAP", encode_record(b"WEAP", WEAPON_ID, weapon_fields))
+        b"WEAP", encode_record(b"WEAP", WEAPON_ID, weapon_fields)) + (encode_group(b'SNDR', audio) if audio else b'')
 
 
 def load_bundle_record(bundle: Path, manifest: dict, signature: str, form_id: int) -> tuple[Record, str]:
@@ -176,6 +203,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--reference-bundle", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument('--with-audio', action='store_true', help='Add audit5 original sound descriptors 802-804')
     parser.add_argument("--bounds", type=int, nargs=6, required=True,
                         metavar=("XMIN", "YMIN", "ZMIN", "XMAX", "YMAX", "ZMAX"))
     args = parser.parse_args()
@@ -184,7 +212,8 @@ def main() -> None:
         raise ValueError("Review ReferenceBundle collection warnings before building")
     weapon, weapon_hash = load_bundle_record(args.reference_bundle, manifest, "WEAP", SOURCE_WEAPON_ID)
     chest, chest_hash = load_bundle_record(args.reference_bundle, manifest, "CONT", CHEST_ID)
-    output = build_plugin(weapon, chest, tuple(args.bounds))
+    sound_template, sound_hash = load_bundle_record(args.reference_bundle, manifest, 'SNDR', 0x3D128) if args.with_audio else (None, None)
+    output = build_plugin(weapon, chest, tuple(args.bounds), sound_template)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_bytes(output)
     report = {"plugin": args.output.name, "plugin_sha256": hashlib.sha256(output).hexdigest(),
@@ -192,6 +221,11 @@ def main() -> None:
               "records": {"WEAP": "00000800", "STAT": "00000801"},
               "masters": ["Skyrim.esm"], "form_version": 44, "damage": 44, "weight": 17,
               "value": 550, "bounds": args.bounds, "overrides": [], "in_game_validated": False}
+    report['builder_sha256'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+    if sound_template:
+        report['input_sound_template_sha256'] = sound_hash
+        report['records']['SNDR'] = [f'{r[0] & 0xffffff:08X}' for r in AUDIO_RECORDS]
+        report['audio_paths'] = ['sound/fx/ChainMorningstarVR/'+r[2] for r in AUDIO_RECORDS]
     args.output.with_suffix(".provenance.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(report, indent=2))
 
