@@ -41,6 +41,8 @@ struct EpisodeState {
     bool active{};
     float separatedSeconds{};
     bool observedThisFrame{};
+    std::uint64_t token{};
+    RE::FormID actorID{};
 };
 // Episode memory is separate from readable geometry. Temporary GPU-only data,
 // a missed frame or an unsupported mesh must never grant a second random roll.
@@ -136,18 +138,6 @@ bool DescendsFrom(RE::NiAVObject* object,RE::NiAVObject* ancestor) {
     return false;
 }
 
-EquipmentContactPart ExactHand(RE::Actor& actor,RE::TESForm* item,RE::NiAVObject* clone) {
-    const bool right=actor.GetEquippedObject(false)==item,left=actor.GetEquippedObject(true)==item;
-    if (!right&&!left) return EquipmentContactPart::kUnknown;
-    if (right!=left) return right ? EquipmentContactPart::kRightWeapon:EquipmentContactPart::kLeftWeapon;
-    auto* root=actor.Get3D(false);
-    if (!root) return EquipmentContactPart::kUnknown;
-    const bool underRight=DescendsFrom(clone,root->GetObjectByName(RE::BSFixedString("NPC R Hand [RHnd]")));
-    const bool underLeft=DescendsFrom(clone,root->GetObjectByName(RE::BSFixedString("NPC L Hand [LHnd]")));
-    if (underRight==underLeft) return EquipmentContactPart::kUnknown;
-    return underRight ? EquipmentContactPart::kRightWeapon:EquipmentContactPart::kLeftWeapon;
-}
-
 std::vector<WeaponSample> CaptureNearby(const NativeHeadSnapshot& head) {
     std::vector<WeaponSample> result;
     auto* player=RE::PlayerCharacter::GetSingleton();
@@ -162,14 +152,14 @@ std::vector<WeaponSample> CaptureNearby(const NativeHeadSnapshot& head) {
         const auto& biped=actor.GetBiped(false);
         if (!biped) return RE::BSContainer::ForEachResult::kContinue;
         std::vector<RE::NiAVObject*> seen;
-        for (std::size_t slot=32;slot<=40;++slot) {
+        for (std::size_t slot=0;slot<RE::BIPED_OBJECTS::kTotal;++slot) {
             const auto& object=biped->objects[slot];
             auto* clone=object.partClone.get();
-            if (!object.item||!object.item->IsWeapon()||!clone||std::find(seen.begin(),seen.end(),clone)!=seen.end()) continue;
+            if (!IsHeldEquipmentType(object.item)||!clone||std::find(seen.begin(),seen.end(),clone)!=seen.end()) continue;
             seen.push_back(clone);
             // Biped clone must belong to the current actor's live scene graph.
             if (!DescendsFrom(clone,actor.Get3D(false))) continue;
-            const auto part=ExactHand(actor,object.item,clone);
+            const auto part=ResolveHeldItemSlot(actor,object.item,clone);
             if (part==EquipmentContactPart::kUnknown) continue;
             const auto instance=ResolveWornEquipment(actor,part,object.item->GetFormID());
             if (!instance.baseForm||!instance.instance) continue;
@@ -240,7 +230,18 @@ void WeaponMeshContact::Update(const NativeHeadSnapshot& head,float frameDeltaS,
         for (auto& episode:g_episodes) episode.separatedSeconds=0;
         g_previous=std::move(current); g_previousHead=head; return;
     }
-    for (auto& episode:g_episodes) episode.observedThisFrame=false;
+    const auto endEpisode=[&](EpisodeState& episode) {
+        EndWeaponMeshContact(head.generation,head.bodyIdentity,head.leftHand?1:0,
+            episode.actorID,episode.part,episode.token);
+        episode.active=false;
+    };
+    for (auto& episode:g_episodes) {
+        episode.observedThisFrame=false;
+        if(!episode.active) continue;
+        auto actor=episode.actor.get();
+        const auto equipped=actor?ResolveWornEquipment(*actor,episode.part,episode.base):WornEquipmentInstance{};
+        if(!actor||!actor->Is3DLoaded()||equipped.instance!=episode.instance) endEpisode(episode);
+    }
     const auto previousHead=HeadTransform(g_previousHead),currentHead=HeadTransform(head);
     std::size_t budget=kMaximumTriangleQueries;
     for (auto& weapon:current) {
@@ -253,16 +254,18 @@ void WeaponMeshContact::Update(const NativeHeadSnapshot& head,float frameDeltaS,
         if (!query.hit) {
             if (query.complete) episode->separatedSeconds+=frameDeltaS;
             else episode->separatedSeconds=0;
-            if (episode->separatedSeconds>=kEpisodeReleaseSeconds) episode->active=false;
+            if (episode->active && episode->separatedSeconds>=kEpisodeReleaseSeconds) endEpisode(*episode);
             continue;
         }
         episode->separatedSeconds=0;
         if (episode->active) continue;
         episode->active=true;
+        episode->token=++g_nextEpisode;
         ConfirmedEquipmentImpact request;
         request.target=weapon.actor; request.sourceWeapon=sourceWeapon;
         request.contactPosition={query.pointM.x*kSkyrimUnitsPerMeter,query.pointM.y*kSkyrimUnitsPerMeter,query.pointM.z*kSkyrimUnitsPerMeter};
         request.enemyAliveAtImpact=true;
+        request.surface=EquipmentContactSurface::kItemMesh;
         request.evidence.session=head.generation;
         request.evidence.contactSourceBody=head.bodyIdentity;
         request.evidence.sourceHand=head.leftHand?1:0;
@@ -271,7 +274,8 @@ void WeaponMeshContact::Update(const NativeHeadSnapshot& head,float frameDeltaS,
         request.evidence.part=weapon.part;
         request.evidence.verifiedIronBallContact=true;
         if (auto actor=weapon.actor.get()) request.evidence.targetActor=actor->GetFormID();
-        const auto result=SubmitWeaponMeshImpact(request,++g_nextEpisode);
+        episode->actorID=request.evidence.targetActor;
+        const auto result=SubmitWeaponMeshImpact(request,episode->token);
         (void)result;
     }
     for (auto& episode:g_episodes) if (!episode.observedThisFrame) episode.separatedSeconds=0;

@@ -157,7 +157,7 @@ jobs:
           ChainMorningstarVR $cmsVersion investigation only -- RELEASE BLOCKED
           Commit: $env:GITHUB_SHA
           HIGGS head-compound collision and solver contact feedback are connected.
-          Enemy head/weapon contacts feed the one-in-three worn-instance drop policy.
+          Enemy head, exact hand bodies, and held weapon/shield surfaces feed the one-in-three worn-instance drop policy.
           Requires HIGGS >= 1.6.0; PLANCK supplies NPC physics and melee damage.
           Chain links use swept capsule queries against world and NPC bodies without attack bodies or damage.
           Chain response is one-way: links bend and slide but do not push objects/NPCs.
@@ -171,6 +171,8 @@ jobs:
           Resting contact stops chain-driven head rotation; depenetration is separated from velocity.
           CMS restores its last native keyframe endpoint before casting if HIGGS warped the body.
           Native pose restores and head stability samples are logged for VR verification.
+          Audit4 adds exact hand-body and shield mapping, two-handed slot ownership, and sustained mesh/native deduplication.
+          Every eligible lottery outcome logs slot and surface; actual drop-reference success is recorded separately.
           This CI artifact is for investigation, not a verified fix or a Vortex release.
           "@ | Set-Content "$env:GITHUB_WORKSPACE\ci-artifact\BUILD_STATUS.txt"
 

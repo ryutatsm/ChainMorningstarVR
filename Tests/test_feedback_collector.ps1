@@ -9,7 +9,7 @@ New-Item -ItemType Directory -Path $logRoot -Force | Out-Null
 $fixture = Join-Path $logRoot 'ChainMorningstarVR.log'
 if (Test-Path -LiteralPath $fixture) { throw 'Refusing to overwrite an existing Skyrim log' }
 $payload = @'
-[info] ChainMorningstarVR 1.0.0-audit3 loading: INVESTIGATION BUILD
+[info] ChainMorningstarVR 1.0.0-audit4 loading: INVESTIGATION BUILD
 [info] CMS native pose restored before sweep: displacementM=0.52 total=1 held=true
 [info] CMS head stability: step=500 held=true targetStepM=0 rotationStepRad=0 sweepRecoveryM=0 poseRestores=1
 [info] CMS offhand input registered: button=left-trigger mask=0x200000000 priority=65 final-filter=true side-grip=unchanged
@@ -26,7 +26,9 @@ $payload = @'
 [info] CMS offhand head grip: released reason=trigger-released heldMs=11003 button=left-trigger physical-left=true right-weapon=true
 [info] CMS offhand selection guard: rejectedPickPairs=2 scope=HIGGS-update
 [info] CMS certified contact: part=1 outcome=kept-by-one-third-draw
-[info] CMS certified contact: part=1 outcome=drop
+[info] CMS certified contact: part=1 slot=head surface=head-body outcome=drop
+[info] CMS certified contact: part=2 slot=left-hand surface=left-hand-body outcome=kept-by-one-third-draw
+[info] CMS certified contact: part=3 slot=right-hand surface=held-item-mesh outcome=no-eligible-worn-instance
 [info] CMS equipment drop: actor=00000001, item=00000002, reference=00000003, impact=3
 [warn] CMS equipment drop returned no reference: actor=00000001
 '@
@@ -94,7 +96,7 @@ try {
             finally { $summaryReader.Dispose() }
             if ($summary.head_stability_entries -ne 1 -or $summary.native_pose_restore_entries -ne 1 -or
                 $summary.native_pose_restore_max_displacement_m -ne 0.52 -or
-                $summary.cms_version -ne '1.0.0-audit3' -or $summary.offhand_held_entries -ne 3 -or
+                $summary.cms_version -ne '1.0.0-audit4' -or $summary.offhand_held_entries -ne 3 -or
                 $summary.offhand_grab_button -ne 'left-trigger' -or
                 $summary.offhand_released_entries -ne 3 -or $summary.equipment_drop_references -ne 1 -or
                 $summary.offhand_release_reasons.'input-stale' -ne 1 -or
@@ -105,7 +107,16 @@ try {
                 $summary.player_body_contact_entries -ne 1 -or
                 $summary.offhand_rejected_reasons.'higgs-not-grabbable' -ne 1 -or
                 $summary.offhand_selection_guard_entries -ne 1 -or
-                $summary.certified_contact_outcomes.'kept-by-one-third-draw' -ne 1 -or
+                $summary.equipment_lottery_draws -ne 3 -or $summary.equipment_lottery_wins -ne 1 -or
+                $summary.equipment_drop_missing_references -ne 1 -or
+                $summary.certified_contact_slots.head -ne 1 -or
+                $summary.certified_contact_slots.'left-hand' -ne 1 -or
+                $summary.certified_contact_slots.'right-hand' -ne 1 -or
+                $summary.certified_contact_surfaces.'head-body' -ne 1 -or
+                $summary.certified_contact_surfaces.'left-hand-body' -ne 1 -or
+                $summary.certified_contact_surfaces.'held-item-mesh' -ne 1 -or
+                $summary.certified_contact_outcomes.'no-eligible-worn-instance' -ne 1 -or
+                $summary.certified_contact_outcomes.'kept-by-one-third-draw' -ne 2 -or
                 $summary.certified_contact_outcomes.drop -ne 1 -or $summary.release_gates_passed) {
                 throw 'Runtime evidence was misclassified'
             }

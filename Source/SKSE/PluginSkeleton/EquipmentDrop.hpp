@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../EquipmentDropCore.hpp"
+#include "../EquipmentSlotCore.hpp"
 
 #include <RE/Skyrim.h>
 #include <cstdint>
@@ -18,6 +18,7 @@ struct ConfirmedEquipmentImpact {
     // Captured by the game-thread equipment snapshot before the physical step.
     // A fatal physical hit may complete before the queued drop is handled.
     bool enemyAliveAtImpact{};
+    EquipmentContactSurface surface{EquipmentContactSurface::kUnknown};
 };
 
 struct WornEquipmentInstance {
@@ -29,9 +30,15 @@ struct WornEquipmentInstance {
 
 // Game thread only. Head requests may omit baseForm to choose the currently
 // worn head/hair/circlet item, in that priority order. Ambiguous worn instances
-// are rejected. Weapon requests identify both the hand and base form.
+// are rejected. Hand requests resolve the held weapon/shield if baseForm is 0.
 [[nodiscard]] WornEquipmentInstance ResolveWornEquipment(
     RE::Actor& actor, EquipmentContactPart part, RE::FormID baseForm = 0);
+
+// Resolve the inventory slot for a struck hand or actual held-item subtree.
+// A left supporting hand of a two-handed weapon shares its right-hand slot.
+[[nodiscard]] EquipmentContactPart ResolveHandContactSlot(RE::Actor& actor, EquipmentContactPart physicalPart);
+[[nodiscard]] EquipmentContactPart ResolveHeldItemSlot(RE::Actor& actor, RE::TESForm* item, RE::NiAVObject* clone);
+[[nodiscard]] bool IsHeldEquipmentType(RE::TESForm* item);
 
 struct EquipmentDropResult {
     EquipmentDropDecision decision{EquipmentDropDecision::kUnverifiedContact};

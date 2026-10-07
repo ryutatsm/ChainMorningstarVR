@@ -24,6 +24,7 @@ struct TargetSnapshot {
     EquipmentContactPart part{};
     WornEquipmentInstance equipment{};
     bool enemyAlive{};
+    EquipmentContactSurface surface{EquipmentContactSurface::kUnknown};
 };
 
 struct QueuedContact {
@@ -82,17 +83,6 @@ RE::NiAVObject* FindNodeIdentity(RE::NiAVObject* root, std::uintptr_t identity)
     return nullptr;
 }
 
-// Used only to disambiguate two equipped copies with the same base form.
-// Never infer a weapon contact from one of these hand bones' colliders.
-EquipmentContactPart AttachedHand(RE::NiAVObject* object)
-{
-    for (std::size_t depth = 0; object && depth < 64; ++depth, object = object->parent) {
-        if (object->name == "NPC R Hand [RHnd]") return EquipmentContactPart::kRightWeapon;
-        if (object->name == "NPC L Hand [LHnd]") return EquipmentContactPart::kLeftWeapon;
-    }
-    return EquipmentContactPart::kUnknown;
-}
-
 std::unordered_map<std::uintptr_t, TargetSnapshot> CaptureTargets()
 {
     std::unordered_map<std::uintptr_t, TargetSnapshot> result;
@@ -131,31 +121,38 @@ std::unordered_map<std::uintptr_t, TargetSnapshot> CaptureTargets()
         snapshot.enemyAlive = !actor->IsDead() && !actor->IsPlayerTeammate() &&
                               actor->IsHostileToActor(player);
         snapshot.part = EquipmentContactPart::kHead;
+        snapshot.surface = EquipmentContactSurface::kHeadBody;
         snapshot.equipment = ResolveWornEquipment(*actor, snapshot.part);
-        // Exact standard humanoid ragdoll head body. Neck, hand and generic
-        // character-controller contacts are deliberately not head contacts.
+        // Exact head only; never a neck or generic character controller.
         if (auto* head = root->GetObjectByName(RE::BSFixedString{"NPC Head [Head]"})) add(head, snapshot);
 
+        if (!actor->IsWeaponDrawn()) continue;
+        for (const auto* name : {"NPC L Hand [LHnd]", "NPC R Hand [RHnd]"}) {
+            const auto physicalPart=equipmentPartForBone(name);
+            snapshot.part=ResolveHandContactSlot(*actor,physicalPart);
+            snapshot.surface=physicalPart==EquipmentContactPart::kLeftHand?
+                EquipmentContactSurface::kLeftHandBody:EquipmentContactSurface::kRightHandBody;
+            snapshot.equipment=ResolveWornEquipment(*actor,snapshot.part);
+            if(auto* hand=root->GetObjectByName(RE::BSFixedString{name})) add(hand,snapshot);
+        }
+
         const auto& biped = actor->GetBiped();
-        if (!biped || !actor->IsWeaponDrawn()) continue;
-        for (std::uint32_t slot = RE::BIPED_OBJECTS::kHandToHandMelee;
-             slot <= RE::BIPED_OBJECTS::kCrossbow; ++slot) {
+        if (!biped) continue;
+        for (std::uint32_t slot = 0; slot < RE::BIPED_OBJECTS::kTotal; ++slot) {
             const auto& object = biped->objects[slot];
-            if (!object.item || !object.item->IsWeapon() || !object.partClone) continue;
-            const bool right = actor->GetEquippedObject(false) == object.item;
-            const bool left = actor->GetEquippedObject(true) == object.item;
-            if (!right && !left) continue;
-            snapshot.part = right && left ? AttachedHand(object.partClone.get()) :
-                (left ? EquipmentContactPart::kLeftWeapon : EquipmentContactPart::kRightWeapon);
+            if (!IsHeldEquipmentType(object.item) || !object.partClone) continue;
+            if (!FindNodeIdentity(root,reinterpret_cast<std::uintptr_t>(object.partClone.get()))) continue;
+            snapshot.part=ResolveHeldItemSlot(*actor,object.item,object.partClone.get());
             if (snapshot.part == EquipmentContactPart::kUnknown) continue;
+            snapshot.surface=EquipmentContactSurface::kItemBody;
             snapshot.equipment = ResolveWornEquipment(*actor, snapshot.part, object.item->GetFormID());
             std::vector<RE::NiAVObject*> pending{object.partClone.get()};
             std::size_t budget = 2048;
             while (!pending.empty() && budget--) {
                 auto* current = pending.back();
                 pending.pop_back();
-                // Only the weapon's own subtree. An ancestor hand/arm body
-                // cannot identify which weapon surface was struck.
+                // Weapon/shield surface contact and exact hand-body contact
+                // are separate evidence paths, sharing one equipment slot.
                 add(current, snapshot);
                 if (auto* node = current->AsNode()) {
                     for (auto& child : node->GetChildren()) if (child) pending.push_back(child.get());
@@ -202,11 +199,12 @@ void LogDecision(const char* collector, const ConfirmedEquipmentImpact& impact,
 {
     const auto& evidence = impact.evidence;
     if (evidence.impactSerial <= 24 || evidence.impactSerial % 128 == 0 ||
-        result.decision == EquipmentDropDecision::kDrop) {
+        result.decision == EquipmentDropDecision::kDrop || result.decision == EquipmentDropDecision::kKeptByChance) {
         SKSE::log::info(
-            "CMS certified contact: collector={} generation={} episode={} sourceBody=0x{:X} actor={:08X} part={} item={:08X} wornInstance=0x{:X} outcome={}",
+            "CMS certified contact: collector={} generation={} episode={} sourceBody=0x{:X} actor={:08X} part={} slot={} surface={} item={:08X} wornInstance=0x{:X} outcome={}",
             collector, evidence.session, evidence.impactSerial, evidence.contactSourceBody,
-            evidence.targetActor, static_cast<unsigned>(evidence.part), evidence.equippedBaseForm,
+            evidence.targetActor, static_cast<unsigned>(evidence.part), equipmentPartName(evidence.part),
+            equipmentSurfaceName(impact.surface), evidence.equippedBaseForm,
             evidence.equippedInstance, DecisionName(result.decision));
     }
 }
@@ -282,6 +280,7 @@ void NativeContactRouter::OnContactPoint(const RE::hkpContactPointEvent& event,
     record.impact.contactPosition = {position[0] * g_state.unitsPerHavokUnit,
         position[1] * g_state.unitsPerHavokUnit, position[2] * g_state.unitsPerHavokUnit};
     record.impact.enemyAliveAtImpact = target.enemyAlive;
+    record.impact.surface = target.surface;
     auto& evidence = record.impact.evidence;
     evidence.session = generation;
     evidence.contactSourceBody = g_state.ownBody;
@@ -324,9 +323,17 @@ void NativeContactRouter::DrainAndRefresh()
         }
         const auto now = ClockSeconds();
         if (now >= g_state.nextSummary && g_state.unmappedCallbacks != g_state.reportedUnmapped) {
+            std::array<std::size_t,4> slots{};
+            std::size_t equipped{};
+            for(const auto& [body,target]:g_state.targets) {
+                (void)body;
+                const auto slot=static_cast<std::size_t>(target.part);
+                if(slot<slots.size()) ++slots[slot];
+                if(target.equipment.instance) ++equipped;
+            }
             SKSE::log::info(
-                "CMS contact mapping: generation={} certifiedTargetBodies={} unmappedCallbacks={} (includes ground, scenery and non-equipment actor parts)",
-                generation, g_state.targets.size(), g_state.unmappedCallbacks);
+                "CMS contact mapping: generation={} certifiedTargetBodies={} headTargets={} leftHandTargets={} rightHandTargets={} eligibleWornTargets={} unmappedCallbacks={} (includes ground, scenery and non-equipment actor parts)",
+                generation, g_state.targets.size(), slots[1], slots[2], slots[3], equipped, g_state.unmappedCallbacks);
             g_state.reportedUnmapped = g_state.unmappedCallbacks;
             g_state.nextSummary = now + 5.0;
         }
@@ -363,8 +370,8 @@ EquipmentDropResult SubmitWeaponMeshImpact(const ConfirmedEquipmentImpact& reque
     {
         std::scoped_lock lock(g_state.mutex);
         if (!MatchesSession(g_state, impact) || !impact.evidence.verifiedIronBallContact ||
-            (impact.evidence.part != EquipmentContactPart::kLeftWeapon &&
-             impact.evidence.part != EquipmentContactPart::kRightWeapon)) return {};
+            (impact.evidence.part != EquipmentContactPart::kLeftHand &&
+             impact.evidence.part != EquipmentContactPart::kRightHand)) return {};
         EnsurePolicySessionLocked(g_state);
         if (!g_state.episodes.mesh(impact.evidence.sourceHand, impact.evidence.targetActor,
             impact.evidence.part, meshEpisodeToken, ClockSeconds())) {
@@ -377,6 +384,15 @@ EquipmentDropResult SubmitWeaponMeshImpact(const ConfirmedEquipmentImpact& reque
     const auto result = TryDropForConfirmedImpact(impact);
     LogDecision("weapon-mesh", impact, result);
     return result;
+}
+
+void EndWeaponMeshContact(std::uint64_t generation,std::uintptr_t sourceBody,
+    std::uint8_t sourceHand,RE::FormID actor,EquipmentContactPart part,std::uint64_t token)
+{
+    std::scoped_lock lock(g_state.mutex);
+    if(!generation || generation!=g_state.generation || sourceBody!=g_state.ownBody ||
+        sourceHand!=static_cast<std::uint8_t>(g_state.left)) return;
+    g_state.episodes.meshRemoved(sourceHand,actor,part,token,ClockSeconds());
 }
 
 } // namespace cms::skyrimvr

@@ -37,4 +37,7 @@ public:
 [[nodiscard]] EquipmentDropResult SubmitWeaponMeshImpact(
     const ConfirmedEquipmentImpact& request, std::uint64_t meshEpisodeToken);
 
+void EndWeaponMeshContact(std::uint64_t generation,std::uintptr_t sourceBody,
+    std::uint8_t sourceHand,RE::FormID actor,EquipmentContactPart part,std::uint64_t token);
+
 } // namespace cms::skyrimvr

@@ -28,7 +28,7 @@ public:
         ActiveBody* empty = nullptr;
         for (auto& active : bodies_) if (!active.body) { empty = &active; break; }
         if (!empty) return false;
-        const bool separated = group->activeBodies == 0;
+        const bool separated = group->activeBodies == 0 && !group->meshActive;
         *empty = {body, hand, actor, part};
         ++group->activeBodies;
         if (!separated || now - group->lastSeparation < kSeparationSeconds ||
@@ -44,7 +44,7 @@ public:
             if (active.body != body || active.hand != hand) continue;
             if (auto* group = findGroup(hand, active.actor, active.part)) {
                 if (group->activeBodies) --group->activeBodies;
-                if (!group->activeBodies) group->lastSeparation = now;
+                if (!group->activeBodies && !group->meshActive) group->lastSeparation = now;
             }
             active = {};
             return;
@@ -58,10 +58,24 @@ public:
         auto* group = findGroup(hand, actor, part);
         if (!group || token <= group->lastMeshToken) return false;
         group->lastMeshToken = token; // Losing/rejected episodes are consumed too.
-        if (group->activeBodies || now - group->lastImpact < kSeparationSeconds ||
+        const bool alreadyTouching=group->meshActive || group->activeBodies;
+        group->meshActive=true;
+        if (alreadyTouching || now - group->lastImpact < kSeparationSeconds ||
             now - group->lastSeparation < kSeparationSeconds) return false;
         group->lastImpact = now;
         return true;
+    }
+
+    // A cooldown alone cannot deduplicate a long mesh overlap followed by a
+    // direct hand hit. Only confirmed separation (or removal of that equipped
+    // instance) ends the mesh contact. An old token cannot end a newer contact.
+    void meshRemoved(std::uint8_t hand,std::uint32_t actor,EquipmentContactPart part,
+                     std::uint64_t token,double now) noexcept {
+        if(!valid(hand,actor,part,now)||!token) return;
+        auto* group=findGroup(hand,actor,part);
+        if(!group||token!=group->lastMeshToken||!group->meshActive) return;
+        group->meshActive=false;
+        if(!group->activeBodies) group->lastSeparation=now;
     }
 
 private:
@@ -72,6 +86,7 @@ private:
         std::uint8_t hand{};
         std::uint16_t activeBodies{};
         std::uint64_t lastMeshToken{};
+        bool meshActive{};
         double lastImpact{-1.0e30};
         double lastSeparation{-1.0e30};
     };
@@ -86,8 +101,8 @@ private:
     {
         return hand < 2 && actor && std::isfinite(now) &&
             (part == EquipmentContactPart::kHead ||
-             part == EquipmentContactPart::kLeftWeapon ||
-             part == EquipmentContactPart::kRightWeapon);
+             part == EquipmentContactPart::kLeftHand ||
+             part == EquipmentContactPart::kRightHand);
     }
     Group* findGroup(std::uint8_t hand, std::uint32_t actor,
                      EquipmentContactPart part) noexcept

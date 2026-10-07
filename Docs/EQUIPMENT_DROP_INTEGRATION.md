@@ -20,12 +20,18 @@ Before the next physics step, the game thread snapshots nearby loaded actors:
 - Head equipment is the currently worn head-slot item, or hair-slot item if
   absent, or circlet if both are absent. The exact worn `ExtraDataList` identity
   is resolved on the game thread. Ambiguous duplicate worn instances fail closed.
-- A native weapon contact requires a collider inside the equipped weapon's own
-  `BIPOBJECT.partClone` subtree. The actor's hand/arm collider is never substituted.
-  The base form determines the equipped hand; identical dual-wield forms also
-  require an unambiguous left/right hand ancestor of the actual weapon subtree.
-  An extra-data stack marked worn in both hands is rejected: `RemoveItem` has
-  no hand parameter, so the adapter cannot prove which copy it would remove.
+- An exact `NPC L Hand [LHnd]` or `NPC R Hand [RHnd]` body contact selects
+  that hand's drawn weapon/shield. Forearms and generic controller bodies do
+  not count. Empty hands do not select the opposite one-handed weapon.
+- A native held-item contact requires a collider inside its own current actor
+  `BIPOBJECT.partClone` subtree. All biped slots are considered, including the
+  armor shield slot. Only actually equipped weapons/shields are accepted.
+- Identical dual-wield forms require an unambiguous left/right hand ancestor
+  of the actual item subtree. A weapon extra-data list marked worn in both
+  hands is rejected: `RemoveItem` has no hand parameter. A shield is left-hand
+  armor and may use `ExtraWorn`; it is not required to have `ExtraWornLeft`.
+- A two-handed weapon or bow is owned by the right inventory slot. Its left
+  supporting hand, right hand and actual item surface share that slot's episode.
 - The 650-unit actor-origin radius only limits snapshot work. Being within that
   radius cannot produce an impact or an equipment drop.
 
@@ -38,8 +44,8 @@ scene tree, and checks that the same root, node and collision body still exist.
 It then re-resolves the exact still-worn instance before removing anything.
 Changing equipment or replacing the actor's loaded 3D invalidates the request.
 
-The companion equipped-weapon geometry collector can submit only a confirmed
-head-compound/weapon-surface intersection through `SubmitWeaponMeshImpact`.
+The companion equipped-weapon/shield geometry collector can submit only a confirmed
+head-compound/held-item-surface intersection through `SubmitWeaponMeshImpact`.
 It shares the source-body/generation check, instance recheck, episode tracker,
 monotonic impact serial and probability policy with native contacts. There is no
 fallback to a bounding sphere or hand/head distance for equipment attribution.
@@ -55,6 +61,10 @@ separation are needed before a native collision can begin another episode; this
 prevents brief manifold churn from repeatedly drawing. Native and exact-mesh
 reports of the same strike are deduplicated. The mesh collector must retain its
 strictly increasing episode token until it has proved geometric separation.
+The common tracker retains mesh-active state, so a long overlap followed by
+a hand-body contact cannot draw again after the short cooldown expires.
+A stale removal token cannot end a newer contact. Changed worn instances end
+the old mesh contact before their replacement is queried.
 
 The router assigns one common, increasing serial per source hand on the game
 thread. `EquipmentDropCore.hpp` consumes every eligible serial, including failed
@@ -88,12 +98,13 @@ hits and death-triggered inventory scripts have been tested in Skyrim VR.
 ## Diagnostics
 
 The first 24 routed impacts per source session, every 128th impact afterwards,
-and successful drop decisions log collector, generation, body identity, actor,
-part, item, worn-instance identity and outcome. Actual drop-reference success
+and every eligible lottery result log collector, generation, body identity, actor,
+part, named inventory slot, physical surface, item, worn-instance identity and
+outcome. Actual drop-reference success
 or failure has a separate log line. Unmapped contact callback totals are
 summarized at most once per five seconds when they change; ground/scenery and
 non-equipment actor parts are expected to contribute. This distinguishes a
-random losing draw from absent runtime head/weapon mapping without frame spam.
+random losing draw from absent runtime head/hand/item mapping without frame spam.
 
 ## Source evidence
 
@@ -108,12 +119,13 @@ random losing draw from absent runtime head/weapon mapping without frame spam.
   [Inventory copy semantics](https://github.com/CharmedBaryon/CommonLibSSE-NG/blob/v3.5.2/src/RE/I/InventoryEntryData.cpp)
 - HIGGS demonstrates actual equipped-instance drops in
   `Hand::SpawnEquippedSelectedObject`, and distinguishes weapon-subtree collision
-  from an attached hand collider while inspecting biped parts. Only actual
-  weapon-subtree collision is accepted here.
+  from an attached hand collider while inspecting biped parts. Audit4 accepts
+  both as distinct evidence surfaces, with the same equipped-instance policy.
   [HIGGS hand implementation](https://github.com/adamhynek/higgs/blob/93bf67b1bc4c4a11a20ccaef0d5012781d0d7eee/src/hand.cpp)
 - PLANCK's experimental NPC weapon-body activation was commented out in the
-  audited source. A hand hit cannot therefore stand in for a weapon-surface hit;
-  unreadable weapon geometry must be skipped by the exact-mesh collector.
+  audited source. Direct hand-body evidence and actual weapon-surface evidence
+  are recorded separately. Unreadable item geometry is skipped by the mesh
+  collector; no proximity or broadphase result certifies a hit.
   [PLANCK implementation](https://github.com/adamhynek/activeragdoll/blob/f06fc953334aeea912975af6302e52e1bad92b01/src/main.cpp)
 
 ## Validation and remaining runtime cases
@@ -127,9 +139,9 @@ consumed rejected mesh tokens, reset and invalid numeric input. The new suite
 passes strict C++23 warnings plus AddressSanitizer/UBSan (LeakSanitizer disabled
 in the executor).
 
-In-game checks remain necessary for humanoid head-body availability, nonstandard
+In-game checks remain necessary for humanoid head/hand-body availability, nonstandard
 race skeletons, NPC equipment mesh accessibility, two identical dual-wield
-weapons, custom enchanted/tempered instances, quest objects, no helmet,
+weapons, left-hand shields, shared two-handed weapons, custom enchanted/tempered instances, quest objects, no helmet,
 followers, fatal hits, load/cell changes and equipment swaps during contact.
 The exact dropped reference must exist and the actor must lose exactly one
 matching instance. No game runtime result has been inferred from source or CI.

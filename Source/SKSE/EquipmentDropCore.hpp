@@ -12,8 +12,8 @@ namespace cms {
 enum class EquipmentContactPart : std::uint8_t {
     kUnknown,
     kHead,
-    kLeftWeapon,
-    kRightWeapon,
+    kLeftHand,
+    kRightHand,
 };
 
 enum class EquipmentDropDecision : std::uint8_t {
@@ -73,8 +73,8 @@ public:
         if (impact.sourceHand >= lastSerial_.size() || impact.impactSerial == 0 ||
             impact.targetActor == 0 ||
             (impact.part != EquipmentContactPart::kHead &&
-             impact.part != EquipmentContactPart::kLeftWeapon &&
-             impact.part != EquipmentContactPart::kRightWeapon)) {
+             impact.part != EquipmentContactPart::kLeftHand &&
+             impact.part != EquipmentContactPart::kRightHand)) {
             return EquipmentDropDecision::kInvalidIdentity;
         }
         if (impact.contactSourceBody == 0 ||

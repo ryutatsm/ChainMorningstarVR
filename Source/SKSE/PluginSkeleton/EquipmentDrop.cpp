@@ -36,19 +36,64 @@ bool IsHeadgear(RE::TESBoundObject* item)
            armor->HasPartOf(Slot::kCirclet);
 }
 
-bool WornInRequestedSlot(RE::ExtraDataList* extra, EquipmentContactPart part)
+EquipmentItemKind ItemKind(RE::TESForm* item)
 {
-    if (!extra) return false;
-    if (part == EquipmentContactPart::kLeftWeapon) {
-        return extra->HasType<RE::ExtraWornLeft>() && !extra->HasType<RE::ExtraWorn>();
-    }
-    if (part == EquipmentContactPart::kRightWeapon) {
-        return extra->HasType<RE::ExtraWorn>() && !extra->HasType<RE::ExtraWornLeft>();
-    }
-    return extra->HasType<RE::ExtraWorn>();
+    if(!item) return EquipmentItemKind::kOther;
+    if(item->IsWeapon()) return EquipmentItemKind::kWeapon;
+    auto* armor=item->As<RE::TESObjectARMO>();
+    if(!armor) return EquipmentItemKind::kOther;
+    if(armor->HasPartOf(RE::BGSBipedObjectForm::BipedObjectSlot::kShield)) return EquipmentItemKind::kShield;
+    return IsHeadgear(armor)?EquipmentItemKind::kHeadgear:EquipmentItemKind::kOther;
+}
+
+RE::TESForm* HeldItem(RE::Actor& actor,EquipmentContactPart part)
+{
+    if(!isHandEquipmentPart(part)||!actor.IsWeaponDrawn()) return nullptr;
+    auto* item=actor.GetEquippedObject(part==EquipmentContactPart::kLeftHand);
+    if(part==EquipmentContactPart::kLeftHand && !item)
+        item=actor.GetWornArmor(RE::BGSBipedObjectForm::BipedObjectSlot::kShield);
+    const auto kind=ItemKind(item);
+    return kind==EquipmentItemKind::kWeapon ||
+        (part==EquipmentContactPart::kLeftHand && kind==EquipmentItemKind::kShield)?item:nullptr;
+}
+
+bool WornInRequestedSlot(RE::ExtraDataList* extra,EquipmentContactPart part,RE::TESForm* item)
+{
+    return extra && wornFlagsMatch(part,ItemKind(item),extra->HasType<RE::ExtraWorn>(),extra->HasType<RE::ExtraWornLeft>());
 }
 
 } // namespace
+
+bool IsHeldEquipmentType(RE::TESForm* item)
+{
+    const auto kind=ItemKind(item);
+    return kind==EquipmentItemKind::kWeapon || kind==EquipmentItemKind::kShield;
+}
+
+EquipmentContactPart ResolveHandContactSlot(RE::Actor& actor,EquipmentContactPart part)
+{
+    auto* right=HeldItem(actor,EquipmentContactPart::kRightHand);
+    auto* left=HeldItem(actor,EquipmentContactPart::kLeftHand);
+    auto* weapon=right?right->As<RE::TESObjectWEAP>():nullptr;
+    const bool both=weapon&&(weapon->IsTwoHandedSword()||weapon->IsTwoHandedAxe()||weapon->IsBow()||weapon->IsCrossbow());
+    return handContactSlot(part,right?right->GetFormID():0,left?left->GetFormID():0,both);
+}
+
+EquipmentContactPart ResolveHeldItemSlot(RE::Actor& actor,RE::TESForm* item,RE::NiAVObject* clone)
+{
+    if(!IsHeldEquipmentType(item)||!actor.IsWeaponDrawn()) return EquipmentContactPart::kUnknown;
+    auto* right=HeldItem(actor,EquipmentContactPart::kRightHand);
+    auto* left=HeldItem(actor,EquipmentContactPart::kLeftHand);
+    auto attachment=EquipmentContactPart::kUnknown;
+    for(std::size_t depth=0;clone&&depth<128;++depth,clone=clone->parent) {
+        const auto part=equipmentPartForBone(clone->name.c_str());
+        if(isHandEquipmentPart(part)) {attachment=part;break;}
+    }
+    const auto shield=left&&ItemKind(left)==EquipmentItemKind::kShield?left->GetFormID():0;
+    const bool shared=ResolveHandContactSlot(actor,EquipmentContactPart::kLeftHand)==EquipmentContactPart::kRightHand;
+    const auto part=heldItemSlot(item->GetFormID(),right?right->GetFormID():0,left?left->GetFormID():0,shield,attachment,shared);
+    return ResolveHandContactSlot(actor,part);
+}
 
 WornEquipmentInstance ResolveWornEquipment(RE::Actor& actor,
     EquipmentContactPart part, RE::FormID baseForm)
@@ -62,14 +107,14 @@ WornEquipmentInstance ResolveWornEquipment(RE::Actor& actor,
             }
         }
     }
-    if (!baseForm) return {};
-    if (part == EquipmentContactPart::kLeftWeapon ||
-        part == EquipmentContactPart::kRightWeapon) {
-        auto* equipped = actor.GetEquippedObject(part == EquipmentContactPart::kLeftWeapon);
-        if (!equipped || !equipped->IsWeapon() || equipped->GetFormID() != baseForm) return {};
+    if (isHandEquipmentPart(part)) {
+        auto* equipped = HeldItem(actor,part);
+        if(!baseForm && equipped) baseForm=equipped->GetFormID();
+        if (!equipped || equipped->GetFormID() != baseForm) return {};
     } else if (part != EquipmentContactPart::kHead) {
         return {};
     }
+    if (!baseForm) return {};
     WornEquipmentInstance result{};
     auto inventory = actor.GetInventory([&](RE::TESBoundObject& item) {
         return item.GetFormID() == baseForm;
@@ -79,7 +124,7 @@ WornEquipmentInstance ResolveWornEquipment(RE::Actor& actor,
         if (!item || count <= 0 || !entry || !entry->extraLists ||
             (part == EquipmentContactPart::kHead && !IsHeadgear(item))) continue;
         for (auto* extra : *entry->extraLists) {
-            if (!WornInRequestedSlot(extra, part)) continue;
+            if (!WornInRequestedSlot(extra, part, item)) continue;
             if (result.instance) return {}; // Cannot prove which duplicate was worn.
             result = {baseForm, reinterpret_cast<std::uintptr_t>(extra)};
         }
@@ -142,15 +187,14 @@ EquipmentDropResult TryDropForConfirmedImpact(const ConfirmedEquipmentImpact& re
         bool matchingPart = false;
         if (evidence.part == EquipmentContactPart::kHead) {
             matchingPart = IsHeadgear(item);
-        } else if (evidence.part == EquipmentContactPart::kLeftWeapon ||
-                   evidence.part == EquipmentContactPart::kRightWeapon) {
-            const bool left = evidence.part == EquipmentContactPart::kLeftWeapon;
-            matchingPart = item->IsWeapon() && target->GetEquippedObject(left) == item;
+        } else if (evidence.part == EquipmentContactPart::kLeftHand ||
+                   evidence.part == EquipmentContactPart::kRightHand) {
+            matchingPart = IsHeldEquipmentType(item) && HeldItem(*target,evidence.part) == item;
         }
         if (!matchingPart) continue;
         for (auto* extra : *entry->extraLists) {
             if (reinterpret_cast<std::uintptr_t>(extra) != evidence.equippedInstance ||
-                !WornInRequestedSlot(extra, evidence.part)) continue;
+                !WornInRequestedSlot(extra, evidence.part, item)) continue;
             selectedItem = item;
             selectedExtra = extra;
             evidence.exactInstanceStillEquipped = true;

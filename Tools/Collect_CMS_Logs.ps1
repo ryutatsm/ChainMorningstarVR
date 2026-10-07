@@ -40,7 +40,12 @@ $summary = [ordered]@{
     offhand_selection_guard_entries = 0
     offhand_rejected_reasons = [ordered]@{}
     certified_contact_outcomes = [ordered]@{}
+    certified_contact_slots = [ordered]@{}
+    certified_contact_surfaces = [ordered]@{}
+    equipment_lottery_draws = 0
+    equipment_lottery_wins = 0
     equipment_drop_references = 0
+    equipment_drop_missing_references = 0
     release_gates_passed = $false
 }
 if ($summary.cms_log_present) {
@@ -76,6 +81,7 @@ if ($summary.cms_log_present) {
     }
     $summary.offhand_selection_guard_entries = [regex]::Matches($cmsText, 'CMS offhand selection guard: rejectedPickPairs=[1-9][0-9]*\b').Count
     $summary.equipment_drop_references = [regex]::Matches($cmsText, 'CMS equipment drop: actor=[0-9A-Fa-f]+, item=[0-9A-Fa-f]+, reference=[0-9A-Fa-f]+,').Count
+    $summary.equipment_drop_missing_references = [regex]::Matches($cmsText, 'CMS equipment drop returned no reference:').Count
     foreach ($match in [regex]::Matches($cmsText, 'CMS offhand grip attempt: result=rejected reason=([^\s]+)')) {
         $key = $match.Groups[1].Value
         if (-not $summary.offhand_rejected_reasons.Contains($key)) { $summary.offhand_rejected_reasons[$key] = 0 }
@@ -85,6 +91,16 @@ if ($summary.cms_log_present) {
         $key = $match.Groups[1].Value
         if (-not $summary.certified_contact_outcomes.Contains($key)) { $summary.certified_contact_outcomes[$key] = 0 }
         $summary.certified_contact_outcomes[$key]++
+        if ($key -eq 'drop' -or $key -eq 'kept-by-one-third-draw') { $summary.equipment_lottery_draws++ }
+        if ($key -eq 'drop') { $summary.equipment_lottery_wins++ }
+    }
+    foreach ($field in @('slot', 'surface')) {
+        $counts = if ($field -eq 'slot') { $summary.certified_contact_slots } else { $summary.certified_contact_surfaces }
+        foreach ($match in [regex]::Matches($cmsText, ('CMS certified contact:[^\r\n]*\b' + $field + '=([^\s]+)'))) {
+            $key = $match.Groups[1].Value
+            if (-not $counts.Contains($key)) { $counts[$key] = 0 }
+            $counts[$key]++
+        }
     }
 }
 $report.Add("CMS version in log: $($summary.cms_version)")

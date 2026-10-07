@@ -38,8 +38,10 @@ ChainedMorningstarVR project or a different build combination.
 ## Equipment drop
 
 - Actual enemy head surface contact resolves the worn helmet/headgear instance.
-- Actual enemy weapon surface contact resolves that hand's equipped weapon instance.
-- A hand/torso hit never substitutes for a weapon/head hit.
+- Actual enemy hand-body or held weapon/shield surface contact resolves that hand's equipped instance.
+- Both physical hands of a two-handed weapon share its right inventory slot and contact episode.
+- Torso/forearm hits never substitute for a hand/head hit; gloves are not removed.
+- An empty hand never selects the other hand's one-handed weapon.
 - Every eligible distinct contact episode gets one unbiased 1/3 draw; resting or repeated
   callbacks do not reroll. This is probabilistic, not exactly every third hit.
 - Only the struck equipment drops. Tempering/enchantment and exact instance retained.

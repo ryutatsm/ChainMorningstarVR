@@ -116,16 +116,20 @@ int main()
     assert(policy.evaluate(impact, random) == Decision::kDrop);
 
     // Exactly one branch of the uniform three-way outcome drops. Head and
-    // either weapon use the same probability, with independent real impacts.
-    policy.beginSession(10, 0xCAFE, 0xBEEF);
-    random.draws = 0;
+    // either hand use the same probability, with independent real impacts.
     unsigned drops = 0;
-    for (std::uint64_t i = 1; i <= 300; ++i) {
-        impact = eligible(i);
-        impact.part = static_cast<cms::EquipmentContactPart>((i % 3) + 1);
-        drops += policy.evaluate(impact, random) == Decision::kDrop;
+    for(auto part:{cms::EquipmentContactPart::kHead,cms::EquipmentContactPart::kLeftHand,
+                   cms::EquipmentContactPart::kRightHand}) {
+        policy.beginSession(10, 0xCAFE, 0xBEEF);
+        random.draws = 0;
+        drops=0;
+        for (std::uint64_t i = 1; i <= 300; ++i) {
+            impact = eligible(i);
+            impact.part = part;
+            drops += policy.evaluate(impact, random) == Decision::kDrop;
+        }
+        assert(drops == 100 && random.draws == 300);
     }
-    assert(drops == 100 && random.draws == 300);
 
     // A real full-range RNG has the expected frequency over many distinct
     // impacts. This catches accidental always-drop / integer division errors.

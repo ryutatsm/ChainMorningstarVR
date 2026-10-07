@@ -3,12 +3,12 @@
 This is the independent ChainMorningstarVR project. Do not mix runtime evidence
 or assets from the older ChainedMorningstarVR project.
 Audited main: `0777e257d64fcab908df03ff94e7a9af4ff1a0ee` (2026-10-06).
-Current work: `astra/zero-base-audit-v050`, 1.0.0-audit3 (completed release blocked; user-requested diagnostic distribution). Main remains unchanged.
+Current work: `astra/zero-base-audit-v050`, 1.0.0-audit4 (completed release blocked; user-requested diagnostic distribution). Main remains unchanged.
 
 One-hand mace: damage44, weight17, value550; Japanese name
 「チェーンドモーニングスター」; Eorlund sale; physical chain without chain damage;
 actual head/spike contact; one unbiased 1/3 draw for the corresponding worn
-enemy headgear/weapon instance on each eligible distinct contact episode.
+enemy headgear/held weapon/shield instance on each eligible distinct contact episode.
 
 ## Current geometry and physics
 
@@ -32,9 +32,15 @@ the ball, and blocks delayed replay of that owned trigger. See
 HEAD_STABILITY_AUDIT3.md. Audit2 feedback recorded a 29,962ms hold, but the user
 reports unwanted motion, quarter-turns and floor bounce. Audit3 fixes continuous
 orientation, full grip pose, split contact recovery and native endpoint continuity.
-Physical stability remains unverified.
+The audit3 user reports normal motion. Feedback 20261007-130041 records
+13,184 ms and 20,119 ms trigger holds with normal releases, without warning/error
+lines. This observation does not automatically pass all formal release gates.
+Audit4 adds exact hand-body hits and shield worn-instance mapping. Gauntlets are
+not targeted. Two-handed weapons share their right inventory slot across both
+physical hands; continuous mesh/native contacts share one lottery opportunity.
+See EQUIPMENT_DROP_AUDIT4.md for the scoped equipment-drop validation.
 The taut-chain and selection fixes from prior versions remain.
-RELEASE_GATE_NEW_BUILD.md is unchanged; pending observations remain pending.
+Release gates now include the requested direct hand/shield behavior; pending observations remain pending.
 
 The obsolete native-proxy-test mode remains removed. No PlayerCharacter
 collision-node writes are permitted. The HIGGS-owned head compound, certified
