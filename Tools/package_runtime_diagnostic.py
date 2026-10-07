@@ -1,4 +1,4 @@
-"""Build the explicitly requested audit5 runtime-test ZIP; never a completed release.
+"""Build the explicitly requested audit6 runtime-test ZIP; never a completed release.
 
 Uses the matched, already-built Windows DLL/assets. Their complete source
 manifests must still match the checkout. Packaging docs/code have a separately
@@ -36,11 +36,11 @@ def main():
     packaging_commit = git('rev-parse', 'HEAD')
     require(not git('status', '--porcelain', '--untracked-files=no'), 'Commit tracked edits before packaging')
     subprocess.run(['git', 'merge-base', '--is-ancestor', commit, packaging_commit], cwd=ROOT, check=True)
-    version = '1.0.0-audit5'
+    version = '1.0.0-audit6'
     cmake = (ROOT / 'Source/SKSE/PluginSkeleton/CMakeLists.txt').read_text()
     require('project(ChainMorningstarVR VERSION 1.0.0' in cmake and
-            'set(CMS_BUILD_LABEL "${PROJECT_VERSION}-audit5")' in cmake,
-            'This diagnostic packager is restricted to audit5')
+            'set(CMS_BUILD_LABEL "${PROJECT_VERSION}-audit6")' in cmake,
+            'This diagnostic packager is restricted to audit6')
     win, assets = args.windows_dir, args.windows_dir / 'assets'
     asset_provenance = read_json(assets / 'ASSET_BUILD_PROVENANCE.json')
     require(asset_provenance['source_commit'] == commit, 'Asset source commit mismatch')
@@ -83,7 +83,7 @@ def main():
         sound = records.get((b'SNDR', 0x01000802+index), {})
         expected = ('fx\\ChainMorningstarVR\\'+audio_name+'\0').encode()
         require(sound.get(b'ANAM') == expected, 'Sound descriptor file path mismatch')
-        require(sound[b'LNAM'][1] & 0x38 == (8 if index < 2 else 0), 'Sound loop mode mismatch')
+        require(sound[b'LNAM'][1] & 0x38 == (8 if index == 0 else 0), 'Sound loop mode mismatch')
         path = 'sound/fx/ChainMorningstarVR/'+audio_name
         files[path] = (assets/path).read_bytes()
         require(asset_provenance['output_files'].get(path) == sha(files[path]), 'Audio asset provenance mismatch')
@@ -102,7 +102,7 @@ def main():
             struct.unpack_from('<H', dll, pe+24)[0] == 0x20b, 'Expected x64 Windows DLL')
     require(version.encode() in dll and b'heldMs=' in dll and b'chain-overextended' in dll and
             b'CMS head stability:' in dll and b'CMS native pose restored before sweep:' in dll and
-            b'CMS motion audio:' in dll and b'CMS equipment-drop audio:' in dll and
+            b'CMS motion audio:' in dll and b'mode=swing-one-shot' in dll and b'CMS equipment-drop audio:' in dll and
             b'headTargets=' in dll and b'slot=' in dll and b'surface=' in dll and
             b'button=left-trigger' in dll and b'side-grip=unchanged' in dll and b'trigger-released' in dll,
             'Diagnostic runtime strings missing')
@@ -146,24 +146,28 @@ def main():
             'warning_or_error_lines': 0, 'user_report': 'motion appears normal',
             'equipment_lottery_draws_observed': 0},
         'audit4_user_observation': 'equipment-drop test successful; feedback ZIP not created; head slides too easily on floor',
-        'audio_assets': ['iron scrape loop', 'air cut loop', 'confirmed disarm strike'],
+        'audit5_runtime_observation': {'feedback_sha256': 'a6e56c112d55d253ce3797d909c988224937f6a4405c1894ee6a9156b281959c',
+            'warning_or_error_lines': 0, 'equipment_drop_references': 4, 'equipment_drop_audio_accepted_entries': 4,
+            'max_observed_hold_ms': 14309, 'collector_summary_error': None,
+            'user_report': 'works without issues; requests a short low boon sound on each swing'},
+        'audio_assets': ['iron scrape loop', '240ms low swing one-shot', 'confirmed disarm strike'],
+        'swing_cadence': {'angular_motion_per_pulse_rad': 6.28318530718, 'minimum_interval_seconds': .28},
         'head_surface_friction': {'static_coefficient': .80, 'sliding_coefficient': .55, 'frequency_hz': 90},
         'equipment_drop_scope': 'Enemy headgear and the struck hand held weapon/shield; not gauntlets',
         'equipment_drop_probability': 'one independent unbiased 1/3 draw per eligible contact episode',
         'grab_input': 'physical left index-finger trigger (OpenVR button 33)',
         'side_grip_binding': 'unchanged by CMS',
-        'checks_requested': ['resting floor resistance and deliberate dragging', 'audible iron scrape while dragging',
-            'air cut during free swing', 'strike on actual equipment drop', 'pause and unequip stop audio',
-            'self-contained feedback launcher creates ZIP'],
+        'checks_requested': ['short low boon on a single swing', 'distinct pulses during continuous rotations',
+            'cadence follows rotation speed', 'contact holding and unequip stop swing audio'],
         'dimensions': geometry['dimensions'], 'plugin_provenance': esp,
         'asset_build_provenance': asset_provenance,
         'vanilla_texture_dependencies': sorted(vanilla),
         'files': {p: {'bytes': len(data), 'sha256': sha(data)} for p, data in files.items()},
     }
     game_count = len(files)
-    test_readme = (ROOT / 'Docs/DIAGNOSTIC_TEST_AUDIT5_JA.txt').read_text()
+    test_readme = (ROOT / 'Docs/DIAGNOSTIC_TEST_AUDIT6_JA.txt').read_text()
     files['README_JA.txt'] = test_readme.encode('utf-8-sig')
-    files['DIAGNOSTIC_STATUS.md'] = (ROOT / 'Docs/SURFACE_AUDIO_AUDIT5.md').read_bytes()
+    files['DIAGNOSTIC_STATUS.md'] = (ROOT / 'Docs/SWING_AUDIO_AUDIT6.md').read_bytes()
     files['LICENSES/HIGGS_GPL-3.0.txt'] = (ROOT / 'Source/ThirdParty/HIGGS/LICENSE').read_bytes()
     files['THIRD_PARTY_NOTICES.txt'] = (
         'HIGGS interface and documented native integration adapted from HIGGS by adamhynek.\n'

@@ -1,7 +1,8 @@
 """Synthesize original CMS audio; no game recordings or external samples.
 
-Mono PCM16 44.1 kHz. Scrape/air are periodic 2-second loops; their gain follows
-actual motion in the DLL. Disarm is a separate metal transient played only
+Mono PCM16 44.1 kHz. Scrape is a periodic 2-second loop; swing is a 240 ms
+low "boon" one-shot. The DLL retriggers it from actual angular motion.
+Disarm is a separate metal transient played only
 after Skyrim returns the dropped object. SNDR paths are relative to Data/sound.
 """
 from pathlib import Path
@@ -33,11 +34,22 @@ def generate(out):
     for f, gain in [(83.5, .13), (137.5, .10), (241, .07), (389.5, .05), (677, .025)]:
         scrape += gain * np.sin(2*np.pi*f*t + rng.uniform(0, 2*np.pi)) * (.55 + .3*grains)
     scrape += .045 * band_noise(rng, len(t), 1100, 3600) * grains
-    # Broad turbulent rush with restrained highs; volume supplies each swing's
-    # attack/release instead of a repeated, audible one-shot at every frame.
-    air = .44 * band_noise(rng, len(t), 180, 2600)
-    air += .11 * band_noise(rng, len(t), 1700, 6200)
-    air *= .8 + .08 * np.sin(2*np.pi*7*t) + .05*np.sin(2*np.pi*13.5*t)
+    # Keep the audit5 scrape/strike RNG stream and bytes unchanged while replacing
+    # only the old two-noise-block air loop with its own original one-shot.
+    rng.normal(size=(2, len(t)))
+    swing_rng = np.random.default_rng(0xB006)
+    ts = np.arange(round(RATE*.24), dtype=np.float64)/RATE
+    attack = np.sin(.5*np.pi*np.minimum(ts/.042, 1))**2
+    tail = np.exp(-(np.maximum(ts-.042, 0)/.064)**1.5)
+    envelope = attack*tail*np.minimum((.24-ts)/.025, 1)
+    # Dense low-mid turbulence supplies the body, with a short descending
+    # resonance and little high hiss. No sharp impact attack or metallic ring.
+    body = .62*band_noise(swing_rng, len(ts), 85, 530)
+    body += .20*band_noise(swing_rng, len(ts), 38, 145)
+    body += .055*band_noise(swing_rng, len(ts), 700, 1700)*np.exp(-ts/.07)
+    phase = 2*np.pi*(78*ts+110*.065*(1-np.exp(-ts/.065)))
+    body += .20*np.sin(phase+.18*np.sin(2*np.pi*19*ts))
+    air = body*envelope
     ti = np.arange(int(RATE * .85), dtype=np.float64) / RATE
     strike = .70 * np.sin(2*np.pi*(92*ti + 1.8*(1-np.exp(-ti/.025)))) * np.exp(-ti/.055)
     strike += .36 * band_noise(rng, len(ti), 140, 4700) * np.exp(-ti/.024)
@@ -56,7 +68,7 @@ def generate(out):
         report[name] = {'sha256': hashlib.sha256(path.read_bytes()).hexdigest(),
             'frames': len(pcm), 'sample_rate': RATE, 'channels': 1, 'bits': 16,
             'seconds': len(pcm)/RATE, 'peak': float(np.max(np.abs(samples))),
-            'rms': float(np.sqrt(np.mean(samples*samples))), 'loop': name != FILES[2]}
+            'rms': float(np.sqrt(np.mean(samples*samples))), 'loop': name == FILES[0]}
     (out/'audio_validation.json').write_text(json.dumps(report, indent=2)+'\n')
     validate(out)
 
@@ -78,7 +90,18 @@ def validate(out):
             assert abs(samples[0]-samples[-1]) < max(.02, 4*np.sqrt(np.mean(np.diff(samples)**2)))
         else:
             assert abs(samples[0]) < .005 and abs(samples[-1]) < .005
-    print('AUDIO_ASSETS_PASS mono PCM16 44100Hz; 2 periodic loops, 1 metal transient; no clipping/DC/click boundary')
+        if name == 'air_cut.wav':
+            assert len(samples) == round(RATE*.24) and not expected['loop']
+            power = np.abs(np.fft.rfft(samples))**2
+            freq = np.fft.rfftfreq(len(samples), 1/RATE)
+            assert power[freq<700].sum()/power.sum() > .9
+            # The low sound has a soft attack and a quiet tail, not a click or
+            # another continuous hiss. RMS alone does not prove subjective tone.
+            rms = lambda data: np.sqrt(np.mean(data*data))
+            body_rms = rms(samples[round(RATE*.03):round(RATE*.11)])
+            assert rms(samples[:round(RATE*.005)]) < .08*body_rms
+            assert rms(samples[-round(RATE*.025):]) < .08*body_rms
+    print('AUDIO_ASSETS_PASS mono PCM16 44100Hz; 1 scrape loop, 240ms low swing and disarm one-shots; no clipping/DC/click boundary')
 
 
 if __name__ == '__main__':

@@ -55,3 +55,15 @@ ChainedMorningstarVR project or a different build combination.
 - New game/load/equip generations invalidate pending contacts; no dangling pointers.
 
 Only after all gates pass may a completed release archive be offered.
+
+
+### Audit6 observation and remaining sound check
+
+The user reports audit5 normal operation. Received feedback SHA256
+`a6e56c112d55d253ce3797d909c988224937f6a4405c1894ee6a9156b281959c`
+contains no CMS warnings/errors, four successful drop references/four accepted
+disarm sound requests and a successful collector summary. This is scoped runtime
+evidence, not proof of every exhaustive checklist scenario. Audit6 changes the
+air sound to a 240 ms low one-shot with angular-motion cadence. Windows build,
+portable cadence tests, PCM and descriptor checks precede diagnostic packaging;
+new subjective timbre and VR cadence remain for the user's listening check.

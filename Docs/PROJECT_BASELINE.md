@@ -3,7 +3,7 @@
 This is the independent ChainMorningstarVR project. Do not mix runtime evidence
 or assets from the older ChainedMorningstarVR project.
 Audited main: `0777e257d64fcab908df03ff94e7a9af4ff1a0ee` (2026-10-06).
-Current work: `astra/zero-base-audit-v050`, 1.0.0-audit5 (completed release blocked; user-requested diagnostic distribution). Main remains unchanged.
+Current work: `astra/zero-base-audit-v050`, 1.0.0-audit6 (completed release blocked; user-requested diagnostic distribution). Main remains unchanged.
 
 One-hand mace: damage44, weight17, value550; Japanese name
 「チェーンドモーニングスター」; Eorlund sale; physical chain without chain damage;
@@ -55,3 +55,13 @@ archive. Audit5 applies supported static/kinetic friction (0.80/0.55) once per
 800/801. Source-generated audio and private-template ESP build are verified
 by provenance. Single-file CMD collection creates a persistent ZIP despite
 individual log errors and opens its location. See SURFACE_AUDIO_AUDIT5.md.
+
+## Audit6 swing sound
+
+The user reports audit5 works without issues but dislikes its sustained air loop.
+Feedback 20261007-174749-135-34e27c confirms version audit5, zero CMS warnings/errors,
+four real equipment drops and four accepted disarm cues, one 14,309 ms hold and
+successful collection without a summary error. Audit6 changes only swing audio:
+a 240 ms low one-shot, SNDR 803 non-looping, angular-motion-triggered repetition
+with 280 ms minimum spacing. See SWING_AUDIO_AUDIT6.md. Audited support friction,
+other sound samples, chain/head physics and equipment policy are retained.

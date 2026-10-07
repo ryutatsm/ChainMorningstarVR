@@ -180,7 +180,8 @@ jobs:
           Audit4 adds exact hand-body and shield mapping, two-handed slot ownership, and sustained mesh/native deduplication.
           Every eligible lottery outcome logs slot and surface; actual drop-reference success is recorded separately.
           Audit5 adds persistent support friction and original scrape/air/disarm audio.
-          All original sound descriptors and WAV assets must accompany this DLL.
+          Audit6 replaces the air loop with a short low swing one-shot, retriggered by actual angular motion.
+          Descriptor 803 must be non-looping; matched ESP and WAV assets must accompany this DLL.
           This CI artifact is for investigation, not a verified fix or a Vortex release.
           "@ | Set-Content "$env:GITHUB_WORKSPACE\ci-artifact\BUILD_STATUS.txt"
 

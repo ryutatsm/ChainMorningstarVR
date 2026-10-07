@@ -84,6 +84,11 @@ class PluginBinaryTests(unittest.TestCase):
         self.assertEqual(groups,[b'STAT',b'WEAP',b'SNDR'])
         self.assertEqual(struct.unpack('<fII',records[(b'TES4',0)][b'HEDR'])[1:],(8,0x805))
         self.assertEqual(records[(b'WEAP',0x1000800)][b'WNAM'],struct.pack('<I',0x1000801))
+        # User-requested audible separation depends on the ESP, not merely the
+        # DLL gate: only scrape may loop. Keep this independent of AUDIO_RECORDS.
+        self.assertEqual(records[(b'SNDR',0x1000802)][b'LNAM'][1] & 0x38,8)
+        self.assertEqual(records[(b'SNDR',0x1000803)][b'LNAM'][1] & 0x38,0)
+        self.assertEqual(records[(b'SNDR',0x1000804)][b'LNAM'][1] & 0x38,0)
         for ident, name, filename, loop in cms.AUDIO_RECORDS:
             record = records[(b'SNDR',ident)]
             self.assertEqual(record[b'ANAM'],('fx\\ChainMorningstarVR\\'+filename+'\0').encode())

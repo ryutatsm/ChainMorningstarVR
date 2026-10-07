@@ -15,7 +15,10 @@ public:
 private:
     struct Loop { RE::BSSoundHandle handle{}; bool failed{}; unsigned samples{}; };
     void UpdateLoop(Loop& loop,RE::FormID localID,const char* name,float volume,RE::NiAVObject* head);
-    Loop scrape_{},air_{};
+    Loop scrape_{};
+    RE::BSSoundHandle air_{};
+    bool airFailed_{};
+    unsigned airSamples_{};
     std::array<RE::BSSoundHandle,4> drops_{};
     std::size_t nextDrop_{};
 };

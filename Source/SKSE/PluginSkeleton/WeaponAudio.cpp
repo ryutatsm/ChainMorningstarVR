@@ -43,7 +43,20 @@ void WeaponAudio::UpdateLoop(Loop& loop,RE::FormID id,const char* name,float vol
 }
 void WeaponAudio::Update(MotionAudioMix mix,RE::NiAVObject* head) {
     UpdateLoop(scrape_,0x802,"iron-scrape",mix.scrape,head);
-    UpdateLoop(air_,0x803,"air-cut",mix.air,head);
+    if(!head||mix.airStopped) {Stop(air_);return;}
+    if(airFailed_||!std::isfinite(mix.air)||mix.air<=0) return;
+    // Descriptor 803 is non-looping. A silent frame lets the short tail finish;
+    // only a new swing request starts another sample. No per-frame restart.
+    Stop(air_);
+    const float volume=std::clamp(mix.air,0.0f,1.0f);
+    bool accepted=Build(air_,0x803,head->world.translate,volume);
+    if(accepted) {air_.SetObjectToFollow(head);accepted=air_.Play();}
+    if(airSamples_++<24)
+        SKSE::log::info("CMS motion audio: cue=air-cut state=start accepted={} volume={:.3f} mode=swing-one-shot",accepted,volume);
+    if(!accepted) {
+        Stop(air_);airFailed_=true;
+        SKSE::log::warn("CMS swing sound unavailable: localDescriptor=00000803; check matching ESP and sound files");
+    }
 }
 void WeaponAudio::EquipmentDropped(const RE::NiPoint3& position) {
     auto& sound=drops_[nextDrop_++%drops_.size()];Stop(sound);
@@ -52,7 +65,7 @@ void WeaponAudio::EquipmentDropped(const RE::NiPoint3& position) {
     if(!accepted) {Stop(sound);SKSE::log::warn("CMS equipment-drop sound unavailable; check matching ESP and sound files");}
 }
 void WeaponAudio::Reset() {
-    Stop(scrape_.handle);Stop(air_.handle);scrape_={};air_={};
+    Stop(scrape_.handle);Stop(air_);scrape_={};airFailed_=false;airSamples_=0;
     for(auto& sound:drops_)Stop(sound);
     nextDrop_=0;
 }

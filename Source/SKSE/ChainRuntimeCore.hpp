@@ -229,7 +229,8 @@ public:
     MotionAudioMix motionAudio(float dt) {
         const auto& s=chain_.solver();
         return motionSound_.update(dt,s.headSurfaceSlipMps(),
-            length(s.headVelocity90Hz()-s.anchorVelocity90Hz()),s.headTouchesSurface(),held_);
+            s.headPosition()-s.anchorPosition(),s.headVelocity90Hz()-s.anchorVelocity90Hz(),
+            s.headTouchesSurface(),held_);
     }
 
     void setTeleportResetDistanceM(float d) { teleportResetDistanceM_ = std::max(0.25f, d); }

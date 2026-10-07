@@ -26,7 +26,7 @@ CHEST_ID = 0x0010FDE6
 VENDOR_KEYWORD = 0x0008F958
 MAX_RECORD_BYTES = 1 << 20
 AUDIO_RECORDS = [(0x01000802, 'CMS_IronScrape', 'iron_scrape.wav', True),
-                 (0x01000803, 'CMS_AirCut', 'air_cut.wav', True),
+                 (0x01000803, 'CMS_AirCut', 'air_cut.wav', False),
                  (0x01000804, 'CMS_DisarmStrike', 'disarm_strike.wav', False)]
 
 
@@ -203,7 +203,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--reference-bundle", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument('--with-audio', action='store_true', help='Add audit5 original sound descriptors 802-804')
+    parser.add_argument('--with-audio', action='store_true', help='Add original sound descriptors 802-804 (scrape loop, swing and disarm one-shots)')
     parser.add_argument("--bounds", type=int, nargs=6, required=True,
                         metavar=("XMIN", "YMIN", "ZMIN", "XMAX", "YMAX", "ZMAX"))
     args = parser.parse_args()
