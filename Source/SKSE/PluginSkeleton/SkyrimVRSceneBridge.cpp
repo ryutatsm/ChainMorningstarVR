@@ -337,13 +337,12 @@ bool SkyrimVRSceneBridge::tryGetChainAnchorWorldSU(Vec3& outPositionSU, Vec3& ou
     return true;
 }
 
-void SkyrimVRSceneBridge::writeNodeWorldPose(RE::NiAVObject* node, Vec3 centerWorldM, Vec3 localZWorld, float rollRadians)
+void SkyrimVRSceneBridge::writeNodeWorldPose(RE::NiAVObject* node, Vec3 centerWorldM, const Mat3& worldR)
 {
     if (!node || !anchor_) return;
     const RigidTransform parent=anchorWorldTransformSU();
     const Vec3 centerWorldSU=centerWorldM*kSkyrimUnitsPerMeter;
     node->local.translate=toNi(worldToLocalPoint(parent,centerWorldSU));
-    const Mat3 worldR=basisFromLocalZ(localZWorld,rollRadians);
     node->local.rotate=toNi(worldToLocalRotation(parent,worldR));
     node->local.scale=1.0f;
 }
@@ -351,13 +350,13 @@ void SkyrimVRSceneBridge::writeNodeWorldPose(RE::NiAVObject* node, Vec3 centerWo
 void SkyrimVRSceneBridge::applyVisualFrame(const VisualFrame& frame)
 {
     if (!visualNodesReady() || !currentHandStillOwnsAnchor() || frame.links.size()!=links_.size()) return;
-    if (!isFinite(frame.head.centerM) || !isFinite(frame.head.chainAxis)) return;
+    if (!isFinite(frame.head.centerM) || !approximatelyOrthonormal(frame.head.rotation, .01f)) return;
     for (const auto& link : frame.links) {
         if (!isFinite(link.centerM) || !isFinite(link.tangent) || !std::isfinite(link.rollRadians)) return;
     }
     for (std::size_t i=0;i<links_.size();++i)
-        writeNodeWorldPose(links_[i].get(),frame.links[i].centerM,frame.links[i].tangent,frame.links[i].rollRadians);
-    writeNodeWorldPose(head_.get(),frame.head.centerM,frame.head.chainAxis,0.0f);
+        writeNodeWorldPose(links_[i].get(),frame.links[i].centerM,frame.links[i].rotation);
+    writeNodeWorldPose(head_.get(),frame.head.centerM,frame.head.rotation);
 
     // HIGGS/VRIK have updated tracked hands. Refresh the owned subtree after
     // writing local poses so visuals do not lag a frame behind their simulation.

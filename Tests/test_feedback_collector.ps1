@@ -9,7 +9,9 @@ New-Item -ItemType Directory -Path $logRoot -Force | Out-Null
 $fixture = Join-Path $logRoot 'ChainMorningstarVR.log'
 if (Test-Path -LiteralPath $fixture) { throw 'Refusing to overwrite an existing Skyrim log' }
 $payload = @'
-[info] ChainMorningstarVR 1.0.0-audit2 loading: INVESTIGATION BUILD
+[info] ChainMorningstarVR 1.0.0-audit3 loading: INVESTIGATION BUILD
+[info] CMS native pose restored before sweep: displacementM=0.52 total=1 held=true
+[info] CMS head stability: step=500 held=true targetStepM=0 rotationStepRad=0 sweepRecoveryM=0 poseRestores=1
 [info] CMS offhand input registered: button=left-trigger mask=0x200000000 priority=65 final-filter=true side-grip=unchanged
 [info] Native head attached: generation=1
 [info] CMS player-body chain contact: samples=2 total=2 damage=false
@@ -90,7 +92,9 @@ try {
             $summaryReader = [IO.StreamReader]::new($summaryEntry.Open())
             try { $summary = $summaryReader.ReadToEnd() | ConvertFrom-Json }
             finally { $summaryReader.Dispose() }
-            if ($summary.cms_version -ne '1.0.0-audit2' -or $summary.offhand_held_entries -ne 3 -or
+            if ($summary.head_stability_entries -ne 1 -or $summary.native_pose_restore_entries -ne 1 -or
+                $summary.native_pose_restore_max_displacement_m -ne 0.52 -or
+                $summary.cms_version -ne '1.0.0-audit3' -or $summary.offhand_held_entries -ne 3 -or
                 $summary.offhand_grab_button -ne 'left-trigger' -or
                 $summary.offhand_released_entries -ne 3 -or $summary.equipment_drop_references -ne 1 -or
                 $summary.offhand_release_reasons.'input-stale' -ne 1 -or

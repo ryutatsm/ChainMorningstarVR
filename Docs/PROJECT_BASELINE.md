@@ -3,7 +3,7 @@
 This is the independent ChainMorningstarVR project. Do not mix runtime evidence
 or assets from the older ChainedMorningstarVR project.
 Audited main: `0777e257d64fcab908df03ff94e7a9af4ff1a0ee` (2026-10-06).
-Current work: `astra/zero-base-audit-v050`, 1.0.0-audit2 (completed release blocked; user-requested diagnostic distribution). Main remains unchanged.
+Current work: `astra/zero-base-audit-v050`, 1.0.0-audit3 (completed release blocked; user-requested diagnostic distribution). Main remains unchanged.
 
 One-hand mace: damage44, weight17, value550; Japanese name
 「チェーンドモーニングスター」; Eorlund sale; physical chain without chain damage;
@@ -29,7 +29,10 @@ The previous implementation hard-coded side grip/button2 and missed the user's
 normal trigger grabs. Audit1 logged one 160ms side-grip hold; it did not observe
 trigger attempts. Audit2 preserves side grip, reads/owns only the trigger near
 the ball, and blocks delayed replay of that owned trigger. See
-OFFHAND_AUDIT_100_AUDIT2.md. Continuous physical VR holding remains unverified.
+HEAD_STABILITY_AUDIT3.md. Audit2 feedback recorded a 29,962ms hold, but the user
+reports unwanted motion, quarter-turns and floor bounce. Audit3 fixes continuous
+orientation, full grip pose, split contact recovery and native endpoint continuity.
+Physical stability remains unverified.
 The taut-chain and selection fixes from prior versions remain.
 RELEASE_GATE_NEW_BUILD.md is unchanged; pending observations remain pending.
 

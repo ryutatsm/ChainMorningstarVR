@@ -43,7 +43,7 @@ private:
     static Mat3 toCms(const RE::NiMatrix3& m);
     static RE::NiMatrix3 toNi(const Mat3& m);
     RigidTransform anchorWorldTransformSU() const;
-    void writeNodeWorldPose(RE::NiAVObject* node, Vec3 centerWorldM, Vec3 localZWorld, float rollRadians);
+    void writeNodeWorldPose(RE::NiAVObject* node, Vec3 centerWorldM, const Mat3& worldRotation);
     void runReadOnlyNativeMeleeProbe();
     bool currentHandStillOwnsAnchor() const;
     void playChainSound(float intensity, bool heavyImpact);

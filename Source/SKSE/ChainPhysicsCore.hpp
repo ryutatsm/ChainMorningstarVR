@@ -1,6 +1,7 @@
 #pragma once
 
 #include "WeaponDimensions.hpp"
+#include "SceneTransformCore.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -10,37 +11,6 @@
 #include <vector>
 
 namespace cms {
-
-constexpr float kSkyrimUnitsPerMeter = 69.99125f;
-constexpr float kMetersPerSkyrimUnit = 1.0f / kSkyrimUnitsPerMeter;
-
-struct Vec3 {
-    float x{}, y{}, z{};
-};
-
-inline Vec3 operator+(Vec3 a, Vec3 b) { return {a.x + b.x, a.y + b.y, a.z + b.z}; }
-inline Vec3 operator-(Vec3 a, Vec3 b) { return {a.x - b.x, a.y - b.y, a.z - b.z}; }
-inline Vec3 operator-(Vec3 a) { return {-a.x, -a.y, -a.z}; }
-inline Vec3 operator*(Vec3 a, float s) { return {a.x * s, a.y * s, a.z * s}; }
-inline Vec3 operator*(float s, Vec3 a) { return a * s; }
-inline Vec3 operator/(Vec3 a, float s) { return {a.x / s, a.y / s, a.z / s}; }
-inline Vec3& operator+=(Vec3& a, Vec3 b) { a = a + b; return a; }
-inline Vec3& operator-=(Vec3& a, Vec3 b) { a = a - b; return a; }
-
-inline float dot(Vec3 a, Vec3 b) { return a.x*b.x + a.y*b.y + a.z*b.z; }
-inline Vec3 cross(Vec3 a, Vec3 b) {
-    return {a.y*b.z - a.z*b.y, a.z*b.x - a.x*b.z, a.x*b.y - a.y*b.x};
-}
-inline float lengthSq(Vec3 a) { return dot(a, a); }
-inline float length(Vec3 a) { return std::sqrt(lengthSq(a)); }
-inline bool isFinite(Vec3 a) {
-    return std::isfinite(a.x) && std::isfinite(a.y) && std::isfinite(a.z);
-}
-inline Vec3 normalized(Vec3 a) {
-    const float l = length(a);
-    return std::isfinite(l) && l > 1.0e-7f ? a / l : Vec3{};
-}
-inline Vec3 lerp(Vec3 a, Vec3 b, float t) { return a + (b-a)*t; }
 
 // One native Havok contact sample. All vectors are world-space metres, and
 // normalWorld points from the other body towards this weapon head. The native
@@ -77,6 +47,7 @@ struct Particle {
 struct HeadHoldTarget {
     Vec3 positionM{};
     bool active{};
+    Mat3 rotation{};
 };
 
 // Query-only collision data. These links are never Havok attack bodies and
@@ -270,9 +241,8 @@ public:
         Vec3 velocity = headVelocity90Hz();
         const Vec3 originalHead = headPosition();
         projectHeadOutsideContacts();
-        // A late callback can correct a visibly penetrating keyframe target.
-        // Position recovery must not become a large outward Verlet velocity.
-        points_.back().previous += headPosition() - originalHead;
+        // Projection moves previous and current positions together: recovery
+        // never becomes an outward Verlet velocity, here or in fixed steps.
 
         float normalImpulse = 0.0f;
         for (const auto& contact : contacts_) {
@@ -479,8 +449,11 @@ private:
         for (int pass = 0; pass < 4; ++pass) {
             for (const auto& contact : contacts_) {
                 const float distance = dot(headPosition() - contact.centerLimitM, contact.normalWorld);
-                if (distance < kContactSlopM)
-                    points_.back().position += contact.normalWorld * (kContactSlopM - distance);
+                if (distance < kContactSlopM) {
+                    const Vec3 recovery = contact.normalWorld * (kContactSlopM - distance);
+                    points_.back().position += recovery;
+                    points_.back().previous += recovery;
+                }
             }
         }
     }

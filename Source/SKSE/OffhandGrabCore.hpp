@@ -1,5 +1,6 @@
 #pragma once
 #include "SceneTransformCore.hpp"
+#include "ChainPhysicsCore.hpp"
 
 namespace cms {
 
@@ -41,7 +42,8 @@ public:
     [[nodiscard]] const OffhandGrabDiagnostic& diagnostic() const { return diagnostic_; }
     HeadHoldTarget update(bool valid, bool down, bool captured, bool freeHand,
                           const RigidTransform& palmM, Vec3 headM, Vec3 anchorM,
-                          float radiusM, float reachM, float dt) {
+                          float radiusM, float reachM, float dt,
+                          const Mat3& headRotation = {}) {
         const bool pressed = down && !wasDown_;
         wasDown_ = down;
         diagnostic_ = {};
@@ -57,6 +59,7 @@ public:
         if (!isFinite(headM) ||
             !isFinite(anchorM) || !isFinite(palmM.translation) ||
             !approximatelyOrthonormal(palmM.rotation, .03f) ||
+            !approximatelyOrthonormal(headRotation, .03f) ||
             !std::isfinite(radiusM) || radiusM<=0 || !std::isfinite(reachM) ||
             reachM<=0 || !std::isfinite(dt) || dt<=0) {
             return stop(OffhandGrabReason::kInvalidPose);
@@ -67,6 +70,7 @@ public:
             if (diagnostic_.palmDistanceM>radiusM+.06f)
                 return stop(OffhandGrabReason::kOutsideHeadReach);
             offsetM_ = mul(transpose(palmM.rotation), headM-palmM.translation);
+            rotationInPalm_ = mul(transpose(palmM.rotation), headRotation);
             previousPalmM_ = palmM.translation;
             held_ = true;
         }
@@ -91,10 +95,11 @@ public:
             return stop(OffhandGrabReason::kHeadObstructed);
         previousPalmM_ = palmM.translation;
         diagnostic_.reason = OffhandGrabReason::kHeld;
-        return {target,true};
+        return {target,true,mul(palmM.rotation,rotationInPalm_)};
     }
 private:
     Vec3 offsetM_{}, previousPalmM_{};
+    Mat3 rotationInPalm_{};
     bool wasDown_{}, held_{};
     OffhandGrabDiagnostic diagnostic_{};
 };

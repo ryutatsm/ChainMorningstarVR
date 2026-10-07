@@ -30,7 +30,7 @@ struct InteractionBridge final : IGameBridge {
         const auto input=capture.read(1,std::uint64_t(clockMs));
         const float radius=kHeadBroadphaseRadiusM*scale;
         hold=grab.update(input.fresh,input.down,input.captured,freeHand,
-            palm,head.centerM,a,radius,kStraightReachM,dt);
+            palm,head.centerM,a,radius,kStraightReachM,dt,head.rotation);
         const bool nearHead=length(palm.translation-head.centerM)<=radius+.06f;
         capture.arm(1,freeHand&&(hold.active||(nearHead&&!input.down)),std::uint64_t(clockMs));
         return hold;

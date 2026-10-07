@@ -18,12 +18,15 @@ struct LinkPose {
     Vec3 centerM{};
     Vec3 tangent{};
     float rollRadians{};
+    Mat3 rotation{basisFromLocalZ(tangent, rollRadians)};
 };
 
 struct HeadPose {
     Vec3 centerM{};
     Vec3 chainAxis{};
     Vec3 velocityMps{};
+    Mat3 rotation{basisFromLocalZ(chainAxis)};
+    bool held{};
 };
 
 struct VisualFrame {
@@ -128,6 +131,7 @@ public:
         equipped_ = true;
         const Vec3 anchorM = anchorWorldSU * kMetersPerSkyrimUnit;
         chain_.reset(anchorM, initialDirectionWorld);
+        resetRotations();
         previousHeadM_ = chain_.solver().headPosition();
         lastAnchorM_ = anchorM;
         lastSimulatedDt_ = 0.0f;
@@ -140,6 +144,7 @@ public:
         hasPreviousHead_ = false;
         lastSimulatedDt_ = 0.0f;
         chain_.solver().clearWorldContacts();
+        linkRotations_.clear();
         sound_.reset();
     }
 
@@ -162,6 +167,7 @@ public:
 
         if (wouldTeleportReset(anchorWorldSU)) {
             chain_.reset(anchorM, {0,0,-1});
+            resetRotations();
             previousHeadM_ = chain_.solver().headPosition();
             lastSimulatedDt_ = 0.0f;
             hasPreviousHead_ = true;
@@ -170,6 +176,16 @@ public:
             if (hasPreviousHead_) previousHeadM_ = chain_.solver().headPosition();
             const int steps = chain_.update(frameDt, anchorM, query, hold);
             lastSimulatedDt_ = static_cast<float>(steps) * (1.0f / 90.0f);
+            const auto frame = buildVisualFrame(chain_.solver());
+            held_ = hold.active && approximatelyOrthonormal(hold.rotation, .03f);
+            // A resting head must not drill its spikes into the floor merely
+            // because a slack end-link is settling. Resume alignment in flight.
+            if (held_) headRotation_=hold.rotation;
+            else if (chain_.solver().activeContactCount()==0)
+                headRotation_=transportLocalZ(headRotation_,frame.head.chainAxis,
+                    6.0f * std::clamp(frameDt, 0.0f, .05f));
+            for (std::size_t i=0;i<linkRotations_.size();++i)
+                linkRotations_[i] = transportLocalZ(linkRotations_[i], frame.links[i].tangent);
         }
         lastAnchorM_ = anchorM;
         hasPreviousHead_ = true;
@@ -187,7 +203,13 @@ public:
 
     [[nodiscard]] bool equipped() const { return equipped_; }
     [[nodiscard]] const ChainSolver& solver() const { return chain_.solver(); }
-    [[nodiscard]] VisualFrame visualFrame() const { return buildVisualFrame(chain_.solver()); }
+    [[nodiscard]] VisualFrame visualFrame() const {
+        auto frame = buildVisualFrame(chain_.solver());
+        frame.head.rotation = headRotation_;
+        frame.head.held = held_;
+        for (std::size_t i=0;i<linkRotations_.size();++i) frame.links[i].rotation=linkRotations_[i];
+        return frame;
+    }
 
     [[nodiscard]] HeadSweep headSweep() const {
         const Vec3 now = chain_.solver().headPosition();
@@ -204,7 +226,17 @@ public:
     void setTeleportResetDistanceM(float d) { teleportResetDistanceM_ = std::max(0.25f, d); }
 
 private:
+    void resetRotations() {
+        const auto frame = buildVisualFrame(chain_.solver());
+        headRotation_ = frame.head.rotation;
+        held_ = false;
+        linkRotations_.clear();
+        for (const auto& link : frame.links) linkRotations_.push_back(link.rotation);
+    }
     FixedStepChain chain_{};
+    Mat3 headRotation_{};
+    std::vector<Mat3> linkRotations_;
+    bool held_{};
     ChainSoundGate sound_{};
     Vec3 previousHeadM_{};
     Vec3 lastAnchorM_{};

@@ -47,7 +47,7 @@ struct HeadCompoundFrame {
 inline HeadCompoundFrame buildHeadCompoundFrame(const HeadPose& head, float axialRollRadians=0.0f) {
     HeadCompoundFrame out{};
     out.coreCenterM = head.centerM;
-    const Mat3 worldR = basisFromLocalZ(head.chainAxis, axialRollRadians);
+    const Mat3 worldR = mul(head.rotation, basisFromLocalZ({0,0,1}, axialRollRadians));
     for (std::size_t i=0; i<kSpikeCount; ++i) {
         const Vec3 d = normalized(mul(worldR, kSpikeDirectionsLocal[i]));
         out.spikes[i] = {

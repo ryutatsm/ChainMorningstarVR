@@ -1,4 +1,4 @@
-"""Build the explicitly requested audit2 runtime-test ZIP; never a completed release.
+"""Build the explicitly requested audit3 runtime-test ZIP; never a completed release.
 
 Uses the matched, already-built Windows DLL/assets. Their complete source
 manifests must still match the checkout. Packaging docs/code have a separately
@@ -36,11 +36,11 @@ def main():
     packaging_commit = git('rev-parse', 'HEAD')
     require(not git('status', '--porcelain', '--untracked-files=no'), 'Commit tracked edits before packaging')
     subprocess.run(['git', 'merge-base', '--is-ancestor', commit, packaging_commit], cwd=ROOT, check=True)
-    version = '1.0.0-audit2'
+    version = '1.0.0-audit3'
     cmake = (ROOT / 'Source/SKSE/PluginSkeleton/CMakeLists.txt').read_text()
     require('project(ChainMorningstarVR VERSION 1.0.0' in cmake and
-            'set(CMS_BUILD_LABEL "${PROJECT_VERSION}-audit2")' in cmake,
-            'This diagnostic packager is restricted to audit2')
+            'set(CMS_BUILD_LABEL "${PROJECT_VERSION}-audit3")' in cmake,
+            'This diagnostic packager is restricted to audit3')
     win, assets = args.windows_dir, args.windows_dir / 'assets'
     asset_provenance = read_json(assets / 'ASSET_BUILD_PROVENANCE.json')
     require(asset_provenance['source_commit'] == commit, 'Asset source commit mismatch')
@@ -83,6 +83,7 @@ def main():
             struct.unpack_from('<H', dll, pe+4)[0] == 0x8664 and
             struct.unpack_from('<H', dll, pe+24)[0] == 0x20b, 'Expected x64 Windows DLL')
     require(version.encode() in dll and b'heldMs=' in dll and b'chain-overextended' in dll and
+            b'CMS head stability:' in dll and b'CMS native pose restored before sweep:' in dll and
             b'button=left-trigger' in dll and b'side-grip=unchanged' in dll and b'trigger-released' in dll,
             'Diagnostic runtime strings missing')
     nif = files[NIF_PATH]
@@ -120,21 +121,23 @@ def main():
         'source_verification': {'dll_files': dll_count, 'asset_files': asset_count,
             'third_party_files': len(third), 'native_contact_planes_match_nif_input': True,
             'text_line_endings': 'LF/CRLF normalized; binary hashes exact'},
-        'audit1_runtime_observation': {'side_grip_held_ms': 160, 'release_reason': 'grip-released',
-            'trigger_observed': False, 'user_report': 'grabbing uses the index-finger trigger'},
+        'audit2_runtime_observation': {'max_observed_hold_ms': 29962,
+            'max_recorded_target_error_m': 0.2981742,
+            'user_report': 'unwanted held motion, quarter-turns and violent floor bounce'},
         'grab_input': 'physical left index-finger trigger (OpenVR button 33)',
         'side_grip_binding': 'unchanged by CMS',
-        'checks_requested': ['continuous 10-second left-trigger hold', 'slow lift and taut-chain movement',
-            'release and regrab', 'menu/sheathe lifecycle', 'ordinary HIGGS grabs after switching weapon'],
+        'checks_requested': ['10-second stationary left-trigger hold', 'palm-relative wrist rotation',
+            'near-floor release and 10-second floor rest', 'light floor/wall/table contact',
+            'release and regrab', 'sheathe lifecycle and ordinary HIGGS grabs'],
         'dimensions': geometry['dimensions'], 'plugin_provenance': esp,
         'asset_build_provenance': asset_provenance,
         'vanilla_texture_dependencies': sorted(vanilla),
         'files': {p: {'bytes': len(data), 'sha256': sha(data)} for p, data in files.items()},
     }
     game_count = len(files)
-    test_readme = (ROOT / 'Docs/DIAGNOSTIC_TEST_AUDIT2_JA.txt').read_text()
+    test_readme = (ROOT / 'Docs/DIAGNOSTIC_TEST_AUDIT3_JA.txt').read_text()
     files['README_JA.txt'] = test_readme.encode('utf-8-sig')
-    files['DIAGNOSTIC_STATUS.md'] = (ROOT / 'Docs/OFFHAND_AUDIT_100_AUDIT2.md').read_bytes()
+    files['DIAGNOSTIC_STATUS.md'] = (ROOT / 'Docs/HEAD_STABILITY_AUDIT3.md').read_bytes()
     files['LICENSES/HIGGS_GPL-3.0.txt'] = (ROOT / 'Source/ThirdParty/HIGGS/LICENSE').read_bytes()
     files['THIRD_PARTY_NOTICES.txt'] = (
         'HIGGS interface and documented native integration adapted from HIGGS by adamhynek.\n'

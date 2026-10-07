@@ -95,7 +95,7 @@ HeadHoldTarget SkyrimVRSceneBridge::updatePlayerInteraction(const HeadPose& head
     const bool wasHeld=offhandGrab_.held();
     const float radius=kHeadBroadphaseRadiusM*acquiredScale_;
     const auto hold=offhandGrab_.update(input.fresh,input.down,input.captured,freeHand,
-        palm,head.centerM,anchorM,radius,kStraightReachM,dt);
+        palm,head.centerM,anchorM,radius,kStraightReachM,dt,head.rotation);
     const auto& diagnostic=offhandGrab_.diagnostic();
     const bool nearHead=freeHand&&isFinite(palm.translation)&&
         length(palm.translation-head.centerM)<=radius+.06f;

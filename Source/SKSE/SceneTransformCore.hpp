@@ -1,7 +1,8 @@
 #pragma once
 
 #include <cmath>
-#include "ChainPhysicsCore.hpp"
+#include "VectorMath.hpp"
+#include <algorithm>
 
 namespace cms {
 
@@ -62,6 +63,35 @@ inline Mat3 basisFromLocalZ(Vec3 zAxis, float rollRadians = 0.0f) {
     out.m[0][0]=xr.x; out.m[1][0]=xr.y; out.m[2][0]=xr.z;
     out.m[0][1]=yr.x; out.m[1][1]=yr.y; out.m[2][1]=yr.z;
     out.m[0][2]=z.x;  out.m[1][2]=z.y;  out.m[2][2]=z.z;
+    return out;
+}
+
+// Parallel transport keeps the existing roll. Rebuilding a world-up basis
+// every frame flipped the emblem/spikes by 90 degrees at abs(z.z) == .90.
+// A bounded swing also prevents a slack end-link from instantly turning the
+// heavy head. At an exact reversal the old X axis supplies a stable turn axis.
+inline Mat3 transportLocalZ(const Mat3& previous, Vec3 targetZ,
+                           float maxAngle = 3.14159265358979323846f) {
+    targetZ = normalized(targetZ);
+    if (lengthSq(targetZ) < .5f) return previous;
+    const Vec3 oldZ = column(previous, 2);
+    const float cosine = std::clamp(dot(oldZ, targetZ), -1.0f, 1.0f);
+    Vec3 axis = cross(oldZ, targetZ);
+    const float sine = length(axis);
+    if (sine < 1e-7f && cosine > 0) return previous;
+    axis = sine > 1e-7f ? axis / sine : column(previous, 0);
+    const float angle = std::min(std::atan2(sine, cosine), std::max(0.0f, maxAngle));
+    const float c = std::cos(angle), s = std::sin(angle);
+    const auto turn = [&](Vec3 v) { return v*c + cross(axis,v)*s + axis*(dot(axis,v)*(1-c)); };
+    const Vec3 z = normalized(turn(oldZ));
+    const Vec3 turnedX = turn(column(previous,0));
+    const Vec3 x = normalized(turnedX-z*dot(turnedX,z));
+    const Vec3 y = normalized(cross(z,x));
+    Mat3 out{};
+    for (int i=0;i<3;++i) {
+        const Vec3 v = i==0 ? x : i==1 ? y : z;
+        out.m[0][i]=v.x; out.m[1][i]=v.y; out.m[2][i]=v.z;
+    }
     return out;
 }
 

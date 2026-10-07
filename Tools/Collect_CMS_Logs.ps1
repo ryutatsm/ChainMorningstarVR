@@ -27,6 +27,9 @@ $summary = [ordered]@{
     evidence_scope = 'Counts are sampled log entries, not complete event totals. Zero means not observed; it is not proof of failure or success.'
     warning_or_error_lines = 0
     native_head_attachments = 0
+    head_stability_entries = 0
+    native_pose_restore_entries = 0
+    native_pose_restore_max_displacement_m = 0.0
     player_body_contact_entries = 0
     offhand_held_entries = 0
     offhand_released_entries = 0
@@ -48,6 +51,12 @@ if ($summary.cms_log_present) {
     if ($buttons.Count) { $summary.offhand_grab_button = $buttons[$buttons.Count - 1].Groups[1].Value }
     $summary.warning_or_error_lines = [regex]::Matches($cmsText, '\[(warn|warning|error|critical)\]').Count
     $summary.native_head_attachments = [regex]::Matches($cmsText, 'Native head attached:').Count
+    $summary.head_stability_entries = [regex]::Matches($cmsText, 'CMS head stability:').Count
+    $summary.native_pose_restore_entries = [regex]::Matches($cmsText, 'CMS native pose restored before sweep:').Count
+    foreach ($match in [regex]::Matches($cmsText, 'CMS native pose restored before sweep: displacementM=([0-9.eE+\-]+)')) {
+        $distance = [double]::Parse($match.Groups[1].Value, [Globalization.CultureInfo]::InvariantCulture)
+        $summary.native_pose_restore_max_displacement_m = [Math]::Max($summary.native_pose_restore_max_displacement_m, $distance)
+    }
     $summary.player_body_contact_entries = [regex]::Matches($cmsText, 'CMS player-body chain contact:').Count
     $summary.offhand_held_entries = [regex]::Matches($cmsText, 'CMS offhand head grip: held\b').Count
     $summary.offhand_released_entries = [regex]::Matches($cmsText, 'CMS offhand head grip: released\b').Count

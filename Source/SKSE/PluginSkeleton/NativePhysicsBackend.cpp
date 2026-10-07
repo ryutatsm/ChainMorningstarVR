@@ -9,6 +9,7 @@
 #include "PlayerUpdateHook.hpp"
 #include "VRFrameContext.hpp"
 #include "../OffhandSelectionCore.hpp"
+#include "../NativePoseCore.hpp"
 #include "../../ThirdParty/HIGGS/HiggsInterface001.hpp"
 #include <SKSE/SKSE.h>
 #include <atomic>
@@ -95,6 +96,10 @@ struct State {
     std::atomic<float> contactUnits{1};
     std::vector<HeadWorldContact> contacts;
     NativeHeadSnapshot snapshot{};
+    NativePoseContinuity continuity;
+    unsigned poseRestoreReports{};
+    std::uint64_t poseRestores{};
+    std::atomic<RE::hkpRigidBody*> holdingHandBody{};
 };
 State& state() { static auto* s=new State; return *s; }
 // CompareFilterInfo can run on physics workers too. They see an inactive TLS
@@ -122,6 +127,9 @@ class Listener final : public RE::hkpContactListener {
         if(!own||!event.contactPoint) return;
         const int index=event.bodies[0]==own?0:(event.bodies[1]==own?1:-1);
         if(index<0||!event.bodies[1-index]) return;
+        // A ball grasp overlaps its holding fingers by design. The keyframed
+        // hand must not become a solver plane that expels its own held ball.
+        if(event.bodies[1-index]==s.holdingHandBody.load()) return;
         const float scale=s.contactUnits.load();
         if(!std::isfinite(scale)||scale<=0) return;
         const Vec3 point=vector3(event.contactPoint->position);
@@ -152,6 +160,8 @@ void detach(State& s, bool alreadyWorldLocked=false) {
     selectionScope.end();
     s.contactBody.store(nullptr);
     s.contactGeneration.store(0);
+    s.holdingHandBody.store(nullptr);
+    s.continuity.reset();
     NativeContactRouter::GetSingleton().EndSession();
     auto cleanup=[&] {
         if(auto* b=havokBody(s.body.get())) {
@@ -201,7 +211,7 @@ void prePhysics(void* worldPointer) {
     if(world->criticalOperationsLockCount!=0) return;
     auto* shape=static_cast<RE::hkpShape*>(s.shape->referencedObject.get());
     const RE::hkVector4 target=hk(s.pose.centerM*s.unitScale);
-    const RE::hkQuaternion orientation=quaternion(basisFromLocalZ(s.pose.chainAxis));
+    const RE::hkQuaternion orientation=quaternion(s.pose.rotation);
     if(!s.body) {
         s.body.reset(bodyWrapper);s.world.reset(wrapper);
         s.previousShape.reset(const_cast<RE::hkpShape*>(body->collidable.shape));
@@ -215,6 +225,7 @@ void prePhysics(void* worldPointer) {
         body->contactPointCallbackDelay=0;
         using SetPose=void(*)(RE::hkpEntity*,const RE::hkVector4&,const RE::hkQuaternion&);
         gameFunction<SetPose>(0xAA9030)(body,target,orientation);
+        s.continuity.commit(s.pose.centerM,s.pose.rotation);
         body->motion.SetLinearVelocity(RE::hkVector4{});body->motion.SetAngularVelocity(RE::hkVector4{});
         using Add=void*(*)(RE::hkpEntity*,RE::hkpContactListener*);
         gameFunction<Add>(0xAA6FE0)(body,&listener());s.listenerAttached=true;
@@ -224,13 +235,37 @@ void prePhysics(void* worldPointer) {
         SKSE::log::info("Native head attached: generation={} body={:X} compound=15 scale={} havokUnitsPerMeter={}",s.generation,reinterpret_cast<std::uintptr_t>(body),s.shapeScale,s.unitScale);
     }
     if(body->collidable.shape!=shape){detach(s,true);s.active=false;SKSE::log::warn("Native head stopped: another owner replaced the shape");return;}
+    const Vec3 incomingCenter=vector3(body->motion.motionState.transform.translation)/s.unitScale;
+    const Mat3 incomingRotation=matrix(body->motion.motionState.transform.rotation);
+    if(s.continuity.needsRestore(incomingCenter,incomingRotation)) {
+        using SetPose=void(*)(RE::hkpEntity*,const RE::hkVector4&,const RE::hkQuaternion&);
+        gameFunction<SetPose>(0xAA9030)(body,hk(s.continuity.center()*s.unitScale),quaternion(s.continuity.rotation()));
+        ++s.poseRestores;
+        if(s.poseRestoreReports<4 || s.poseRestores%500==0) {
+            ++s.poseRestoreReports;
+            SKSE::log::info("CMS native pose restored before sweep: displacementM={} total={} held={}",
+                length(incomingCenter-s.continuity.center()),s.poseRestores,s.pose.held);
+        }
+    }
+    auto* holdingHand=s.pose.held&&!s.left?s.api->GetHandRigidBody(true):nullptr;
+    s.holdingHandBody.store(havokBody(holdingHand?holdingHand->AsBhkRigidBody():nullptr));
     ++s.step;s.contactStep.store(s.step);
     // This HIGGS callback runs immediately before hkpWorld::stepDeltaTime.
     // Its own PrePhysicsStep is empty in the pinned source. SimulatePlayerSpace's
-    // hand-relative write has already occurred, so this is the final keyframe.
+    // hand-relative write has already occurred. It may also warp the body;
+    // restore our previous endpoint above before querying the next path.
     float dt=world->dynamicsStepInfo.stepInfo.deltaTime;
     if(!std::isfinite(dt)||dt<1.0f/300||dt>.05f)dt=s.frameDt;
     const auto sweep=SweepNativeHeadAgainstStaticWorld(world,body,target,s.unitScale,s.step);
+    if(s.step%500==0) {
+        const auto current=matrix(body->motion.motionState.transform.rotation);
+        const float cosine=std::clamp((dot(column(current,0),column(s.pose.rotation,0))+
+            dot(column(current,1),column(s.pose.rotation,1))+
+            dot(column(current,2),column(s.pose.rotation,2))-1.0f)*.5f,-1.0f,1.0f);
+        SKSE::log::info("CMS head stability: step={} held={} targetStepM={} rotationStepRad={} sweepRecoveryM={} poseRestores={}",
+            s.step,s.pose.held,length(s.pose.centerM-vector3(body->motion.motionState.transform.translation)/s.unitScale),
+            std::acos(cosine),length(vector3(sweep.safeTargetHavok)-vector3(target))/s.unitScale,s.poseRestores);
+    }
     if(sweep.hit) {
         auto contact=sweep.contact;
         // HIGGS overwrote the body's keyframe velocity earlier in this frame.
@@ -240,6 +275,7 @@ void prePhysics(void* worldPointer) {
     }
     using Keyframe=void(*)(const RE::hkVector4&,const RE::hkQuaternion&,float,RE::hkpRigidBody*);
     gameFunction<Keyframe>(0xAF6DD0)(sweep.safeTargetHavok,orientation,1.0f/dt,body);
+    s.continuity.commit(vector3(sweep.safeTargetHavok)/s.unitScale,s.pose.rotation);
     NativeHeadSnapshot snap{};
     snap.centerM=vector3(body->motion.motionState.transform.translation)/s.unitScale;
     snap.rotation=matrix(body->motion.motionState.transform.rotation);
@@ -304,7 +340,7 @@ bool NativePhysicsBackend::BeginSession(RE::NiAVObject* node,bool left,std::uint
     const Vec3 desired=expected*(unitScale*visualScale);
     if(!isFinite(actual)||length(actual-desired)>.012f*length(desired)){s.shape.reset();SKSE::log::warn("Native head clone scale failed validation");return false;}
     s.unitScale=unitScale;s.shapeScale=visualScale;s.left=left;s.generation=generation;s.step=0;s.active=true;
-    s.chainSweeps=0;s.chainContacts=0;
+    s.chainSweeps=0;s.chainContacts=0;s.poseRestores=0;s.poseRestoreReports=0;
     SKSE::log::info("Native head prepared: fifteen convex hulls, sourceScale={} cloneScale={} visualScale={}",sx,scale,visualScale);return true;
 }
 void NativePhysicsBackend::EndSession() {
@@ -312,7 +348,7 @@ void NativePhysicsBackend::EndSession() {
 }
 void NativePhysicsBackend::SubmitPose(const HeadPose& pose,float dt) {
     auto& s=state();std::lock_guard lock(s.stateMutex);if(!s.active)return;
-    if(!isFinite(pose.centerM)||!isFinite(pose.chainAxis)||!std::isfinite(dt)||dt<=0)return;
+    if(!isFinite(pose.centerM)||!approximatelyOrthonormal(pose.rotation,.01f)||!std::isfinite(dt)||dt<=0)return;
     auto* object=s.api->GetWeaponRigidBody(s.left);
     s.expectedBody.reset(object?object->AsBhkRigidBody():nullptr);
     s.pose=pose;s.frameDt=std::clamp(dt,1.0f/300,.05f);s.poseValid=true;s.submitted=std::chrono::steady_clock::now();
