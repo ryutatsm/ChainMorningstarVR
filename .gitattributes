@@ -1,5 +1,6 @@
 # These snapshots have byte-level provenance, including original CMS line endings.
 Assets/BlenderFinish/** -text whitespace=cr-at-eol
 Assets/BlenderFinish/*.cms -diff
+Assets/Audit6Baseline/*.zip binary
 *.blend binary
 Tools/Blender/contracts/*.cms -text -diff whitespace=cr-at-eol

@@ -1,0 +1,13 @@
+{
+  "format": "cms-audit6-unified-payload-v1",
+  "baseline_zip_sha256": "63c6a4afaa5d032f58b66e4ce13c41f3ef410df8d19c15ee5714614d835bcd70",
+  "visual_input_commit": "18aa8016124f11ac27c2e0c62c6e3b14db86ab82",
+  "nif_total_triangles": 3996,
+  "game_files": {
+    "meshes/weapons/ChainMorningstarVR/ChainMorningstar.nif": "a2f5a40473884201c1eac9257f12d81a973d918d84d403ef8b914af36bc8d2c9",
+    "textures/weapons/ChainMorningstarVR/cms_emblem_n.dds": "77b816fc5a0ffab6899d4ac9f33a2021e64afdb73b3904dc7819cad35154fd3c",
+    "textures/weapons/ChainMorningstarVR/cms_leather_d.dds": "7583fe7283734d706476762c3b0a176261ed8bdf6a6b35b17cfa6f693b27dc50",
+    "textures/weapons/ChainMorningstarVR/cms_leather_n.dds": "293dac315b45dc2d6600e5593059f32152fcdf4709afbc74d25a8f2ae9e9bf96",
+    "textures/weapons/ChainMorningstarVR/cms_wood_n.dds": "cf647f10c97995a5b948799b6e04632605a4165e9c694215cc65e83b391182cc"
+  }
+}
