@@ -1,0 +1,52 @@
+name: Authored Blender visual overlay (audit6)
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/blender-finish]
+    paths: ["Assets/BlenderFinish/**", "Tools/Blender/**", "Tests/test_blender_optimization.py", ".github/workflows/blender-visual-test.yml"]
+permissions:
+  contents: read
+jobs:
+  overlay:
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: ousnius/nifly
+          ref: cca0a770094bb962fb28ea1fec5ea903e68fda8e
+          path: .deps/nifly
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pinned DDS dependencies
+        run: |
+          python -m pip install Pillow==12.3.0 numpy==2.3.5
+          if ($LASTEXITCODE -ne 0) { throw "Dependency setup failed" }
+      - name: Verify the authored Blender inputs
+        run: |
+          python Tools/Blender/validate_optimized_inputs.py Assets/BlenderFinish
+          if ($LASTEXITCODE -ne 0) { throw "Authored input contract failed" }
+      - name: Compile pinned NIF writer
+        run: |
+          cmake -S Source/NIF -B build/blender-finish-writer -A x64 "-DCMS_NIFLY_ROOT=$env:GITHUB_WORKSPACE/.deps/nifly"
+          if ($LASTEXITCODE -ne 0) { throw "CMake configure failed" }
+          cmake --build build/blender-finish-writer --config Release --parallel 2
+          if ($LASTEXITCODE -ne 0) { throw "Writer build failed" }
+      - name: Package the saved edit and selected DDS maps
+        run: |
+          python Tools/Blender/package_optimized_visuals.py --cms Assets/BlenderFinish/optimized.cms --baseline-cms Assets/BlenderFinish/audit6_baseline.cms --blend Assets/BlenderFinish/ChainMorningstarVR_work.blend --textures Assets/BlenderFinish/textures --writer build/blender-finish-writer/Release/export_reference_nif.exe --out build/blender-finish-overlay/ChainMorningstarVR-audit6-visual-lowpoly-test.zip
+          if ($LASTEXITCODE -ne 0) { throw "Overlay gate failed" }
+      # Never invoke generate_reference_mesh.py, generate_textures.py or
+      # create_project.py here: these inputs are the saved, reviewed Blender edit.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ChainMorningstarVR-audit6-blender-visual-test
+          path: |
+            build/blender-finish-overlay/*.zip
+            build/blender-finish-overlay/*.provenance.json
+          if-no-files-found: error

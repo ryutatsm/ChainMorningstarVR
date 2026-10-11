@@ -77,6 +77,8 @@ def camera(c, name, at, target, scale):
 
 
 def build(a):
+    if a.out.exists():
+        raise FileExistsError('Refusing to overwrite an existing Blender project. Choose a new output path; preserve authored edits.')
     cms = load(a.cms)
     manifest = json.loads(a.manifest.read_text(encoding='utf-8'))
     bpy.ops.wm.read_factory_settings(use_empty=True)

@@ -1,0 +1,1000 @@
+{
+  "format": "cms-blender-optimized-v1",
+  "baseline_commit": "df3ef906a7927516263b567817900cc125d5f860",
+  "baseline_cms_sha256": "0319d497343fc72afa85f68ac5c3444df4042ac920633aea96eebe19e1d3ca57",
+  "edited_cms_sha256": "3f6824f719b789a7fda9393a0270a3b62157e42f0f32d5b4d9f0d5d1ff0fd058",
+  "saved_blend_sha256": "18e83c8fc584318e25b7681e95c1034111721d6d5289d472968deae9235dab75",
+  "unsaved_blender_changes": true,
+  "removed_mesh": "CMS_CMS_ROOT_cord",
+  "source_loaded_from_saved_file": true,
+  "before_triangles": 110512,
+  "after_triangles": 47845,
+  "surface_limit_mm": 0.15,
+  "meshes": [
+    {
+      "mesh": "CMS_CMS_ROOT_wood",
+      "before_triangles": 10656,
+      "after_triangles": 2499,
+      "distances": {
+        "original_to_edited": {
+          "samples": 80067,
+          "max_mm": 0.09837695688474923,
+          "p99_mm": 0.03405000825296151,
+          "rms_mm": 0.01090423422519809
+        },
+        "edited_to_original": {
+          "samples": 18818,
+          "max_mm": 0.09960486931959167,
+          "p99_mm": 0.04286983603378699,
+          "rms_mm": 0.013095870766378038
+        }
+      },
+      "surface_topology": {
+        "components": 1,
+        "euler": 0,
+        "boundary_components": 2,
+        "nonmanifold_edges": 0
+      },
+      "minimum_face_normal_dot": 0.9576687647089926,
+      "uv_domain_preserved": true,
+      "uv_orientation_verified": true,
+      "uv_triangles_checked": 2499
+    },
+    {
+      "mesh": "CMS_CMS_ROOT_leather",
+      "before_triangles": 15840,
+      "after_triangles": 7256,
+      "distances": {
+        "original_to_edited": {
+          "samples": 118979,
+          "max_mm": 0.1477159676142037,
+          "p99_mm": 0.07527110894443469,
+          "rms_mm": 0.02524051978578298
+        },
+        "edited_to_original": {
+          "samples": 54535,
+          "max_mm": 0.14360285422299057,
+          "p99_mm": 0.08330968557856977,
+          "rms_mm": 0.026554945793501605
+        }
+      },
+      "surface_topology": {
+        "components": 1,
+        "euler": 0,
+        "boundary_components": 2,
+        "nonmanifold_edges": 0
+      },
+      "minimum_face_normal_dot": 0.6090558201652534,
+      "uv_domain_preserved": true,
+      "uv_orientation_verified": true,
+      "uv_triangles_checked": 7256
+    },
+    {
+      "mesh": "CMS_CMS_ROOT_ring",
+      "before_triangles": 960,
+      "after_triangles": 694,
+      "distances": {
+        "original_to_edited": {
+          "samples": 7308,
+          "max_mm": 0.12950891687069088,
+          "p99_mm": 0.11598873970797285,
+          "rms_mm": 0.045661324597379344
+        },
+        "edited_to_original": {
+          "samples": 5305,
+          "max_mm": 0.11620818258961663,
+          "p99_mm": 0.11392692249501124,
+          "rms_mm": 0.04170461454502098
+        }
+      },
+      "surface_topology": {
+        "components": 2,
+        "euler": 0,
+        "boundary_components": 4,
+        "nonmanifold_edges": 0
+      },
+      "minimum_face_normal_dot": 0.9944280310405017,
+      "uv_domain_preserved": true,
+      "uv_orientation_verified": true,
+      "uv_triangles_checked": 694
+    },
+    {
+      "mesh": "CMS_CMS_ROOT_edge",
+      "before_triangles": 3840,
+      "after_triangles": 2850,
+      "distances": {
+        "original_to_edited": {
+          "samples": 29036,
+          "max_mm": 0.12433915981091559,
+          "p99_mm": 0.10623724665492773,
+          "rms_mm": 0.035656344081749405
+        },
+        "edited_to_original": {
+          "samples": 21608,
+          "max_mm": 0.1429952244507149,
+          "p99_mm": 0.10903133079409599,
+          "rms_mm": 0.034549149945806025
+        }
+      },
+      "surface_topology": {
+        "components": 4,
+        "euler": 0,
+        "boundary_components": 0,
+        "nonmanifold_edges": 0
+      },
+      "minimum_face_normal_dot": 0.9803693712401993,
+      "uv_domain_preserved": true,
+      "uv_orientation_verified": true,
+      "uv_triangles_checked": 2850
+    },
+    {
+      "mesh": "CMS_CMS_ROOT_metal",
+      "before_triangles": 288,
+      "after_triangles": 172,
+      "distances": {
+        "original_to_edited": {
+          "samples": 2212,
+          "max_mm": 0.08171708759618923,
+          "p99_mm": 0.08171494118869305,
+          "rms_mm": 0.047766061266326654
+        },
+        "edited_to_original": {
+          "samples": 1332,
+          "max_mm": 0.07661639392608777,
+          "p99_mm": 0.07661537529202178,
+          "rms_mm": 0.04672073905081467
+        }
+      },
+      "surface_topology": {
+        "components": 1,
+        "euler": 0,
+        "boundary_components": 2,
+        "nonmanifold_edges": 0
+      },
+      "minimum_face_normal_dot": 0.9951836272330671,
+      "uv_domain_preserved": true,
+      "uv_orientation_verified": true,
+      "uv_triangles_checked": 172
+    },
+    {
+      "mesh": "CMS_CMS_ROOT_bronze",
+      "before_triangles": 1280,
+      "after_triangles": 726,
+      "distances": {
+        "original_to_edited": {
+          "samples": 9675,
+          "max_mm": 0.12743304250761867,
+          "p99_mm": 0.10254138760501519,
+          "rms_mm": 0.04086124733839227
+        },
+        "edited_to_original": {
+          "samples": 5493,
+          "max_mm": 0.144921665196307,
+          "p99_mm": 0.09811941854422912,
+          "rms_mm": 0.04421391500279056
+        }
+      },
+      "surface_topology": {
+        "components": 1,
+        "euler": 0,
+        "boundary_components": 0,
+        "nonmanifold_edges": 0
+      },
+      "minimum_face_normal_dot": 0.9971559344081364,
+      "uv_domain_preserved": true,
+      "uv_orientation_verified": true,
+      "uv_triangles_checked": 726
+    },
+    {
+      "mesh": "CMS_CMS_ROOT_chain",
+      "before_triangles": 960,
+      "after_triangles": 464,
+      "distances": {
+        "original_to_edited": {
+          "samples": 7259,
+          "max_mm": 0.14648440992459655,
+          "p99_mm": 0.13078733172733337,
+          "rms_mm": 0.05422922625788317
+        },
+        "edited_to_original": {
+          "samples": 3517,
+          "max_mm": 0.14481846301350743,
+          "p99_mm": 0.1324071432463825,
+          "rms_mm": 0.058959661641041425
+        }
+      },
+      "surface_topology": {
+        "components": 1,
+        "euler": 0,
+        "boundary_components": 0,
+        "nonmanifold_edges": 0
+      },
+      "minimum_face_normal_dot": 0.9950879741737043,
+      "uv_domain_preserved": true,
+      "uv_orientation_verified": true,
+      "uv_triangles_checked": 464
+    },
+    {
+      "mesh": "CMS_CMS_LinkNode_00_chain",
+      "before_triangles": 800,
+      "after_triangles": 672,
+      "distances": {
+        "original_to_edited": {
+          "samples": 6051,
+          "max_mm": 0.14355765597429127,
+          "p99_mm": 0.1115722261602059,
+          "rms_mm": 0.03271688121373835
+        },
+        "edited_to_original": {
+          "samples": 5091,
+          "max_mm": 0.14431036834139377,
+          "p99_mm": 0.1207129389513284,
+          "rms_mm": 0.030960227308532113
+        }
+      },
+      "surface_topology": {
+        "components": 1,
+        "euler": 0,
+        "boundary_components": 0,
+        "nonmanifold_edges": 0
+      },
+      "minimum_face_normal_dot": 0.9992897113017254,
+      "uv_domain_preserved": true,
+      "uv_orientation_verified": true,
+      "uv_triangles_checked": 672
+    },
+    {
+      "mesh": "CMS_CMS_LinkNode_01_chain",
+      "before_triangles": 800,
+      "after_triangles": 672,
+      "distances": {
+        "original_to_edited": {
+          "samples": 6051,
+          "max_mm": 0.14355765597429127,
+          "p99_mm": 0.1115722261602059,
+          "rms_mm": 0.03271688121373835
+        },
+        "edited_to_original": {
+          "samples": 5091,
+          "max_mm": 0.14431036834139377,
+          "p99_mm": 0.1207129389513284,
+          "rms_mm": 0.030960227308532113
+        }
+      },
+      "surface_topology": {
+        "components": 1,
+        "euler": 0,
+        "boundary_components": 0,
+        "nonmanifold_edges": 0
+      },
+      "minimum_face_normal_dot": 0.9992897113017254,
+      "uv_domain_preserved": true,
+      "uv_orientation_verified": true,
+      "uv_triangles_checked": 672
+    },
+    {
+      "mesh": "CMS_CMS_LinkNode_02_chain",
+      "before_triangles": 800,
+      "after_triangles": 672,
+      "distances": {
+        "original_to_edited": {
+          "samples": 6051,
+          "max_mm": 0.14355765597429127,
+          "p99_mm": 0.1115722261602059,
+          "rms_mm": 0.03271688121373835
+        },
+        "edited_to_original": {
+          "samples": 5091,
+          "max_mm": 0.14431036834139377,
+          "p99_mm": 0.1207129389513284,
+          "rms_mm": 0.030960227308532113
+        }
+      },
+      "surface_topology": {
+        "components": 1,
+        "euler": 0,
+        "boundary_components": 0,
+        "nonmanifold_edges": 0
+      },
+      "minimum_face_normal_dot": 0.9992897113017254,
+      "uv_domain_preserved": true,
+      "uv_orientation_verified": true,
+      "uv_triangles_checked": 672
+    },
+    {
+      "mesh": "CMS_CMS_LinkNode_03_chain",
+      "before_triangles": 800,
+      "after_triangles": 672,
+      "distances": {
+        "original_to_edited": {
+          "samples": 6051,
+          "max_mm": 0.14355765597429127,
+          "p99_mm": 0.1115722261602059,
+          "rms_mm": 0.03271688121373835
+        },
+        "edited_to_original": {
+          "samples": 5091,
+          "max_mm": 0.14431036834139377,
+          "p99_mm": 0.1207129389513284,
+          "rms_mm": 0.030960227308532113
+        }
+      },
+      "surface_topology": {
+        "components": 1,
+        "euler": 0,
+        "boundary_components": 0,
+        "nonmanifold_edges": 0
+      },
+      "minimum_face_normal_dot": 0.9992897113017254,
+      "uv_domain_preserved": true,
+      "uv_orientation_verified": true,
+      "uv_triangles_checked": 672
+    },
+    {
+      "mesh": "CMS_CMS_LinkNode_04_chain",
+      "before_triangles": 800,
+      "after_triangles": 672,
+      "distances": {
+        "original_to_edited": {
+          "samples": 6051,
+          "max_mm": 0.14355765597429127,
+          "p99_mm": 0.1115722261602059,
+          "rms_mm": 0.03271688121373835
+        },
+        "edited_to_original": {
+          "samples": 5091,
+          "max_mm": 0.14431036834139377,
+          "p99_mm": 0.1207129389513284,
+          "rms_mm": 0.030960227308532113
+        }
+      },
+      "surface_topology": {
+        "components": 1,
+        "euler": 0,
+        "boundary_components": 0,
+        "nonmanifold_edges": 0
+      },
+      "minimum_face_normal_dot": 0.9992897113017254,
+      "uv_domain_preserved": true,
+      "uv_orientation_verified": true,
+      "uv_triangles_checked": 672
+    },
+    {
+      "mesh": "CMS_CMS_LinkNode_05_chain",
+      "before_triangles": 800,
+      "after_triangles": 672,
+      "distances": {
+        "original_to_edited": {
+          "samples": 6051,
+          "max_mm": 0.14355765597429127,
+          "p99_mm": 0.1115722261602059,
+          "rms_mm": 0.03271688121373835
+        },
+        "edited_to_original": {
+          "samples": 5091,
+          "max_mm": 0.14431036834139377,
+          "p99_mm": 0.1207129389513284,
+          "rms_mm": 0.030960227308532113
+        }
+      },
+      "surface_topology": {
+        "components": 1,
+        "euler": 0,
+        "boundary_components": 0,
+        "nonmanifold_edges": 0
+      },
+      "minimum_face_normal_dot": 0.9992897113017254,
+      "uv_domain_preserved": true,
+      "uv_orientation_verified": true,
+      "uv_triangles_checked": 672
+    },
+    {
+      "mesh": "CMS_CMS_LinkNode_06_chain",
+      "before_triangles": 800,
+      "after_triangles": 672,
+      "distances": {
+        "original_to_edited": {
+          "samples": 6051,
+          "max_mm": 0.14355765597429127,
+          "p99_mm": 0.1115722261602059,
+          "rms_mm": 0.03271688121373835
+        },
+        "edited_to_original": {
+          "samples": 5091,
+          "max_mm": 0.14431036834139377,
+          "p99_mm": 0.1207129389513284,
+          "rms_mm": 0.030960227308532113
+        }
+      },
+      "surface_topology": {
+        "components": 1,
+        "euler": 0,
+        "boundary_components": 0,
+        "nonmanifold_edges": 0
+      },
+      "minimum_face_normal_dot": 0.9992897113017254,
+      "uv_domain_preserved": true,
+      "uv_orientation_verified": true,
+      "uv_triangles_checked": 672
+    },
+    {
+      "mesh": "CMS_CMS_LinkNode_07_chain",
+      "before_triangles": 800,
+      "after_triangles": 672,
+      "distances": {
+        "original_to_edited": {
+          "samples": 6051,
+          "max_mm": 0.14355765597429127,
+          "p99_mm": 0.1115722261602059,
+          "rms_mm": 0.03271688121373835
+        },
+        "edited_to_original": {
+          "samples": 5091,
+          "max_mm": 0.14431036834139377,
+          "p99_mm": 0.1207129389513284,
+          "rms_mm": 0.030960227308532113
+        }
+      },
+      "surface_topology": {
+        "components": 1,
+        "euler": 0,
+        "boundary_components": 0,
+        "nonmanifold_edges": 0
+      },
+      "minimum_face_normal_dot": 0.9992897113017254,
+      "uv_domain_preserved": true,
+      "uv_orientation_verified": true,
+      "uv_triangles_checked": 672
+    },
+    {
+      "mesh": "CMS_CMS_LinkNode_08_chain",
+      "before_triangles": 800,
+      "after_triangles": 672,
+      "distances": {
+        "original_to_edited": {
+          "samples": 6051,
+          "max_mm": 0.14355765597429127,
+          "p99_mm": 0.1115722261602059,
+          "rms_mm": 0.03271688121373835
+        },
+        "edited_to_original": {
+          "samples": 5091,
+          "max_mm": 0.14431036834139377,
+          "p99_mm": 0.1207129389513284,
+          "rms_mm": 0.030960227308532113
+        }
+      },
+      "surface_topology": {
+        "components": 1,
+        "euler": 0,
+        "boundary_components": 0,
+        "nonmanifold_edges": 0
+      },
+      "minimum_face_normal_dot": 0.9992897113017254,
+      "uv_domain_preserved": true,
+      "uv_orientation_verified": true,
+      "uv_triangles_checked": 672
+    },
+    {
+      "mesh": "CMS_CMS_LinkNode_09_chain",
+      "before_triangles": 800,
+      "after_triangles": 672,
+      "distances": {
+        "original_to_edited": {
+          "samples": 6051,
+          "max_mm": 0.14355765597429127,
+          "p99_mm": 0.1115722261602059,
+          "rms_mm": 0.03271688121373835
+        },
+        "edited_to_original": {
+          "samples": 5091,
+          "max_mm": 0.14431036834139377,
+          "p99_mm": 0.1207129389513284,
+          "rms_mm": 0.030960227308532113
+        }
+      },
+      "surface_topology": {
+        "components": 1,
+        "euler": 0,
+        "boundary_components": 0,
+        "nonmanifold_edges": 0
+      },
+      "minimum_face_normal_dot": 0.9992897113017254,
+      "uv_domain_preserved": true,
+      "uv_orientation_verified": true,
+      "uv_triangles_checked": 672
+    },
+    {
+      "mesh": "CMS_CMS_LinkNode_10_chain",
+      "before_triangles": 800,
+      "after_triangles": 672,
+      "distances": {
+        "original_to_edited": {
+          "samples": 6051,
+          "max_mm": 0.14355765597429127,
+          "p99_mm": 0.1115722261602059,
+          "rms_mm": 0.03271688121373835
+        },
+        "edited_to_original": {
+          "samples": 5091,
+          "max_mm": 0.14431036834139377,
+          "p99_mm": 0.1207129389513284,
+          "rms_mm": 0.030960227308532113
+        }
+      },
+      "surface_topology": {
+        "components": 1,
+        "euler": 0,
+        "boundary_components": 0,
+        "nonmanifold_edges": 0
+      },
+      "minimum_face_normal_dot": 0.9992897113017254,
+      "uv_domain_preserved": true,
+      "uv_orientation_verified": true,
+      "uv_triangles_checked": 672
+    },
+    {
+      "mesh": "CMS_CMS_LinkNode_11_chain",
+      "before_triangles": 800,
+      "after_triangles": 672,
+      "distances": {
+        "original_to_edited": {
+          "samples": 6051,
+          "max_mm": 0.14355765597429127,
+          "p99_mm": 0.1115722261602059,
+          "rms_mm": 0.03271688121373835
+        },
+        "edited_to_original": {
+          "samples": 5091,
+          "max_mm": 0.14431036834139377,
+          "p99_mm": 0.1207129389513284,
+          "rms_mm": 0.030960227308532113
+        }
+      },
+      "surface_topology": {
+        "components": 1,
+        "euler": 0,
+        "boundary_components": 0,
+        "nonmanifold_edges": 0
+      },
+      "minimum_face_normal_dot": 0.9992897113017254,
+      "uv_domain_preserved": true,
+      "uv_orientation_verified": true,
+      "uv_triangles_checked": 672
+    },
+    {
+      "mesh": "CMS_CMS_LinkNode_12_chain",
+      "before_triangles": 800,
+      "after_triangles": 672,
+      "distances": {
+        "original_to_edited": {
+          "samples": 6051,
+          "max_mm": 0.14355765597429127,
+          "p99_mm": 0.1115722261602059,
+          "rms_mm": 0.03271688121373835
+        },
+        "edited_to_original": {
+          "samples": 5091,
+          "max_mm": 0.14431036834139377,
+          "p99_mm": 0.1207129389513284,
+          "rms_mm": 0.030960227308532113
+        }
+      },
+      "surface_topology": {
+        "components": 1,
+        "euler": 0,
+        "boundary_components": 0,
+        "nonmanifold_edges": 0
+      },
+      "minimum_face_normal_dot": 0.9992897113017254,
+      "uv_domain_preserved": true,
+      "uv_orientation_verified": true,
+      "uv_triangles_checked": 672
+    },
+    {
+      "mesh": "CMS_CMS_LinkNode_13_chain",
+      "before_triangles": 800,
+      "after_triangles": 672,
+      "distances": {
+        "original_to_edited": {
+          "samples": 6051,
+          "max_mm": 0.14355765597429127,
+          "p99_mm": 0.1115722261602059,
+          "rms_mm": 0.03271688121373835
+        },
+        "edited_to_original": {
+          "samples": 5091,
+          "max_mm": 0.14431036834139377,
+          "p99_mm": 0.1207129389513284,
+          "rms_mm": 0.030960227308532113
+        }
+      },
+      "surface_topology": {
+        "components": 1,
+        "euler": 0,
+        "boundary_components": 0,
+        "nonmanifold_edges": 0
+      },
+      "minimum_face_normal_dot": 0.9992897113017254,
+      "uv_domain_preserved": true,
+      "uv_orientation_verified": true,
+      "uv_triangles_checked": 672
+    },
+    {
+      "mesh": "CMS_CMS_LinkNode_14_chain",
+      "before_triangles": 800,
+      "after_triangles": 672,
+      "distances": {
+        "original_to_edited": {
+          "samples": 6051,
+          "max_mm": 0.14355765597429127,
+          "p99_mm": 0.1115722261602059,
+          "rms_mm": 0.03271688121373835
+        },
+        "edited_to_original": {
+          "samples": 5091,
+          "max_mm": 0.14431036834139377,
+          "p99_mm": 0.1207129389513284,
+          "rms_mm": 0.030960227308532113
+        }
+      },
+      "surface_topology": {
+        "components": 1,
+        "euler": 0,
+        "boundary_components": 0,
+        "nonmanifold_edges": 0
+      },
+      "minimum_face_normal_dot": 0.9992897113017254,
+      "uv_domain_preserved": true,
+      "uv_orientation_verified": true,
+      "uv_triangles_checked": 672
+    },
+    {
+      "mesh": "CMS_CMS_LinkNode_15_chain",
+      "before_triangles": 800,
+      "after_triangles": 672,
+      "distances": {
+        "original_to_edited": {
+          "samples": 6051,
+          "max_mm": 0.14355765597429127,
+          "p99_mm": 0.1115722261602059,
+          "rms_mm": 0.03271688121373835
+        },
+        "edited_to_original": {
+          "samples": 5091,
+          "max_mm": 0.14431036834139377,
+          "p99_mm": 0.1207129389513284,
+          "rms_mm": 0.030960227308532113
+        }
+      },
+      "surface_topology": {
+        "components": 1,
+        "euler": 0,
+        "boundary_components": 0,
+        "nonmanifold_edges": 0
+      },
+      "minimum_face_normal_dot": 0.9992897113017254,
+      "uv_domain_preserved": true,
+      "uv_orientation_verified": true,
+      "uv_triangles_checked": 672
+    },
+    {
+      "mesh": "CMS_CMS_LinkNode_16_chain",
+      "before_triangles": 800,
+      "after_triangles": 672,
+      "distances": {
+        "original_to_edited": {
+          "samples": 6051,
+          "max_mm": 0.14355765597429127,
+          "p99_mm": 0.1115722261602059,
+          "rms_mm": 0.03271688121373835
+        },
+        "edited_to_original": {
+          "samples": 5091,
+          "max_mm": 0.14431036834139377,
+          "p99_mm": 0.1207129389513284,
+          "rms_mm": 0.030960227308532113
+        }
+      },
+      "surface_topology": {
+        "components": 1,
+        "euler": 0,
+        "boundary_components": 0,
+        "nonmanifold_edges": 0
+      },
+      "minimum_face_normal_dot": 0.9992897113017254,
+      "uv_domain_preserved": true,
+      "uv_orientation_verified": true,
+      "uv_triangles_checked": 672
+    },
+    {
+      "mesh": "CMS_CMS_LinkNode_17_chain",
+      "before_triangles": 800,
+      "after_triangles": 672,
+      "distances": {
+        "original_to_edited": {
+          "samples": 6051,
+          "max_mm": 0.14355765597429127,
+          "p99_mm": 0.1115722261602059,
+          "rms_mm": 0.03271688121373835
+        },
+        "edited_to_original": {
+          "samples": 5091,
+          "max_mm": 0.14431036834139377,
+          "p99_mm": 0.1207129389513284,
+          "rms_mm": 0.030960227308532113
+        }
+      },
+      "surface_topology": {
+        "components": 1,
+        "euler": 0,
+        "boundary_components": 0,
+        "nonmanifold_edges": 0
+      },
+      "minimum_face_normal_dot": 0.9992897113017254,
+      "uv_domain_preserved": true,
+      "uv_orientation_verified": true,
+      "uv_triangles_checked": 672
+    },
+    {
+      "mesh": "CMS_CMS_LinkNode_18_chain",
+      "before_triangles": 800,
+      "after_triangles": 672,
+      "distances": {
+        "original_to_edited": {
+          "samples": 6051,
+          "max_mm": 0.14355765597429127,
+          "p99_mm": 0.1115722261602059,
+          "rms_mm": 0.03271688121373835
+        },
+        "edited_to_original": {
+          "samples": 5091,
+          "max_mm": 0.14431036834139377,
+          "p99_mm": 0.1207129389513284,
+          "rms_mm": 0.030960227308532113
+        }
+      },
+      "surface_topology": {
+        "components": 1,
+        "euler": 0,
+        "boundary_components": 0,
+        "nonmanifold_edges": 0
+      },
+      "minimum_face_normal_dot": 0.9992897113017254,
+      "uv_domain_preserved": true,
+      "uv_orientation_verified": true,
+      "uv_triangles_checked": 672
+    },
+    {
+      "mesh": "CMS_CMS_HeadNode_metal",
+      "before_triangles": 23136,
+      "after_triangles": 5251,
+      "distances": {
+        "original_to_edited": {
+          "samples": 174618,
+          "max_mm": 0.12801082630176097,
+          "p99_mm": 0.047691408908576684,
+          "rms_mm": 0.01687412568838535
+        },
+        "edited_to_original": {
+          "samples": 39629,
+          "max_mm": 0.14615208783652633,
+          "p99_mm": 0.06272273458307609,
+          "rms_mm": 0.01862575203878656
+        }
+      },
+      "surface_topology": {
+        "components": 2,
+        "euler": 3,
+        "boundary_components": 1,
+        "nonmanifold_edges": 0
+      },
+      "minimum_face_normal_dot": 0.7821200392920215,
+      "uv_domain_preserved": true,
+      "uv_orientation_verified": true,
+      "uv_triangles_checked": 5251
+    },
+    {
+      "mesh": "CMS_CMS_HeadNode_spike",
+      "before_triangles": 11760,
+      "after_triangles": 7214,
+      "distances": {
+        "original_to_edited": {
+          "samples": 88984,
+          "max_mm": 0.06400186248356476,
+          "p99_mm": 0.03289735468570143,
+          "rms_mm": 0.011591559816510407
+        },
+        "edited_to_original": {
+          "samples": 54675,
+          "max_mm": 0.062258179241325706,
+          "p99_mm": 0.03267803745984566,
+          "rms_mm": 0.011481839651649556
+        }
+      },
+      "surface_topology": {
+        "components": 14,
+        "euler": 14,
+        "boundary_components": 14,
+        "nonmanifold_edges": 0
+      },
+      "minimum_face_normal_dot": 0.8791187495442611,
+      "uv_domain_preserved": true,
+      "uv_orientation_verified": true,
+      "uv_triangles_checked": 7029
+    },
+    {
+      "mesh": "CMS_CMS_HeadNode_ring",
+      "before_triangles": 288,
+      "after_triangles": 208,
+      "distances": {
+        "original_to_edited": {
+          "samples": 2212,
+          "max_mm": 0.13239872350823134,
+          "p99_mm": 0.11676337453536689,
+          "rms_mm": 0.05158395613047942
+        },
+        "edited_to_original": {
+          "samples": 1612,
+          "max_mm": 0.11531979544088244,
+          "p99_mm": 0.11090384214185178,
+          "rms_mm": 0.04653654357334157
+        }
+      },
+      "surface_topology": {
+        "components": 1,
+        "euler": 0,
+        "boundary_components": 2,
+        "nonmanifold_edges": 0
+      },
+      "minimum_face_normal_dot": 0.9947075141969143,
+      "uv_domain_preserved": true,
+      "uv_orientation_verified": true,
+      "uv_triangles_checked": 208
+    },
+    {
+      "mesh": "CMS_CMS_HeadNode_chain",
+      "before_triangles": 960,
+      "after_triangles": 486,
+      "distances": {
+        "original_to_edited": {
+          "samples": 7259,
+          "max_mm": 0.1368802331853658,
+          "p99_mm": 0.12593310384545475,
+          "rms_mm": 0.05349017921683503
+        },
+        "edited_to_original": {
+          "samples": 3681,
+          "max_mm": 0.13603547995444387,
+          "p99_mm": 0.12277475616429001,
+          "rms_mm": 0.05805250478981943
+        }
+      },
+      "surface_topology": {
+        "components": 1,
+        "euler": 0,
+        "boundary_components": 0,
+        "nonmanifold_edges": 0
+      },
+      "minimum_face_normal_dot": 0.9977079471103277,
+      "uv_domain_preserved": true,
+      "uv_orientation_verified": true,
+      "uv_triangles_checked": 486
+    },
+    {
+      "mesh": "CMS_CMS_HeadNode_emblem",
+      "before_triangles": 16384,
+      "after_triangles": 7257,
+      "distances": {
+        "original_to_edited": {
+          "samples": 123009,
+          "max_mm": 0.08165349572664127,
+          "p99_mm": 0.041794288408709676,
+          "rms_mm": 0.013003006644489987
+        },
+        "edited_to_original": {
+          "samples": 54516,
+          "max_mm": 0.0958968885242939,
+          "p99_mm": 0.04568899257719749,
+          "rms_mm": 0.014354043974020111
+        }
+      },
+      "surface_topology": {
+        "components": 1,
+        "euler": 1,
+        "boundary_components": 1,
+        "nonmanifold_edges": 0
+      },
+      "minimum_face_normal_dot": 0.4668155105431961,
+      "uv_domain_preserved": true,
+      "uv_orientation_verified": true,
+      "uv_triangles_checked": 7257
+    }
+  ],
+  "node_count": 22,
+  "chain_links": 19,
+  "mesh_count": 31,
+  "collision_hulls": 15,
+  "nodes_and_collision_bytes_preserved": true,
+  "topology_preserved": false,
+  "before_bounds_m": [
+    [
+      -0.164833446,
+      -0.214875,
+      -0.11889421440232763
+    ],
+    [
+      0.164834283,
+      1.505323647404785,
+      0.12186224454016575
+    ]
+  ],
+  "bounds_m": [
+    [
+      -0.1648334413766861,
+      -0.2148749977350235,
+      -0.11889421530663213
+    ],
+    [
+      0.16483427584171295,
+      1.5053087174883406,
+      0.1218622441700295
+    ]
+  ],
+  "texture_bakes": [
+    {
+      "name": "cms_wood_n.png",
+      "sha256": "2267b2937b6389177a7812f4bbb0755a5835032e6efd6459bb7445b86d30b7aa",
+      "size": [
+        1024,
+        1024
+      ],
+      "source_fallback_pixels": 0,
+      "alpha_min": 0.05490196496248245,
+      "alpha_max": 0.14509804546833038
+    },
+    {
+      "name": "cms_leather_d.png",
+      "sha256": "8e485d046cf357aebddd01ac85861e9f43c2c6f9817e827e6fc152f9d90ebbbb",
+      "size": [
+        1024,
+        1024
+      ],
+      "source_fallback_pixels": 426,
+      "alpha_min": 1.0,
+      "alpha_max": 1.0
+    },
+    {
+      "name": "cms_leather_n.png",
+      "sha256": "2c4caa43e904136b025f2e946cdd3b947abb3381b8198d631dd18228ba5bcebb",
+      "size": [
+        1024,
+        1024
+      ],
+      "source_fallback_pixels": 0,
+      "alpha_min": 0.05098039656877518,
+      "alpha_max": 0.19215688109397888
+    },
+    {
+      "name": "cms_emblem_n.png",
+      "sha256": "0930f81f30d3966885be446351bc6a0dfb16da47fc6b551e18b75654a590bec1",
+      "size": [
+        1024,
+        1024
+      ],
+      "source_fallback_pixels": 0,
+      "alpha_min": 0.0784313753247261,
+      "alpha_max": 0.5960784554481506
+    }
+  ],
+  "texture_exported": true,
+  "source_blend_sha256": "3845b0a21fff1b470069d4891bcce3e1c0595fcb8b37452e4d4cc8a7a5e0913e",
+  "runtime_tested": false,
+  "xedit_tested": false,
+  "notes": [
+    "Dense bidirectional sampled surface distances, not an exact Hausdorff guarantee.",
+    "The intentionally removed cord has texture shading and no silhouette displacement.",
+    "Blood surfaces must be regenerated from optimized head geometry by the pinned NIF writer.",
+    "A successful export does not confirm Skyrim VR behavior or formal release readiness."
+  ]
+}
