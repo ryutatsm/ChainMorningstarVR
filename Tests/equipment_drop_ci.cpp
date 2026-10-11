@@ -4,16 +4,22 @@
 #include <cmath>
 #include <cstdint>
 #include <iostream>
+#include <limits>
 #include <random>
 
-// A complete three-value uniform generator makes exact 1/3 partitioning and
-// RNG consumption observable without relying on a lucky finite random sample.
+// Representative values for all three distribution outcomes in a 32-bit URBG
+// domain. The old [0,2] domain made MSVC gather several one-bit draws, while
+// libstdc++ used one draw. These interior values avoid rejection in both; the
+// real mt19937 frequency test below separately checks the unbiased distribution.
 struct TernaryGenerator {
     using result_type = unsigned;
     static constexpr result_type min() { return 0; }
-    static constexpr result_type max() { return 2; }
+    static constexpr result_type max() { return std::numeric_limits<result_type>::max(); }
     unsigned draws{};
-    result_type operator()() { return draws++ % 3; }
+    result_type operator()() {
+        constexpr result_type values[]{0x10000000U, 0x80000000U, 0xE0000000U};
+        return values[draws++ % 3];
+    }
 };
 
 static cms::EquipmentImpactEvidence eligible(std::uint64_t serial = 1)

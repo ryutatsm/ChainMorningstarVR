@@ -113,6 +113,18 @@ jobs:
       - name: Install Ninja
         run: choco install ninja --no-progress -y
 
+      - name: Verify equipment policy and spark adapter with MSVC
+        run: |
+          New-Item -ItemType Directory -Force -Path build/equipment-sparks-tests | Out-Null
+          cl /nologo /std:c++latest /EHsc /W4 /WX /I. Tests/equipment_drop_ci.cpp /Fe:build/equipment-sparks-tests/equipment_drop_ci.exe /Fo:build/equipment-sparks-tests/equipment_drop_ci.obj
+          if ($LASTEXITCODE -ne 0) { throw "Equipment policy compile failed" }
+          & ./build/equipment-sparks-tests/equipment_drop_ci.exe
+          if ($LASTEXITCODE -ne 0) { throw "Equipment policy test failed" }
+          cl /nologo /std:c++latest /EHsc /W4 /WX /I. /ITests/stubs/equipment_sparks Tests/equipment_sparks_test.cpp /Fe:build/equipment-sparks-tests/equipment_sparks_test.exe /Fo:build/equipment-sparks-tests/equipment_sparks_test.obj
+          if ($LASTEXITCODE -ne 0) { throw "Spark adapter compile failed" }
+          & ./build/equipment-sparks-tests/equipment_sparks_test.exe
+          if ($LASTEXITCODE -ne 0) { throw "Spark adapter test failed" }
+
       - name: Bootstrap pinned vcpkg
         run: |
           if (Test-Path "$env:CMS_VCPKG_ROOT") {
