@@ -39,7 +39,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Writer build failed" }
       - name: Package the saved edit and selected DDS maps
         run: |
-          python Tools/Blender/package_optimized_visuals.py --cms Assets/BlenderFinish/optimized.cms --baseline-cms Assets/BlenderFinish/audit6_baseline.cms --blend Assets/BlenderFinish/ChainMorningstarVR_work.blend --textures Assets/BlenderFinish/textures --writer build/blender-finish-writer/Release/export_reference_nif.exe --out build/blender-finish-overlay/ChainMorningstarVR-audit6-visual-under4k-test.zip
+          python Tools/Blender/package_optimized_visuals.py --cms Assets/BlenderFinish/optimized.cms --baseline-cms Assets/BlenderFinish/audit6_baseline.cms --blend Assets/BlenderFinish/ChainMorningstarVR_work.blend --textures Assets/BlenderFinish/textures --writer build/blender-finish-writer/Release/export_reference_nif.exe --out build/blender-finish-overlay/ChainMorningstarVR-audit6-leather-edge-test.zip
           if ($LASTEXITCODE -ne 0) { throw "Overlay gate failed" }
       # Never invoke generate_reference_mesh.py, generate_textures.py or
       # create_project.py here: these inputs are the saved, reviewed Blender edit.

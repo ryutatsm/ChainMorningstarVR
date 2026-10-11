@@ -2,3 +2,4 @@
 Assets/BlenderFinish/** -text whitespace=cr-at-eol
 Assets/BlenderFinish/*.cms -diff
 *.blend binary
+Tools/Blender/contracts/*.cms -text -diff whitespace=cr-at-eol

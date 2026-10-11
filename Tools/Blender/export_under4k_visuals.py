@@ -92,6 +92,10 @@ def export(out,textures,loaded_from_saved_file=False):
     text=bpy.data.texts.get('AUDIT6_OPTIMIZATION.json')
     require(text is not None,'Missing explicit optimization provenance')
     manifest=json.loads(text.as_string())
+    edge_finish=manifest.get('leather_edge_finish')
+    if edge_finish:
+        from leather_edge_contract import POLICY,LEATHER,BODY_TRIANGLES,validate_rows,validate_cms
+        require(edge_finish['policy']==POLICY,'Unknown leather edge policy')
     require(manifest['baseline_cms_sha256']==BASELINE_SHA256 and
             manifest['baseline_commit']==AUDIT6_COMMIT and
             manifest['removed_mesh']==REMOVED_MESH,'Wrong baseline or deletion policy')
@@ -158,12 +162,20 @@ def export(out,textures,loaded_from_saved_file=False):
                 'UV escaped its authored domain: '+obj.name)
         require(np.all(q.min(0)>=p.min(0)-.0015) and np.all(q.max(0)<=p.max(0)+.0015),
                 'Authored bounds expanded: '+obj.name)
-        distances=distance_report(p,f,q,g)
+        is_edge=bool(edge_finish) and obj.name==LEATHER
+        if is_edge:
+            edge_proof=validate_rows(rows,g)
+            require(edge_finish==edge_proof,'Leather edge manifest differs from independent contact proof')
+            body_g=g[:BODY_TRIANGLES];used=np.unique(body_g)
+            remap=np.full(len(q),-1,dtype=int);remap[used]=np.arange(len(used))
+            body_q=q[used];body_g=remap[body_g]
+            distances=distance_report(p,f,body_q,body_g)
+        else:distances=distance_report(p,f,q,g)
         require(maximum(distances)<=SURFACE_LIMIT_M+1e-8,'Surface deviation exceeds 6 mm: '+obj.name)
         old_topology=topology(p,f);new_topology=topology(q,g)
         require(old_topology==new_topology,'Connected surfaces/holes changed: '+obj.name)
-        minimum_dot=retopo_orientation(old,f,q,g)
-        try:checked_uv=retopo_uv(old,f,q,g,uv)
+        minimum_dot=retopo_orientation(old,f,body_q,body_g) if is_edge else retopo_orientation(old,f,q,g)
+        try:checked_uv=retopo_uv(old,f,body_q,body_g,uv[used]) if is_edge else retopo_uv(old,f,q,g,uv)
         except ValueError as error:raise ValueError(obj.name+': '+str(error)) from error
         chunks.append(f"{obj.name} {original['parent']} {original['material']} {len(rows)} {len(g)}\n")
         chunks.extend(' '.join(format(float(v),'.9g') for v in row)+'\n' for row in rows)
@@ -173,8 +185,13 @@ def export(out,textures,loaded_from_saved_file=False):
                             distances=distances,surface_topology=old_topology,
                             minimum_face_normal_dot=minimum_dot,uv_domain_preserved=True))
         reports[-1].update(uv_orientation_verified=True,uv_triangles_checked=checked_uv)
+        if is_edge:
+            reports[-1].update(leather_edge_finish=edge_proof,
+                added_edge_uv_geometry_verified=True,
+                distances_scope='exterior grip body; added end annuli checked by pinned wood-contact contract')
     collision_bytes=''.join(cms['lines'][cms['collision_start']:]);chunks.append(collision_bytes)
     data=''.join(chunks).encode();edited=parse(data,require_baseline=False)
+    if edge_finish:validate_cms(edited)
     require(edited['nodes']==cms['nodes'] and edited['hulls']==cms['hulls'],'Node/collision serialization changed')
     require(''.join(edited['lines'][edited['collision_start']:])==collision_bytes,'Collision bytes changed')
     before=np.array(original_world);after=np.array(world)
@@ -201,6 +218,7 @@ def export(out,textures,loaded_from_saved_file=False):
                        'Cord and emblem relief are texture shading; their relief has no silhouette displacement.',
                        'Blood surfaces must be regenerated from optimized head geometry by the pinned NIF writer.',
                        'A successful export does not confirm Skyrim VR behavior or formal release readiness.'])
+    if edge_finish:report['leather_edge_finish']=edge_proof
     out.with_suffix('.edit.json').write_text(json.dumps(report,indent=2)+'\n')
     print('OPTIMIZED_EXPORT_PASS',report['before_triangles'],report['after_triangles'],sha256(data),flush=True)
     return report

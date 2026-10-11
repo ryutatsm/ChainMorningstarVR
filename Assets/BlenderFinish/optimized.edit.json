@@ -2,15 +2,15 @@
   "format": "cms-blender-under4k-v2",
   "baseline_commit": "df3ef906a7927516263b567817900cc125d5f860",
   "baseline_cms_sha256": "0319d497343fc72afa85f68ac5c3444df4042ac920633aea96eebe19e1d3ca57",
-  "edited_cms_sha256": "d8e8b3b252f283ac1ff33b72b8c3f3c0ac486a60a5deb8b5213caa4124d55ca5",
-  "saved_blend_sha256": "4c9dd85cc179b280790bba231d04463213d32fa681c6531370d8474f8b890c62",
+  "edited_cms_sha256": "76e945ab472b49e233eb5931270768f95381222158c5b16321cecbaeef556a2b",
+  "saved_blend_sha256": "5f8a62ed6018d946ea02776da937c697c98660e8e4499f320066516808f2231a",
   "unsaved_blender_changes": true,
   "removed_mesh": "CMS_CMS_ROOT_cord",
   "source_loaded_from_saved_file": true,
   "before_triangles": 110512,
-  "after_triangles": 2884,
+  "after_triangles": 2900,
   "blood_triangles": 1096,
-  "nif_total_triangles": 3980,
+  "nif_total_triangles": 3996,
   "surface_limit_mm": 6.0,
   "meshes": [
     {
@@ -45,19 +45,19 @@
     {
       "mesh": "CMS_CMS_ROOT_leather",
       "before_triangles": 15840,
-      "after_triangles": 160,
+      "after_triangles": 176,
       "distances": {
         "original_to_edited": {
           "samples": 118979,
           "max_mm": 2.828059485182166,
-          "p99_mm": 1.8016650411300368,
-          "rms_mm": 0.6897156989673395
+          "p99_mm": 1.794847201090306,
+          "rms_mm": 0.7224841235349101
         },
         "edited_to_original": {
-          "samples": 1222,
+          "samples": 981,
           "max_mm": 2.0311279222369194,
-          "p99_mm": 1.6543754376471018,
-          "rms_mm": 0.6576585830012828
+          "p99_mm": 1.6776349628344198,
+          "rms_mm": 0.6918924278723505
         }
       },
       "surface_topology": {
@@ -69,7 +69,25 @@
       "minimum_face_normal_dot": 0.8484287924606255,
       "uv_domain_preserved": true,
       "uv_orientation_verified": true,
-      "uv_triangles_checked": 160
+      "uv_triangles_checked": 128,
+      "leather_edge_finish": {
+        "policy": "leather-contact-annuli-v1",
+        "source_cms_sha256": "d8e8b3b252f283ac1ff33b72b8c3f3c0ac486a60a5deb8b5213caa4124d55ca5",
+        "body_triangles": 128,
+        "added_edge_triangles": 48,
+        "removed_middle_triangles": 32,
+        "inner_ring_vertices_per_end": 8,
+        "wood_inset_mm": 0.08,
+        "exposed_thickness_mm": [
+          2.4537503341605893,
+          6.329147347880724
+        ],
+        "maximum_inner_edge_gap_mm": -0.07999999999999674,
+        "retained_exterior_vertices_uv_normals": true,
+        "other_meshes_unchanged": true
+      },
+      "added_edge_uv_geometry_verified": true,
+      "distances_scope": "exterior grip body; added end annuli checked by pinned wood-contact contract"
     },
     {
       "mesh": "CMS_CMS_ROOT_ring",
@@ -1001,5 +1019,21 @@
     "Cord and emblem relief are texture shading; their relief has no silhouette displacement.",
     "Blood surfaces must be regenerated from optimized head geometry by the pinned NIF writer.",
     "A successful export does not confirm Skyrim VR behavior or formal release readiness."
-  ]
+  ],
+  "leather_edge_finish": {
+    "policy": "leather-contact-annuli-v1",
+    "source_cms_sha256": "d8e8b3b252f283ac1ff33b72b8c3f3c0ac486a60a5deb8b5213caa4124d55ca5",
+    "body_triangles": 128,
+    "added_edge_triangles": 48,
+    "removed_middle_triangles": 32,
+    "inner_ring_vertices_per_end": 8,
+    "wood_inset_mm": 0.08,
+    "exposed_thickness_mm": [
+      2.4537503341605893,
+      6.329147347880724
+    ],
+    "maximum_inner_edge_gap_mm": -0.07999999999999674,
+    "retained_exterior_vertices_uv_normals": true,
+    "other_meshes_unchanged": true
+  }
 }

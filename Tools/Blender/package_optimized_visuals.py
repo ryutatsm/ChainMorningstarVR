@@ -61,6 +61,9 @@ def check_cms(cms,baseline,report):
         if not proof['uv_orientation_verified']:raise ValueError('Missing UV orientation proof')
         if max(d['max_mm'] for d in proof['distances'].values())>limit+.00001:raise ValueError('Surface error')
     if sum(len(m['faces']) for m in cms['meshes'])!=report['after_triangles']:raise ValueError('Total count mismatch')
+    if report.get('leather_edge_finish'):
+        from leather_edge_contract import validate_cms
+        if validate_cms(cms)!=report['leather_edge_finish']:raise ValueError('Leather edge contact proof mismatch')
 
 
 def package(a):
@@ -104,6 +107,9 @@ def package(a):
                 'Source/Textures/encode_dds.py']
     if report['format']=='cms-blender-under4k-v2':
         tool_paths+=['Tools/Blender/retopologize_under4k.py','Tools/Blender/export_under4k_visuals.py']
+    if report.get('leather_edge_finish'):
+        tool_paths+=['Tools/Blender/finish_leather_edges.py','Tools/Blender/leather_edge_contract.py',
+                     'Tools/Blender/contracts/leather_edge_source.cms']
     report['tool_source_sha256']={name:sha256((ROOT/name).read_bytes()) for name in tool_paths}
     import PIL
     report['texture_encoder_versions']=dict(pillow=PIL.__version__,numpy=np.__version__)
@@ -114,10 +120,13 @@ def package(a):
        '描画NIFと革の色・法線、木とエンブレムの法線DDSだけを上書きします。\n'
        '22ノード、19節、75%の基準スケール、15衝突形状は維持しています。DLL・ESP・音声は本体のままです。\n'
        '柄の紐はメッシュを削除し、革の色とノーマルへ焼き込みました。紐だけの輪郭の出っ張りはありません。\n'
-       + ('前回47kの外観テストMODは無効化してから今回のZIPを導入してください。\n'
+       + ('前回の外観テストMOD（47k版・3,980三角形版）は無効化してから今回のZIPを導入してください。\n'
           'エンブレムも曲面の土台だけを残し、浮き彫りをノーマルへ焼き込みました。\n'
           f"血用2形状込みのNIF総三角形: {report['nif_total_triangles']:,}（4,000以下）。輪郭は近距離で多角形に見える場合があります。\n"
           if report['format']=='cms-blender-under4k-v2' else '') +
+       ('革の上下に木へ接する薄い縁を計48三角形追加し、中央の分割を32三角形整理しました。\n'
+        '木、金具、鉄球、鎖、既存の4テクスチャは直前の3,980三角形版と同一です。\n'
+        if report.get('leather_edge_finish') else '') +
        f"三角形数: {report['before_triangles']:,} → {report['after_triangles']:,}（血・衝突形状を除く描画用）\n"
        '血用2形状は軽量化した鉄球に合わせて再生成し、ファイル構造と法線オフセットを確認しました。\n'
        'Skyrim VR実機、FPS、装備解除、掴み、接触、血の発生、xEditの確認は未実施です。正式完成版ではありません。\n'

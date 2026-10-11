@@ -42,6 +42,31 @@ def main(a):
         ('UV mirror',uv,'UV winding'),('material',material,'Material contract'),('budget',budget,'budget/policy'),
         ('missing packed normal',texture,'Missing packed texture')]:reject(*args)
     reject('previous strict route remains strict',lambda:None,'Wrong optimization project',True)
+    if r.get('leather_edge_finish'):
+        def edge_gap():
+            o=bpy.data.objects['CMS_CMS_ROOT_leather']
+            o.data.vertices[102].co.x+=.001
+        def edge_uv():
+            o=bpy.data.objects['CMS_CMS_ROOT_leather']
+            o.data.uv_layers[0].data[128*3].uv.x+=.01
+        def unrelated():
+            bpy.data.objects['CMS_CMS_ROOT_wood'].data.vertices[20].co.x+=.000001
+        def policy():
+            t=bpy.data.texts['AUDIT6_OPTIMIZATION.json'];m=json.loads(t.as_string())
+            m['leather_edge_finish']['wood_inset_mm']=0
+            t.clear();t.write(json.dumps(m))
+        for args in [('detached leather edge',edge_gap,'Leather edge differs'),
+                     ('edge UV change',edge_uv,'Leather edge differs'),
+                     ('unrelated micron edit',unrelated,'Unrelated mesh changed'),
+                     ('edge contact policy',policy,'independent contact proof')]:reject(*args)
+        # Exercise the independent packaging/CI check without Blender geometry.
+        from leather_edge_contract import validate_cms
+        import copy
+        unsafe=copy.deepcopy(c);m=next(m for m in unsafe['meshes'] if m['name']=='CMS_CMS_ROOT_leather')
+        m['vertices'][m['faces'][128][0]][0]+=.001
+        try:validate_cms(unsafe)
+        except ValueError:rejections.append(dict(test='independent CI geometry check',reason='altered contact corner rejected'))
+        else:raise AssertionError('CI accepted altered end annulus')
     open_scene();export(a.out/'second.cms',a.textures,True)
     assert (a.out/'first.cms').read_bytes()==(a.out/'second.cms').read_bytes()
     result=dict(draw_triangles=r['after_triangles'],blood_triangles=r['blood_triangles'],nif_total_triangles=r['nif_total_triangles'],
