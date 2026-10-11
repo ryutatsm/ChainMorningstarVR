@@ -1,9 +1,10 @@
 import hashlib,importlib.util,io,struct,sys,unittest,wave
 from pathlib import Path
+import numpy as np
 ROOT=Path(__file__).resolve().parents[1]
 sys.path[:0]=[str(ROOT/'Tools'),str(ROOT/'Source/Audio'),str(ROOT/'Source/xEdit'),str(ROOT/'Tests')]
 from package_world_impact_test import BASE,BASE_SHA,read_zip,verify_sums,append_impact,verify_dll
-from generate_world_impact import synthesize
+from generate_world_impact import synthesize,SOURCE,SOURCE_SHA256,read_pcm
 from test_plugin_binary import inspect_binary
 
 def record_bytes(raw):
@@ -36,14 +37,20 @@ class WorldImpactAssets(unittest.TestCase):
         self.assertEqual(new[b'LNAM'][1]&0x38,0)
     def test_reject_unapproved_esp(self):
         with self.assertRaises(ValueError):append_impact(self.esp[:-1])
-    def test_new_original_wave_reproducible_and_low_body(self):
+    def test_selected_wave_reproducible_and_attenuated_only(self):
         data,report=synthesize();self.assertEqual(data,synthesize()[0])
-        self.assertEqual(report['sha256'],'b7a81e50ff226e7e4d23ae3ce8a7b83b99dbd784e327f777d9a30ed00820b0eb')
-        self.assertGreater(report['power_below_700hz'],.9)
+        self.assertEqual(report['sha256'],'48fc4e54b6a4f5dd3a9de3c0f286a15350b5cdc471a8c9325cfba2ef95b8e455')
+        source=SOURCE.read_bytes();self.assertEqual(hashlib.sha256(source).hexdigest(),SOURCE_SHA256)
+        original=read_pcm(source);actual=read_pcm(data)
+        # The user's chosen timbre must survive exactly: a single linear gain,
+        # with no regenerated noise, normalization, speed or envelope change.
+        np.testing.assert_array_equal(actual,np.rint(original.astype(float)*.85).astype('<i2'))
+        self.assertEqual(report['sample_number'],5);self.assertEqual(report['gain'],.85)
+        self.assertGreater(report['power_below_700hz'],.8)
         self.assertLess(report['power_below_140hz'],.25)
-        self.assertGreater(report['power_700_to_3500hz'],.08)
-        self.assertGreater(report['rms'],.18)
-        self.assertEqual(report['seconds'],.8)
+        self.assertGreater(report['power_700_to_3500hz'],.12)
+        self.assertLess(report['peak'],.60)
+        self.assertEqual(report['seconds'],.85)
         with wave.open(io.BytesIO(data),'rb') as w:self.assertEqual((w.getnchannels(),w.getsampwidth(),w.getframerate()),(1,2,44100))
     def test_old_audio_and_successful_nif_identity(self):
         expected={'iron_scrape.wav':'b6309ee4a9142198e44282ce02f48f379b2c66a8d0f55e3e66accf7b6fcce69c',

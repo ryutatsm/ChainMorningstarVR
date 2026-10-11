@@ -1,0 +1,11 @@
+{
+  "sample_number": 5,
+  "name": "weighty_clang",
+  "source": "Original deterministic synthesis; no external recordings",
+  "sha256": "49b4c050514c43861ebdf8e1ddae76748b1076e993694b552559f724473491f5",
+  "selected_by_user": true,
+  "original_seed": "0xc05ab00",
+  "gain": 0.85,
+  "gain_basis": "15 percent lower sample amplitude than auditioned sample 05",
+  "source_file": "iron_impact_sample5.wav"
+}
