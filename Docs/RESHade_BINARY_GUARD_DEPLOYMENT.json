@@ -1,0 +1,31 @@
+{
+  "application": {
+    "applied": true,
+    "timestamp_utc": "2026-10-11T13:58:22.173644+00:00",
+    "original_sha256": "da0f0736e80e73d6dcbc4400276df713c89b37c9dc6b7da0db3481898b7a177d",
+    "applied_sha256": "db28f285b904c7eb8ba1a45753326a58c6f56a9e662694be3f33f4c8dad2b11c",
+    "only_dispatch_and_checksum_written": true,
+    "settings_files_verified_unchanged": 6,
+    "cms_and_chim_unchanged": true,
+    "crashlogger_capture_config_unchanged": true,
+    "game_launched": false,
+    "game_tested": false,
+    "all_ctd_causes_resolved": false
+  },
+  "packages": {
+    "packages_sha256": {
+      "ReShade-Glamur-4.9.1.177-null-guard-candidate.zip": "69251268bc0b3830c1291cdc2855ff98df920a878da4c1d403307c7f9924716e",
+      "ReShade-Glamur-4.9.1.177-original-rollback.zip": "0150e3f384d09eb804949773fa8435efff3f7473e45ec1a0aee9ce367f3a9813"
+    },
+    "original_dll_sha256": "da0f0736e80e73d6dcbc4400276df713c89b37c9dc6b7da0db3481898b7a177d",
+    "candidate_dll_sha256": "db28f285b904c7eb8ba1a45753326a58c6f56a9e662694be3f33f4c8dad2b11c",
+    "settings_files_fingerprinted": 6,
+    "original_backup_saved": true,
+    "deployed": true,
+    "game_tested": false,
+    "applied_at": "2026-10-11T13:58:22.173644+00:00"
+  },
+  "last_crash_log_at_check": "crash-2026-10-11-20-41-45.log",
+  "new_passive_dumps_at_check": 0,
+  "note": "Verification JSON inside package records build-time status; application status is recorded here separately."
+}
