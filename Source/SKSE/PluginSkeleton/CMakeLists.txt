@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(ChainMorningstarVR VERSION 1.0.0 LANGUAGES CXX)
-set(CMS_BUILD_LABEL "${PROJECT_VERSION}-audit8")
+project(ChainMorningstarVR VERSION 1.0.1 LANGUAGES CXX)
+set(CMS_BUILD_LABEL "${PROJECT_VERSION}-sparks")
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -37,6 +37,8 @@ add_commonlibsse_plugin(${PROJECT_NAME}
         EorlundVendor.hpp
         EquipmentDrop.cpp
         EquipmentDrop.hpp
+        EquipmentSparks.cpp
+        EquipmentSparks.hpp
         WeaponAudio.cpp
         WeaponAudio.hpp
         ../MotionAudioCore.hpp

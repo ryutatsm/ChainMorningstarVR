@@ -11,6 +11,9 @@ on:
       - "Source/Audio/**"
       - "Source/xEdit/add_world_impact.py"
       - "Tools/package_world_impact_test.py"
+      - "Tools/package_equipment_sparks.py"
+      - "Assets/EquipmentSparkBaseline/**"
+      - "Docs/EQUIPMENT_SPARKS_INSTALL_JA.txt"
       - "Tests/test_world_impact_assets.py"
       - "Assets/WorldImpactBaseline/**"
       - "Docs/WORLD_IMPACT_TEST_JA.txt"
@@ -30,6 +33,9 @@ on:
       - "Source/Audio/**"
       - "Source/xEdit/add_world_impact.py"
       - "Tools/package_world_impact_test.py"
+      - "Tools/package_equipment_sparks.py"
+      - "Assets/EquipmentSparkBaseline/**"
+      - "Docs/EQUIPMENT_SPARKS_INSTALL_JA.txt"
       - "Tests/test_world_impact_assets.py"
       - "Assets/WorldImpactBaseline/**"
       - "Docs/WORLD_IMPACT_TEST_JA.txt"
@@ -195,7 +201,9 @@ jobs:
           Audit8 keeps the incoming contact gate and follows the audible owned head scene node for the impact tail.
           Descriptor 805 is non-looping and requires matching ESP plus original iron_impact.wav.
           Sustained/resting contact is silent; physics, motion audio and equipment-drop policy are unchanged.
-          This CI artifact is for investigation, not a verified fix or a Vortex release.
+          1.0.1-sparks adds one transient vanilla blunt-metal particle after a successful equipment drop.
+          Existing audio, equipment lottery, physics and approved assets are preserved.
+          This CI DLL requires the matching unified package. VR sparks and extended stability are unverified.
           "@ | Set-Content "$env:GITHUB_WORKSPACE\ci-artifact\BUILD_STATUS.txt"
 
       - name: Upload investigation artifact
@@ -219,14 +227,14 @@ jobs:
         if: github.ref == 'refs/heads/codex/blender-finish'
         run: python -m unittest discover -s Tests -p test_world_impact_assets.py -v
 
-      - name: Package unified world impact test without visual regeneration
+      - name: Package unified equipment sparks without visual regeneration
         if: github.ref == 'refs/heads/codex/blender-finish'
-        run: python Tools/package_world_impact_test.py --dll-stage ci-artifact --source-commit $env:GITHUB_SHA --out ci-world-impact/ChainMorningstarVR-1.0.0-audit8-sound1-unified-test.zip
+        run: python Tools/package_equipment_sparks.py --dll-stage ci-artifact --source-commit $env:GITHUB_SHA --out ci-equipment-sparks/ChainMorningstarVR-1.0.1-sparks-unified.zip
 
-      - name: Upload unified world impact test
+      - name: Upload unified equipment sparks
         if: github.ref == 'refs/heads/codex/blender-finish'
         uses: actions/upload-artifact@v4
         with:
-          name: ChainMorningstarVR-v1.0.0-audit8-sound1-unified-test
-          path: ci-world-impact
+          name: ChainMorningstarVR-v1.0.1-sparks-unified
+          path: ci-equipment-sparks
           if-no-files-found: error

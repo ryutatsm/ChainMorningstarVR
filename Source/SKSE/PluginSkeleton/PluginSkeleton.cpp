@@ -82,7 +82,7 @@ SKSEPluginLoad(const SKSE::LoadInterface* skse)
 #endif
 
     SKSE::log::info(
-        "ChainMorningstarVR {} loading: INVESTIGATION BUILD; release BLOCKED pending world-impact audibility verification; HIGGS head backend requested; equipment drop requires certified contact; VRMeleeData probe={}",
+        "ChainMorningstarVR {} loading: equipment-drop spark update; VR spark visibility and extended stability unverified; HIGGS head backend requested; equipment drop requires certified contact; VRMeleeData probe={}",
         CMS_VERSION_STRING, probeMode);
 
     const bool registered = messaging->RegisterListener(onSKSEMessage);

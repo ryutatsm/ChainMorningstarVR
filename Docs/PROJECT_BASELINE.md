@@ -12,6 +12,18 @@ release finalization awaits evidence-based crash analysis. Further manual A/B cr
 are not requested, and six short successful launches do not establish causation.
 See [current triage](CRASH_TRIAGE_20261011_JA.md).
 
+## Equipment-drop spark update (2026-10-12)
+
+The user requested sparks alongside the existing equipment-drop strike sound.
+Build `1.0.1-sparks` requests one vanilla blunt-metal particle at the captured
+contact point only after RemoveItem returns a dropped reference. The drop
+policy, deduplication, audio and the 27 approved non-DLL game files are preserved.
+This adds no startup hook or persistent placed reference. A loaded target and
+attached cell are required; no actor/scene pointer is retained by CMS.
+The locally delivered `1.0.0-unified-complete` finalized accepted content, not
+CTD resolution or all release gates. This update also leaves stability gates open.
+See `EQUIPMENT_SPARKS_INSTALL_JA.txt`. Actual VR spark visibility is unverified.
+
 ## Current authored visual payload (2026-10-11)
 
 The accepted NIF has 3996 triangles including blood (2900 visible + 1096 blood),

@@ -1,4 +1,5 @@
 #include "EquipmentDrop.hpp"
+#include "EquipmentSparks.hpp"
 #include "VRFrameContext.hpp"
 #include "WeaponAudio.hpp"
 
@@ -216,6 +217,10 @@ EquipmentDropResult TryDropForConfirmedImpact(const ConfirmedEquipmentImpact& re
         &request.contactPosition, nullptr);
     if (auto dropped = result.droppedObject.get()) {
         WeaponAudio::GetSingleton().EquipmentDropped(request.contactPosition);
+        const bool sparks = PlayEquipmentDropSparks(*target, request.contactPosition);
+        SKSE::log::info("CMS equipment-drop sparks: requested={} actor={:08X} impact={} position=({:.1f},{:.1f},{:.1f})",
+            sparks, evidence.targetActor, evidence.impactSerial,
+            request.contactPosition.x, request.contactPosition.y, request.contactPosition.z);
         SKSE::log::info(
             "CMS equipment drop: actor={:08X}, item={:08X}, reference={:08X}, impact={}",
             evidence.targetActor, evidence.equippedBaseForm, dropped->GetFormID(), evidence.impactSerial);

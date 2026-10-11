@@ -27,3 +27,7 @@ jobs:
             g++ -std=c++23 -O2 -Wall -Wextra -Werror -pedantic -I. "$test" -o "$name"
             "./$name"
           done
+      - name: Exercise equipment sparks engine boundary
+        run: |
+          g++ -std=c++23 -O2 -Wall -Wextra -Werror -pedantic -I. -ITests/stubs/equipment_sparks Tests/equipment_sparks_test.cpp -o equipment_sparks_test
+          ./equipment_sparks_test
