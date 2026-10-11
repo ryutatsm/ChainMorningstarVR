@@ -1,0 +1,11 @@
+--- a/source/openvr/openvr.cpp
++++ b/source/openvr/openvr.cpp
+@@ -290,7 +290,7 @@
+ 	void *const interface_instance = reshade::hooks::call(VR_GetGenericInterface)(pchInterfaceVersion, peError);
+ 
+ 	if (unsigned int compositor_version = 0;
+-		std::sscanf(pchInterfaceVersion, "IVRCompositor_%u", &compositor_version))
++		interface_instance != nullptr && std::sscanf(pchInterfaceVersion, "IVRCompositor_%u", &compositor_version))
+ 	{
+ 		// The 'IVRCompositor::Submit' function definition has been stable and has had the same vtable index since the OpenVR 1.0 release (which was at 'IVRCompositor_015')
+ 		if (compositor_version >= 12)

@@ -1,0 +1,11 @@
+{
+  "source_repository": "https://github.com/fholger/reshade",
+  "source_commit": "cd4b5350e61ee949dfffab3ef97b6c8054ced1ff",
+  "source_path": "source/openvr/openvr.cpp",
+  "source_sha256": "d74ed91f47d54e5c11f9373e16bf84bace0df0311bc2f31a82ca4cf096732ab5",
+  "patched_source_sha256": "f53918a97508e56830d09fb42e98cee57e81c3ac1af6b5934717e343c111e48e",
+  "installed_dll_sha256": "da0f0736e80e73d6dcbc4400276df713c89b37c9dc6b7da0db3481898b7a177d",
+  "installed_whole_build_provenance_confirmed": false,
+  "distributable_replacement_dll_built": false,
+  "scope": "Extracted original function body with mocked resolver and hook installer; no game process"
+}

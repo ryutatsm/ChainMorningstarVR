@@ -1,0 +1,3 @@
+# Preserve upstream whitespace in the extracted source and applicable patch.
+*.patch text eol=lf -whitespace
+*.inc text eol=lf -whitespace

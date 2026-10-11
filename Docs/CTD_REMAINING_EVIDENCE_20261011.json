@@ -1,0 +1,109 @@
+{
+  "recorded_at": "2026-10-11T13:43:24.915557+00:00",
+  "cms_runtime_changed": false,
+  "game_launched_by_investigation": false,
+  "all_ctd_causes_resolved": false,
+  "installed_binary_sha256": {
+    "Data/SKSE/Plugins/AIAgent.dll": "5891f0679eb8fc2b572c71c368ee6f81f59899ff3789759638f7c9ea6c3735a7",
+    "Data/SKSE/Plugins/ChainMorningstarVR.dll": "3733450d0eeea6d93c56040f4abe422dc3f8daa177776dac1dc2f5e4c3c46d32",
+    "dxgi.dll": "da0f0736e80e73d6dcbc4400276df713c89b37c9dc6b7da0db3481898b7a177d"
+  },
+  "chim_candidate_installed_hash_match": true,
+  "chim_candidate_runtime_tested": false,
+  "latest_existing_crash": "crash-2026-10-11-20-41-45.log",
+  "reshade": {
+    "crash": "crash-2026-10-11-17-22-42.log",
+    "uptime_seconds": 24.783,
+    "fault_rva": "0x11511b",
+    "fault_bytes": "488b13",
+    "fault_instruction": "mov rdx, [rbx]",
+    "rbx": 0,
+    "interface_name": "IVRCompositor_022",
+    "direct_null_dereference_confirmed": true,
+    "upstream_failure_reason_confirmed": false,
+    "version": "4.9.1.177 UNOFFICIAL",
+    "source_origin_user_answer": "unknown",
+    "installed_whole_build_source_confirmed": false,
+    "replacement_dll_built": false,
+    "replacement_dll_deployed": false,
+    "source_tests_passed": 8,
+    "test_scope": "Pinned extracted function; mocked interfaces; no OpenVR or Skyrim process",
+    "source_evidence": "../Diagnostics/ReShade/SOURCE_EVIDENCE.json",
+    "official_related_fix": "https://github.com/crosire/reshade/commit/ef20c520fdc5a7d904bb0c0442ce9063d777d166"
+  },
+  "actor_latest": {
+    "fault_rva": "0x14339f",
+    "actor_formid": "FF000E26",
+    "crash_thread_id": 19372,
+    "vr_shutdown_time_local": "2026-10-11 20:41:44.120",
+    "vr_shutdown_thread_id": 19372,
+    "player_singleton_null_time_local": "2026-10-11 20:41:44.487",
+    "crash_time_local": "2026-10-11 20:41:45",
+    "supports_this_crash_after_shutdown": true,
+    "all_actor_crashes_proven_shutdown_only": false,
+    "save_inspection_scope": "Only ChangeForms searched; no conclusion about Papyrus or other sections; no save edits",
+    "save_results_without_filenames": [
+      {
+        "sha256": "4053e9bd11a90904b5578374ee4fa900f23bff983581301fc7e7da7806c9ad58",
+        "header_version": 12,
+        "form_version": 78,
+        "compression": 2,
+        "changeform_count": 22615,
+        "formid_count": 17998,
+        "matches": [],
+        "source_unchanged": true
+      },
+      {
+        "sha256": "6af6d86a1268306b119433f7b0e883e902e1a1e7fe9862a99f0a57ee922a5f7e",
+        "header_version": 12,
+        "form_version": 78,
+        "compression": 2,
+        "changeform_count": 22600,
+        "formid_count": 17994,
+        "matches": [],
+        "source_unchanged": true
+      },
+      {
+        "sha256": "d01070776f164fd21a683711bef31431cc7955c7232d523dc35c8b6d5a26f1ea",
+        "header_version": 12,
+        "form_version": 78,
+        "compression": 2,
+        "changeform_count": 22364,
+        "formid_count": 17992,
+        "matches": [],
+        "source_unchanged": true
+      }
+    ]
+  },
+  "rendering": {
+    "fault_rva": "0x534d71",
+    "disk_instruction_matches_log": false,
+    "root_cause_confirmed": false,
+    "community_shaders_stack_presence_proves_cause": false
+  },
+  "passive_capture": {
+    "applied": true,
+    "applied_at": "2026-10-11T13:39:25.246732+00:00",
+    "ini_sha256": "e41164e14eb0048aec21e9a0ae188c055236c5d85800e521d653cb31838ec342",
+    "original_ini_sha256": "c747d76b0a83dff42c6a8f5cb593e5924f9b49957ca872937dc9d275c75fd38e",
+    "zip_sha256": "21d86062f79ccc45042688b2f00dc69e568e3c6d245844435022c0dea1793d75",
+    "changed_keys": [
+      "Crash Log Write Minidump",
+      "Crashlog Directory",
+      "Max Minidumps",
+      "Max Crash Logs"
+    ],
+    "dump_kind": "Full process memory, handles, threads, unloaded modules",
+    "automatic_upload": false,
+    "thread_dump_enabled": false,
+    "wait_for_debugger": false,
+    "backup_saved_locally": true,
+    "output_directory_outside_onedrive": true,
+    "max_minidumps_setting": 2,
+    "possible_files_after_write": 3,
+    "actual_dump_generation_tested": false,
+    "settings_source": "https://github.com/alandtse/CrashLoggerSSE/blob/v1.25.0/src/Settings.cpp",
+    "dump_source": "https://github.com/alandtse/CrashLoggerSSE/blob/v1.25.0/src/Crash/Analysis.cpp"
+  },
+  "privacy": "No raw logs, saves, memory dumps, local user paths or game conversation uploaded"
+}
