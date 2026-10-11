@@ -1,0 +1,106 @@
+name: CHIM dialogue null guard candidate
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/blender-finish]
+    paths:
+      - 'Diagnostics/CHIM/**'
+      - '.github/workflows/chim-null-guard.yml'
+permissions:
+  contents: read
+jobs:
+  candidate:
+    runs-on: windows-2025
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check out pinned CHIM 3.4.2 source
+        uses: actions/checkout@v4
+        with:
+          repository: Dwemer-Dynamics/CHIM
+          ref: 12e035d0a810b9b932fe2df1f688407a72cd27a1
+          path: chim
+          sparse-checkout: |
+            Plugin
+            AIAgent/docs/CHIM
+          submodules: recursive
+      - name: Check out pinned vcpkg
+        uses: actions/checkout@v4
+        with:
+          repository: microsoft/vcpkg
+          ref: ee12231b20c95013c6638d845d04c91559a1d1ff
+          path: chim-vcpkg
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply narrowly scoped source fix
+        run: |
+          git -C chim apply --check "$env:GITHUB_WORKSPACE/Diagnostics/CHIM/dialogue-null-guard.patch"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          git -C chim apply "$env:GITHUB_WORKSPACE/Diagnostics/CHIM/dialogue-null-guard.patch"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python Diagnostics/CHIM/verify_candidate.py --checkout chim --out regression
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          git -C chim diff --check
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Run original versus corrected target regression
+        working-directory: regression
+        run: |
+          cl /nologo /std:c++20 /EHsc /W4 /WX /utf-8 regression.cpp /Fe:regression.exe /Fo:regression.obj
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          ./regression.exe | Tee-Object regression.log
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - uses: actions/cache@v4
+        with:
+          path: chim-binary-cache
+          key: chim-vcpkg-${{ runner.os }}-${{ hashFiles('chim/Plugin/vcpkg*.json') }}
+      - name: Configure and compile into scratch destination
+        run: |
+          $env:VCPKG_ROOT = "$env:GITHUB_WORKSPACE/chim-vcpkg"
+          $env:VCPKG_DEFAULT_BINARY_CACHE = "$env:GITHUB_WORKSPACE/chim-binary-cache"
+          $env:CMAKE_SKYRIM_FOLDER = "$env:GITHUB_WORKSPACE/stage"
+          New-Item -ItemType Directory -Force -Path "$env:CMAKE_SKYRIM_FOLDER/Data", $env:VCPKG_DEFAULT_BINARY_CACHE | Out-Null
+          & "$env:VCPKG_ROOT/bootstrap-vcpkg.bat" -disableMetrics
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          choco install ninja --no-progress -y
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          Push-Location chim/Plugin
+          cmake --preset release -DBUILD_TESTING=ON | Tee-Object "$env:GITHUB_WORKSPACE/configure.log"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cmake --build build/release --parallel 4 | Tee-Object "$env:GITHUB_WORKSPACE/build.log"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          ctest --test-dir build/release --output-on-failure | Tee-Object "$env:GITHUB_WORKSPACE/ctest.log"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          Pop-Location
+          $dll = 'chim/Plugin/build/release/AIAgent.dll'
+          if (-not (Test-Path -LiteralPath $dll)) { throw 'DLL missing' }
+          $hash = (Get-FileHash -LiteralPath $dll -Algorithm SHA256).Hash.ToLower()
+          $hash | Set-Content 'stage/AIAgent.dll.sha256'
+          Copy-Item regression/SOURCE_EVIDENCE.json stage/
+          Copy-Item Diagnostics/CHIM/README_JA.txt stage/
+          Copy-Item chim/LICENSE stage/LICENSE-CHIM.txt
+          Copy-Item Diagnostics/CHIM/dialogue-null-guard.patch stage/
+          "CI source: $env:GITHUB_SHA`nGame tested: false`nDeployed: false" | Set-Content stage/BUILD_STATUS.txt
+      - name: Upload build and regression evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CHIM-dialogue-null-guard-evidence
+          path: |
+            regression/*.log
+            regression/SOURCE_EVIDENCE.json
+            configure.log
+            build.log
+            ctest.log
+          if-no-files-found: error
+      - name: Upload candidate DLL for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: CHIM-3.4.2-dialogue-null-guard-candidate
+          path: stage
+          if-no-files-found: error

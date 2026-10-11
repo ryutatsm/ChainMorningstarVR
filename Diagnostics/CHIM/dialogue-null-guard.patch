@@ -1,0 +1,44 @@
+diff --git a/Plugin/Plugin.cpp b/Plugin/Plugin.cpp
+index 3a6346d..a234fab 100644
+--- a/Plugin/Plugin.cpp
++++ b/Plugin/Plugin.cpp
+@@ -9548,25 +9548,24 @@ EventHandlers {
+                                  event->topicInfoID);*/
+                 }
+ 
+-                auto cameraObject = RE::CrosshairPickData::GetSingleton()->GetActiveTarget();
+-                if (!cameraObject) {
+-                    // logger::info("Checking NPC via grabbed ref");
+-                    // logger::info("TESTopicInfoEvent {} {}", source->GetFormID(), event->topicInfoID);
+-
+-                    auto targetObjectRef = RE::PlayerCharacter::GetSingleton()->GetGrabbedRef();
+-                    if (targetObjectRef) {
+-                        // logger::info("Grabbed ref is null");
+-                        auto cameraObject2 = targetObjectRef.get();
+-                        if (cameraObject2) {
+-                            cameraObject = cameraObject2->GetHandle();
+-                            logger::info("Checked NPC via grabbed ref {}", cameraObject.get()->GetDisplayFullName());
++                // A non-zero ObjectRefHandle can fail to resolve. Keep the resolved
++                // NiPointer alive through the type check and all targetActor uses.
++                RE::NiPointer<RE::TESObjectREFR> cameraRef;
++                if (auto* pickData = RE::CrosshairPickData::GetSingleton()) {
++                    cameraRef = pickData->GetActiveTarget().get();
++                }
++                if (!cameraRef) {
++                    if (auto* player = RE::PlayerCharacter::GetSingleton()) {
++                        cameraRef = player->GetGrabbedRef();
++                        if (cameraRef) {
++                            logger::info("Checked NPC via grabbed ref {}", cameraRef->GetDisplayFullName());
+                         }
+                     }
+                 }
+ 
+-                if (cameraObject) {
+-                    if (cameraObject.get()->GetFormType() == RE::FormType::ActorCharacter) {
+-                        auto targetActor = cameraObject.get()->As<RE::Actor>();
++                if (cameraRef) {
++                    if (cameraRef->GetFormType() == RE::FormType::ActorCharacter) {
++                        auto targetActor = cameraRef->As<RE::Actor>();
+                         if (targetActor == topicActor) {
+                             auto existingAgent = aiam.getAgentByName(targetActor->GetDisplayFullName());
+                             if (existingAgent) {
