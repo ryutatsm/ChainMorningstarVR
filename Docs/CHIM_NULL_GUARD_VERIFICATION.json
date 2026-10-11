@@ -1,0 +1,39 @@
+{
+  "source": {
+    "upstream_repository": "https://github.com/Dwemer-Dynamics/CHIM",
+    "source_commit": "12e035d0a810b9b932fe2df1f688407a72cd27a1",
+    "original_plugin_sha256": "282958ce7c1666bdc8dcd18ea09ff27e0151be4e43458d574662d2f1d2215f23",
+    "patched_plugin_sha256": "51becab93d17d2ac7cf5fae8a17146611f55829ffc891925e0b13ba84d23185a",
+    "installed_dll_sha256": "2d4b7cd20c2612f44b4a1153b306b39b47bacc12d9e1dc3ffea961dabd84b96f",
+    "installed_binary_build_provenance_confirmed": false,
+    "regression_method": "Actual original/patched source blocks, mocked engine API and smart-pointer ownership",
+    "game_tested": false,
+    "deployed": false
+  },
+  "ci_run": 38141113442,
+  "ci_commit": "8d1c41808364f5a30d274d7f51b9e53ca6c309e2",
+  "ci_job": 114475005160,
+  "ci_conclusion": "success",
+  "regression_cases_passed": 7,
+  "upstream_tests_passed": 5,
+  "architecture": "AMD64",
+  "version_header": "0x03040020",
+  "required_imports_unchanged": true,
+  "dll_sha256": "5891f0679eb8fc2b572c71c368ee6f81f59899ff3789759638f7c9ea6c3735a7",
+  "original_dll_sha256": "2d4b7cd20c2612f44b4a1153b306b39b47bacc12d9e1dc3ffea961dabd84b96f",
+  "package": {
+    "name": "CHIM-3.4.2-dialogue-null-guard-candidate.zip",
+    "sha256": "033e21654e522ef1f6838670a927fcf8ceec1496216646a7fcdefffd158505da",
+    "bytes": 1739657
+  },
+  "source_archive": {
+    "name": "CHIM-3.4.2-dialogue-null-guard-source.zip",
+    "sha256": "c932b00fa1b835599180b10aec441ea5375249044c2ca90f0aa2bfdfaffaa00a",
+    "bytes": 105949024,
+    "tracked_source_files": 3542
+  },
+  "game_tested": false,
+  "deployed": false,
+  "cms_files_unchanged": 28,
+  "root_cause_scope": "Null dereference in topic-start target resolution verified; other CTD patterns and upstream handle invalidation unresolved"
+}
