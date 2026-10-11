@@ -1,4 +1,4 @@
-"""Unified audit8 sound5 quieter world-impact test. Preserve the user-approved visual payload.
+"""Unified audit8 sound1 world-impact test. Preserve the user-approved visual payload.
 
 This route never invokes a mesh/texture generator. Runtime sources remain at
 audit8; the authored impact WAV is replaced with the selected quieter sample.
@@ -69,17 +69,18 @@ def compose(stage,commit):
     files.update(source_proof(stage))
     files['Provenance/DLL_BUILD_STATUS.txt']=(stage/'BUILD_STATUS.txt').read_bytes()
     files['README_JA.txt']=(ROOT/'Docs/WORLD_IMPACT_TEST_JA.txt').read_bytes()
-    report=dict(format='cms-audit8-world-impact-sound5-test-v3',version='1.0.0-audit8-sound5-quieter-unified-test',
+    report=dict(format='cms-audit8-world-impact-sound1-test-v4',version='1.0.0-audit8-sound1-unified-test',
                 source_commit=commit,baseline_zip_sha256=BASE_SHA,
                 baseline_visual_source_commit='b46f8d78492090edb66d47d7e345b303cb9b0e0e',
                 change_scope=['DLL: rebuilt from byte-identical audit8 SKSE runtime sources; no behavior changes',
-                              'ESP: byte-identical to audible audit8 build','WAV: user-selected sample 05, linear gain 0.85 relative to audition sample'],
+                              'ESP: byte-identical to audible audit8 build','WAV: user-selected sample 01, gain 0.85; volume matched to accepted sound5 build'],
                 preserved_game_files={n:sha(files[n]) for n in sorted(unchanged)},
                 game_files={n:sha(v) for n,v in sorted(game_files(files).items())},
                 total_triangles=3996,chain_links=19,runtime_nodes=22,collision_hulls=15,
                 impact_audio=audio,esp_old_records_preserved=True,dll_x64=True,
                 runtime_sources_unchanged_from='b982a3ae5c451353eec31474ad0d21905a6a254a',
                 previous_audit8_impact_audible_user_report=True,
+                previous_sound5_volume_accepted_user_report=True,
                 runtime_dll_build_label='1.0.0-audit8',
                 vr_audibility_confirmed=False,new_runtime_vr_test_passed=False,
                 xedit_check_for_errors_passed=False,formal_release=False)

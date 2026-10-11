@@ -1,11 +1,13 @@
 {
-  "sample_number": 5,
-  "name": "weighty_clang",
-  "source": "Original deterministic synthesis; no external recordings",
-  "sha256": "49b4c050514c43861ebdf8e1ddae76748b1076e993694b552559f724473491f5",
+  "sample_number": 1,
+  "name": "heavy_dull",
+  "sha256": "60db444271b0c2c204b4a175451236ac618b37dc02830fecfbcc448f0a6cb2fa",
   "selected_by_user": true,
-  "original_seed": "0xc05ab00",
+  "source": "Original deterministic synthesis; no external recordings",
+  "original_seed": "0xc05a900",
   "gain": 0.85,
-  "gain_basis": "15 percent lower sample amplitude than auditioned sample 05",
-  "source_file": "iron_impact_sample5.wav"
+  "source_file": "iron_impact_sample1.wav",
+  "gain_basis": "Same gain as sound5; authored audition loudness levels matched",
+  "previous_sound5_volume_accepted_user_report": true,
+  "volume_reference_output_sha256": "48fc4e54b6a4f5dd3a9de3c0f286a15350b5cdc471a8c9325cfba2ef95b8e455"
 }

@@ -221,12 +221,12 @@ jobs:
 
       - name: Package unified world impact test without visual regeneration
         if: github.ref == 'refs/heads/codex/blender-finish'
-        run: python Tools/package_world_impact_test.py --dll-stage ci-artifact --source-commit $env:GITHUB_SHA --out ci-world-impact/ChainMorningstarVR-1.0.0-audit8-sound5-quieter-unified-test.zip
+        run: python Tools/package_world_impact_test.py --dll-stage ci-artifact --source-commit $env:GITHUB_SHA --out ci-world-impact/ChainMorningstarVR-1.0.0-audit8-sound1-unified-test.zip
 
       - name: Upload unified world impact test
         if: github.ref == 'refs/heads/codex/blender-finish'
         uses: actions/upload-artifact@v4
         with:
-          name: ChainMorningstarVR-v1.0.0-audit8-sound5-quieter-unified-test
+          name: ChainMorningstarVR-v1.0.0-audit8-sound1-unified-test
           path: ci-world-impact
           if-no-files-found: error

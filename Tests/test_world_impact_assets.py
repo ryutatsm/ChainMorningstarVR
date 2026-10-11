@@ -39,18 +39,19 @@ class WorldImpactAssets(unittest.TestCase):
         with self.assertRaises(ValueError):append_impact(self.esp[:-1])
     def test_selected_wave_reproducible_and_attenuated_only(self):
         data,report=synthesize();self.assertEqual(data,synthesize()[0])
-        self.assertEqual(report['sha256'],'48fc4e54b6a4f5dd3a9de3c0f286a15350b5cdc471a8c9325cfba2ef95b8e455')
+        self.assertEqual(report['sha256'],'563c7f256087337571bb795765cce75d6f17adff5069b9129ad023bbd7065ed9')
         source=SOURCE.read_bytes();self.assertEqual(hashlib.sha256(source).hexdigest(),SOURCE_SHA256)
         original=read_pcm(source);actual=read_pcm(data)
         # The user's chosen timbre must survive exactly: a single linear gain,
         # with no regenerated noise, normalization, speed or envelope change.
         np.testing.assert_array_equal(actual,np.rint(original.astype(float)*.85).astype('<i2'))
-        self.assertEqual(report['sample_number'],5);self.assertEqual(report['gain'],.85)
-        self.assertGreater(report['power_below_700hz'],.8)
-        self.assertLess(report['power_below_140hz'],.25)
-        self.assertGreater(report['power_700_to_3500hz'],.12)
-        self.assertLess(report['peak'],.60)
-        self.assertEqual(report['seconds'],.85)
+        self.assertEqual(report['sample_number'],1);self.assertEqual(report['gain'],.85)
+        self.assertGreater(report['power_below_700hz'],.97)
+        self.assertLess(report['power_below_140hz'],.35)
+        self.assertLess(report['power_700_to_3500hz'],.025)
+        self.assertLess(report['peak'],.67)
+        self.assertLess(abs(report['level_delta_db_from_sound5']),.05)
+        self.assertEqual(report['seconds'],.72)
         with wave.open(io.BytesIO(data),'rb') as w:self.assertEqual((w.getnchannels(),w.getsampwidth(),w.getframerate()),(1,2,44100))
     def test_old_audio_and_successful_nif_identity(self):
         expected={'iron_scrape.wav':'b6309ee4a9142198e44282ce02f48f379b2c66a8d0f55e3e66accf7b6fcce69c',
