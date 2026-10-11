@@ -1,0 +1,41 @@
+{
+  "date": "2026-10-11",
+  "scope": "Blender handoff tools and data; no gameplay changes",
+  "blender": "4.5.3 LTS bpy / Linux x86_64, CPU Cycles",
+  "gameplay_baseline_commit": "df3ef906a7927516263b567817900cc125d5f860",
+  "baseline_cms_sha256": "0319d497343fc72afa85f68ac5c3444df4042ac920633aea96eebe19e1d3ca57",
+  "baseline_nif_sha256": "648aa99090d81e9b8067a0965f1066e166509d3003a61e881fbae9d48264dc87",
+  "baseline_zip_sha256": "63c6a4afaa5d032f58b66e4ce13c41f3ef410df8d19c15ee5714614d835bcd70",
+  "checks": {
+    "actions_assets_match_distributed_nif_and_all_21_dds": true,
+    "no_edit_cms_byte_identical": true,
+    "no_edit_nif_byte_identical_to_distributed_windows_build": true,
+    "packed_images": 21,
+    "runtime_nodes": 22,
+    "visual_meshes": 32,
+    "collision_hulls": 15,
+    "accepted_wood_and_head_surface_edits": 2,
+    "rejected_invalid_edits": [
+      "runtime_translation",
+      "object_scale",
+      "wrong_parent",
+      "unapplied_modifier",
+      "material_assignment",
+      "excessive_deformation",
+      "duplicate_mesh",
+      "new_uv_seam",
+      "topology_change"
+    ],
+    "edited_head_nif_roundtrip_and_native_blood_surfaces": true,
+    "original_contact_planes_preserved": true,
+    "guarded_visual_overlay_packaged": true,
+    "front_head_handle_renders_inspected": true
+  },
+  "limits": [
+    "No connection to the user Windows PC was made in this preparation.",
+    "No new in-game appearance or runtime testing was performed.",
+    "User reports audit6 works very well; this does not establish all release gates.",
+    "Guarded exporter is for topology-preserving vertex/UV edits, not arbitrary remeshing.",
+    "Textures are decoded audit6 DDS; preview shaders are not Skyrim shader parity."
+  ]
+}
