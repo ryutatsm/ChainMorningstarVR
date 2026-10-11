@@ -128,7 +128,7 @@ def pixel_array(image):
     return values.reshape(image.size[1],image.size[0],4)
 
 
-def bake(low,sources,kind,name):
+def bake(low,sources,kind,name,cage_extrusion=.0045,max_ray_distance=.009):
     image=bpy.data.images.new('BAKE_'+name,width=1024,height=1024,alpha=True)
     image.alpha_mode='CHANNEL_PACKED'
     image.colorspace_settings.name='sRGB' if kind=='DIFFUSE' else 'Non-Color'
@@ -144,11 +144,11 @@ def bake(low,sources,kind,name):
         bpy.context.collection.objects.link(cage)
         cage.select_set(False);cage.hide_render=True
         for v in cage.data.vertices:
-            direction=Vector((v.co.x,0,v.co.z));direction.normalize();v.co+=direction*.0045
+            direction=Vector((v.co.x,0,v.co.z));direction.normalize();v.co+=direction*cage_extrusion
         scene.render.bake.use_cage=True;scene.render.bake.cage_object=cage
     else:scene.render.bake.use_cage=False
-    scene.render.bake.cage_extrusion=.0045
-    scene.render.bake.max_ray_distance=.009
+    scene.render.bake.cage_extrusion=cage_extrusion
+    scene.render.bake.max_ray_distance=max_ray_distance
     scene.render.bake.margin=12
     scene.render.bake.use_clear=True
     scene.render.bake.normal_space='TANGENT'
@@ -166,7 +166,7 @@ def bake(low,sources,kind,name):
     return image
 
 
-def bake_alpha(low,sources):
+def bake_alpha(low,sources,coverage=None,**bake_options):
     original=[obj.active_material for obj in sources];temporary=[]
     for obj,old in zip(sources,original):
         mat=old.copy();obj.data.materials[0]=mat;temporary.append(mat)
@@ -175,11 +175,12 @@ def bake_alpha(low,sources):
         output=nodes.get('Material Output');emission=nodes.new('ShaderNodeEmission')
         links.new(normal.outputs['Alpha'],emission.inputs['Color'])
         links.new(emission.outputs[0],output.inputs['Surface'])
-    image=bake(low,sources,'EMIT','leather_specular')
+    image=bake(low,sources,'EMIT','leather_specular',**bake_options)
     values=pixel_array(image);alpha=values[:,:,0].copy()
     print('SPECULAR_BAKE_STATS',float(alpha.min()),float(alpha.max()),float(np.mean(values[:,:,3]<.5)),flush=True)
-    missing=values[:,:,3]<.5
-    if np.mean(missing)>.005:raise ValueError('Too many missing specular bake pixels')
+    missing=(values[:,:,3]<.5)|(values[:,:,0]<.01)
+    checked=missing if coverage is None else missing[coverage]
+    if np.mean(checked)>.005:raise ValueError('Too many missing specular bake pixels')
     fallback=pixel_array(bpy.data.images['cms_leather_n.png'])[:,:,3]
     alpha[missing]=fallback[missing]
     bpy.data.images.remove(image)
@@ -189,10 +190,11 @@ def bake_alpha(low,sources):
     return alpha
 
 
-def install_image(image,name,output,alpha):
+def install_image(image,name,output,alpha,coverage=None):
     old=bpy.data.images[name];values=pixel_array(image)
     missing=values[:,:,3]<.5
-    if 'leather' in name and np.mean(missing)>.005:raise ValueError('Too many unmapped leather pixels')
+    checked=missing if coverage is None else missing[coverage]
+    if 'leather' in name and np.mean(checked)>.005:raise ValueError('Too many unmapped leather pixels')
     # Outside a UV island, or at a subpixel projection miss, retain source pixels.
     # Alpha is specular, so do this before replacing the bake coverage channel.
     values[missing,:3]=pixel_array(old)[missing,:3]

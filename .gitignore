@@ -7,3 +7,4 @@ vcpkg/
 ci-artifact/
 nif-artifact/
 .deps/
+Assets/BlenderFinish/textures/*.dds

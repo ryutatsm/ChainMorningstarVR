@@ -1,5 +1,8 @@
 # audit6 Blender軽量化・外観テスト
 
+最新の4,000以下版は [BLENDER_UNDER4K_JA.md](BLENDER_UNDER4K_JA.md) を参照。
+以下は前回47,845三角形版の記録です。最新の保存済み入力は4k版へ更新されています。
+
 作業ブランチは `codex/blender-finish`。ゲームプレイ基準は引き続き audit6
 `df3ef906a7927516263b567817900cc125d5f860`、引き継ぎツール基準は
 `f10604b25d7ae0772356ad606b5fdfd3ae246cb3` です。mainへ統合せず、正式公開もしません。

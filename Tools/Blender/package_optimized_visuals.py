@@ -25,7 +25,16 @@ TEXTURES={'cms_leather_d.png','cms_leather_n.png','cms_wood_n.png','cms_emblem_n
 
 
 def check_cms(cms,baseline,report):
-    if report['format']!='cms-blender-optimized-v1':raise ValueError('Wrong export route')
+    under4k=report['format']=='cms-blender-under4k-v2'
+    if not under4k and report['format']!='cms-blender-optimized-v1':raise ValueError('Wrong export route')
+    limit=6. if under4k else .15
+    if under4k:
+        draw=sum(len(m['faces']) for m in cms['meshes'])
+        blood=2*sum(len(m['faces']) for m in cms['meshes'] if m['name'] in ('CMS_CMS_HeadNode_metal','CMS_CMS_HeadNode_spike','CMS_CMS_HeadNode_emblem'))
+        if draw+blood>4000 or report['nif_total_triangles']!=draw+blood or report['blood_triangles']!=blood:
+            raise ValueError('Inclusive 4000 triangle budget exceeded or proof inconsistent')
+        if report['triangle_budget_including_blood']!=4000 or not report['hidden_emblem_backing_removed'] or not report['hidden_spike_bases_removed']:
+            raise ValueError('Explicit hidden-surface omission policy changed')
     if report['edited_cms_sha256']!=sha256(cms['data']):raise ValueError('CMS/report mismatch')
     if cms['nodes']!=baseline['nodes'] or cms['hulls']!=baseline['hulls']:raise ValueError('Physics/node contract changed')
     if ''.join(cms['lines'][cms['collision_start']:])!=''.join(baseline['lines'][baseline['collision_start']:]):raise ValueError('Hull bytes changed')
@@ -34,7 +43,7 @@ def check_cms(cms,baseline,report):
         raise ValueError('Only the named cord may be removed; no mesh/material/parent additions')
     if len(report['meshes'])!=31 or report['mesh_count']!=31 or report['chain_links']!=19 or report['removed_mesh']!=CORD:
         raise ValueError('Wrong optimization contract')
-    if report['surface_limit_mm']!=.15:raise ValueError('Surface tolerance changed')
+    if report['surface_limit_mm']!=limit:raise ValueError('Surface tolerance changed')
     for original,edited,proof in zip(expected,cms['meshes'],report['meshes']):
         rows=np.array(edited['vertices']);old=np.array(original['vertices'])
         faces=np.array(edited['faces'])
@@ -43,13 +52,14 @@ def check_cms(cms,baseline,report):
         if len(faces)>len(original['faces']) or not 0<len(rows)<65536 or not 0<len(faces)<65536:raise ValueError('Index/count contract')
         if not np.isfinite(rows).all() or np.any(abs(np.linalg.norm(rows[:,3:6],axis=1)-1)>.0001):raise ValueError('Invalid vertex/normal')
         if faces.min()<0 or faces.max()>=len(rows):raise ValueError('Invalid index')
-        if np.any(rows[:,:3].min(0)<old[:,:3].min(0)-1e-7) or np.any(rows[:,:3].max(0)>old[:,:3].max(0)+1e-7):
+        bounds_margin=.0015 if under4k else 1e-7
+        if np.any(rows[:,:3].min(0)<old[:,:3].min(0)-bounds_margin) or np.any(rows[:,:3].max(0)>old[:,:3].max(0)+bounds_margin):
             raise ValueError('Bounds expanded')
         area=np.cross(rows[faces[:,1],:3]-rows[faces[:,0],:3],rows[faces[:,2],:3]-rows[faces[:,0],:3])
         if np.any(np.linalg.norm(area,axis=1)<1e-13):raise ValueError('Degenerate triangle')
         if min(proof['minimum_face_normal_dot'],1)<=0:raise ValueError('Inverted surface')
         if not proof['uv_orientation_verified']:raise ValueError('Missing UV orientation proof')
-        if max(d['max_mm'] for d in proof['distances'].values())>.15001:raise ValueError('Surface error')
+        if max(d['max_mm'] for d in proof['distances'].values())>limit+.00001:raise ValueError('Surface error')
     if sum(len(m['faces']) for m in cms['meshes'])!=report['after_triangles']:raise ValueError('Total count mismatch')
 
 
@@ -92,6 +102,8 @@ def package(a):
     tool_paths=['Tools/Blender/optimize_audit6.py','Tools/Blender/surface_contract.py',
                 'Tools/Blender/export_optimized_visuals.py','Tools/Blender/package_optimized_visuals.py',
                 'Source/Textures/encode_dds.py']
+    if report['format']=='cms-blender-under4k-v2':
+        tool_paths+=['Tools/Blender/retopologize_under4k.py','Tools/Blender/export_under4k_visuals.py']
     report['tool_source_sha256']={name:sha256((ROOT/name).read_bytes()) for name in tool_paths}
     import PIL
     report['texture_encoder_versions']=dict(pillow=PIL.__version__,numpy=np.__version__)
@@ -102,6 +114,10 @@ def package(a):
        '描画NIFと革の色・法線、木とエンブレムの法線DDSだけを上書きします。\n'
        '22ノード、19節、75%の基準スケール、15衝突形状は維持しています。DLL・ESP・音声は本体のままです。\n'
        '柄の紐はメッシュを削除し、革の色とノーマルへ焼き込みました。紐だけの輪郭の出っ張りはありません。\n'
+       + ('前回47kの外観テストMODは無効化してから今回のZIPを導入してください。\n'
+          'エンブレムも曲面の土台だけを残し、浮き彫りをノーマルへ焼き込みました。\n'
+          f"血用2形状込みのNIF総三角形: {report['nif_total_triangles']:,}（4,000以下）。輪郭は近距離で多角形に見える場合があります。\n"
+          if report['format']=='cms-blender-under4k-v2' else '') +
        f"三角形数: {report['before_triangles']:,} → {report['after_triangles']:,}（血・衝突形状を除く描画用）\n"
        '血用2形状は軽量化した鉄球に合わせて再生成し、ファイル構造と法線オフセットを確認しました。\n'
        'Skyrim VR実機、FPS、装備解除、掴み、接触、血の発生、xEditの確認は未実施です。正式完成版ではありません。\n'
