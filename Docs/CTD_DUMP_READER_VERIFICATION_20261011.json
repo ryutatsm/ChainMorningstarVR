@@ -1,0 +1,91 @@
+{
+  "schema": "cms-saved-dump-reader-verification-v1",
+  "recorded_at": "2026-10-11T23:44:39.940519+09:00",
+  "new_game_logs_found": false,
+  "latest_game_log": "crash-2026-10-11-20-41-45.log",
+  "game_started": false,
+  "game_process_attached": false,
+  "game_files_changed": false,
+  "cms_runtime_changed": false,
+  "save_files_changed": false,
+  "tests": {
+    "synthetic_dump_tests_passed": 13,
+    "existing_log_tests_passed": 7,
+    "total_passed": 20,
+    "initial_cli_test_temp_directory_permission_error_resolved": true,
+    "windows_generated_format_check": {
+      "windows_api_generated": true,
+      "source_process": "owned dummy Python child only",
+      "game_process_opened": false,
+      "game_launched": false,
+      "crash_induced": false,
+      "memory64_marker_read_correctly": true,
+      "no_exception_handled_correctly": true,
+      "memory_ranges": 224,
+      "module_records": 27,
+      "dump_bytes": 43301886,
+      "private_dump_shared": false
+    },
+    "dummy_dump_deleted_after_test": true,
+    "real_skyrim_dump_tested": false
+  },
+  "new_findings": {
+    "engine_fixes_shadow_function_rva": "0x12f86d0",
+    "engine_fixes_shadow_patch_rvas": [
+      "0x12f86dd",
+      "0x12f86e6"
+    ],
+    "matches_actor_fault_caller": false,
+    "matches_mist_menu_fault_function": false,
+    "engine_fixes_full_build_source_identity_proven": false,
+    "singleton_constant_hit_in_lethal_unarmed": "incidental RIP-relative LEA displacement, not a relocation ID use",
+    "skse_menu_framework_frame": "0x126d4a is the return from original rendering; its own Render call follows",
+    "pointer_writer_identified": false
+  },
+  "inspected_wrapper_binaries": [
+    {
+      "file": "CommunityShaders.dll",
+      "sha256": "4a7b7756c1e682e54e179f8666ecd3912434484f7f8615a4e76ad7298e150c69"
+    },
+    {
+      "file": "SKSEMenuFramework.dll",
+      "sha256": "0c107ad4c471c904186b68e1b50b10a66311affb40eb0ba2b8fcca36735d55a2"
+    }
+  ],
+  "sources": [
+    "https://github.com/rollingrock/EngineFixesVR/blob/e5d78ad23cf941335fd20a2bfce13ea41481b3c3/fixes/miscfixes.cpp",
+    "https://github.com/QTR-Modding/SKSE-Menu-Framework-3/blob/dc9182454556910b2fd873d770c345cfe6e53777/src/Hooks.cpp#L361",
+    "https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_memory64_list",
+    "https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_module",
+    "https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_exception_stream",
+    "https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-context",
+    "https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/nf-minidumpapiset-minidumpwritedump"
+  ],
+  "limits": [
+    "No cause-mod attribution or post-candidate runtime validation",
+    "No proof of object lifetime or past memory writes from pointer/vtable matches",
+    "No monitoring, game instrumentation, process launcher, or automatic upload in delivered reader"
+  ],
+  "files": [
+    {
+      "path": "Diagnostics/Crash/classify_existing_logs.py",
+      "sha256": "a77f8a68eafbbeee4f27896a2a62854ebffbc6b4e6f5822e4433cfa281e8ec7a"
+    },
+    {
+      "path": "Diagnostics/Crash/test_classify_existing_logs.py",
+      "sha256": "23b63029dd7bd4db398c091292e252f46767b04eed7dbe625ca722109039cb40"
+    },
+    {
+      "path": "Diagnostics/Crash/inspect_saved_minidump.py",
+      "sha256": "8dd9ae4493f51a266687174f9681e83fef42232210657a7106e519907cb65a1b"
+    },
+    {
+      "path": "Diagnostics/Crash/test_inspect_saved_minidump.py",
+      "sha256": "108f2e323e41312503b5b435dc46095fff319f9fa6277ea3313307c450e1ec9b"
+    },
+    {
+      "path": "Diagnostics/Crash/README_JA.txt",
+      "sha256": "98f6d6c7df17ac41441d9ad14e06a4f9dd63f946883a7f811ef15e78b13131ff"
+    }
+  ]
+}
