@@ -93,6 +93,10 @@ def export(out,textures,loaded_from_saved_file=False):
     require(text is not None,'Missing explicit optimization provenance')
     manifest=json.loads(text.as_string())
     edge_finish=manifest.get('leather_edge_finish')
+    spike_finish=manifest.get('spike_contact_finish')
+    if spike_finish:
+        from spike_contact_contract import POLICY as SPIKE_POLICY,SPIKE,validate_rows as validate_spikes,validate_cms as validate_spike_cms,canonical_rows,build as contact_surface
+        require(spike_finish['policy']==SPIKE_POLICY,'Unknown spike contact policy')
     if edge_finish:
         from leather_edge_contract import POLICY,LEATHER,BODY_TRIANGLES,validate_rows,validate_cms
         require(edge_finish['policy']==POLICY,'Unknown leather edge policy')
@@ -156,6 +160,11 @@ def export(out,textures,loaded_from_saved_file=False):
                 obj.active_material.get('cms_material_index')==original['material'] and
                 all(p.material_index==0 for p in obj.data.polygons),'Material contract changed: '+obj.name)
         rows,g=serialize_mesh(obj);q=rows[:,:3]
+        is_spike=bool(spike_finish) and obj.name==SPIKE
+        if is_spike:
+            spike_proof=validate_spikes(rows,g)
+            require(spike_finish==spike_proof,'Spike manifest differs from independent contact proof')
+            rows,g=canonical_rows(rows,g);q=rows[:,:3]
         require(len(g)<=len(f),'Optimization increases triangles: '+obj.name)
         uv=rows[:,6:8];old_uv=old[:,6:8]
         require(np.all(uv.min(0)>=old_uv.min(0)-1e-5) and np.all(uv.max(0)<=old_uv.max(0)+1e-5),
@@ -171,6 +180,13 @@ def export(out,textures,loaded_from_saved_file=False):
             body_q=q[used];body_g=remap[body_g]
             distances=distance_report(p,f,body_q,body_g)
         else:distances=distance_report(p,f,q,g)
+        if is_spike:
+            # The deliberately buried roots may move over 6mm. This does not
+            # widen the global retopology allowance: only the independently
+            # pinned root-contact geometry is permitted on this named mesh.
+            original_distances=distances
+            reviewed,reviewed_faces,_=contact_surface()
+            distances=distance_report(reviewed[:,:3],reviewed_faces,q,g)
         require(maximum(distances)<=SURFACE_LIMIT_M+1e-8,'Surface deviation exceeds 6 mm: '+obj.name)
         old_topology=topology(p,f);new_topology=topology(q,g)
         require(old_topology==new_topology,'Connected surfaces/holes changed: '+obj.name)
@@ -189,9 +205,15 @@ def export(out,textures,loaded_from_saved_file=False):
             reports[-1].update(leather_edge_finish=edge_proof,
                 added_edge_uv_geometry_verified=True,
                 distances_scope='exterior grip body; added end annuli checked by pinned wood-contact contract')
+        if is_spike:
+            reports[-1].update(spike_contact_finish=spike_proof,
+                original_audit6_distances=original_distances,
+                custom_normals_canonicalized_from_pinned_source=True,
+                distances_scope='pinned root-contact repair; original audit6 distances retained separately; only base-ring axis extension <=10mm permitted')
     collision_bytes=''.join(cms['lines'][cms['collision_start']:]);chunks.append(collision_bytes)
     data=''.join(chunks).encode();edited=parse(data,require_baseline=False)
-    if edge_finish:validate_cms(edited)
+    if spike_finish:validate_spike_cms(edited)
+    elif edge_finish:validate_cms(edited)
     require(edited['nodes']==cms['nodes'] and edited['hulls']==cms['hulls'],'Node/collision serialization changed')
     require(''.join(edited['lines'][edited['collision_start']:])==collision_bytes,'Collision bytes changed')
     before=np.array(original_world);after=np.array(world)
@@ -219,6 +241,7 @@ def export(out,textures,loaded_from_saved_file=False):
                        'Blood surfaces must be regenerated from optimized head geometry by the pinned NIF writer.',
                        'A successful export does not confirm Skyrim VR behavior or formal release readiness.'])
     if edge_finish:report['leather_edge_finish']=edge_proof
+    if spike_finish:report['spike_contact_finish']=spike_proof
     out.with_suffix('.edit.json').write_text(json.dumps(report,indent=2)+'\n')
     print('OPTIMIZED_EXPORT_PASS',report['before_triangles'],report['after_triangles'],sha256(data),flush=True)
     return report

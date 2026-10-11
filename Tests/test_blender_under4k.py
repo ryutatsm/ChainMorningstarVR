@@ -60,13 +60,26 @@ def main(a):
                      ('unrelated micron edit',unrelated,'Unrelated mesh changed'),
                      ('edge contact policy',policy,'independent contact proof')]:reject(*args)
         # Exercise the independent packaging/CI check without Blender geometry.
-        from leather_edge_contract import validate_cms
+        if r.get('spike_contact_finish'):
+            from spike_contact_contract import validate_cms
+        else:
+            from leather_edge_contract import validate_cms
         import copy
         unsafe=copy.deepcopy(c);m=next(m for m in unsafe['meshes'] if m['name']=='CMS_CMS_ROOT_leather')
         m['vertices'][m['faces'][128][0]][0]+=.001
         try:validate_cms(unsafe)
         except ValueError:rejections.append(dict(test='independent CI geometry check',reason='altered contact corner rejected'))
         else:raise AssertionError('CI accepted altered end annulus')
+    if r.get('spike_contact_finish'):
+        def spike_root():bpy.data.objects['CMS_CMS_HeadNode_spike'].data.vertices[0].co.x+=.001
+        def spike_tip():bpy.data.objects['CMS_CMS_HeadNode_spike'].data.vertices[7].co.x+=.000001
+        def spike_uv():bpy.data.objects['CMS_CMS_HeadNode_spike'].data.uv_layers[0].data[0].uv.x+=.001
+        def spike_policy():
+            t=bpy.data.texts['AUDIT6_OPTIMIZATION.json'];m=json.loads(t.as_string())
+            m['spike_contact_finish']['inset_mm']=0
+            t.clear();t.write(json.dumps(m))
+        for args in [('detached spike root',spike_root,'Spike roots'),('moved spike tip',spike_tip,'Spike roots'),
+                     ('spike UV change',spike_uv,'Spike roots'),('spike contact policy',spike_policy,'independent contact proof')]:reject(*args)
     open_scene();export(a.out/'second.cms',a.textures,True)
     assert (a.out/'first.cms').read_bytes()==(a.out/'second.cms').read_bytes()
     result=dict(draw_triangles=r['after_triangles'],blood_triangles=r['blood_triangles'],nif_total_triangles=r['nif_total_triangles'],

@@ -6,7 +6,9 @@ may change. The entire input identity, layout and protected blocks are checked.
 import hashlib
 import struct
 
-INPUT_SHA256 = 'a2f5a40473884201c1eac9257f12d81a973d918d84d403ef8b914af36bc8d2c9'
+INPUT_SHA256 = 'dfabd8dd383eb063bc3f61a4af0cde7a3760badef9e79d386b82125318ca2e65'
+SOURCE_PROFILES = {'spike-contact': INPUT_SHA256,
+                   'previous-leather-edge': 'a2f5a40473884201c1eac9257f12d81a973d918d84d403ef8b914af36bc8d2c9'}
 OWN_EMIT = 1 << 22
 ENVMAP_LIGHT_FADE = 1 << 15
 
@@ -93,8 +95,8 @@ def materials(data):
     return nif, rows
 
 
-def patch(data):
-    require(sha(data) == INPUT_SHA256, 'Unapproved lighting source NIF')
+def patch(data, profile='spike-contact'):
+    require(profile in SOURCE_PROFILES and sha(data) == SOURCE_PROFILES[profile], 'Unapproved lighting source NIF')
     nif, rows = materials(data)
     require(len(rows) == 32, 'Expected 31 visible lighting materials and one protected blood material')
     result = bytearray(data)
@@ -129,6 +131,7 @@ def patch(data):
     changed_bytes = {i for i, (a, b) in enumerate(zip(data, result)) if a != b}
     require(changed_bytes <= allowed and len(data) == len(result), 'Non-material bytes changed')
     proof = dict(format='cms-nif-dark-lighting-v1', input_nif_sha256=sha(data), output_nif_sha256=sha(result),
+                 source_profile=profile,
                  visible_materials=31, changed_bytes=len(changed_bytes), changes=changes,
                  geometry_uv_normals_tangents_nodes_collision_blood_byte_identical=True,
                  diffuse_normal_specular_environment_textures_unchanged=True,

@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [codex/blender-finish]
-    paths: ["Assets/BlenderFinish/**", "Assets/Audit6Baseline/**", "Tools/Blender/**", "Source/NIF/inspect_nif_materials.cpp", "Source/NIF/CMakeLists.txt", "Tests/test_blender_optimization.py", "Tests/test_blender_under4k.py", "Tests/test_unified_package.py", "Tests/test_blender_lighting.py", ".github/workflows/blender-visual-test.yml", ".github/workflows/windows-nif-build.yml", ".github/workflows/windows-texture-build.yml"]
+    paths: ["Assets/BlenderFinish/**", "Assets/Audit6Baseline/**", "Tools/Blender/**", "Source/NIF/inspect_nif_materials.cpp", "Source/NIF/CMakeLists.txt", "Tests/test_blender_optimization.py", "Tests/test_blender_under4k.py", "Tests/test_unified_package.py", "Tests/test_blender_lighting.py", "Tests/test_spike_contacts.py", "Tests/test_spike_nif_diff.py", ".github/workflows/blender-visual-test.yml", ".github/workflows/windows-nif-build.yml", ".github/workflows/windows-texture-build.yml"]
 permissions:
   contents: read
 jobs:
@@ -39,24 +39,30 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Writer build failed" }
       - name: Package the saved edit and selected DDS maps
         run: |
-          python Tools/Blender/package_optimized_visuals.py --cms Assets/BlenderFinish/optimized.cms --baseline-cms Assets/BlenderFinish/audit6_baseline.cms --blend Assets/BlenderFinish/ChainMorningstarVR_work.blend --textures Assets/BlenderFinish/textures --writer build/blender-finish-writer/Release/export_reference_nif.exe --out build/blender-finish-overlay/ChainMorningstarVR-audit6-leather-edge-test.zip
+          python Tools/Blender/package_optimized_visuals.py --cms Assets/BlenderFinish/optimized.cms --baseline-cms Assets/BlenderFinish/audit6_baseline.cms --blend Assets/BlenderFinish/ChainMorningstarVR_work.blend --textures Assets/BlenderFinish/textures --writer build/blender-finish-writer/Release/export_reference_nif.exe --out build/blender-finish-overlay/ChainMorningstarVR-audit6-spike-contact-overlay.zip
           if ($LASTEXITCODE -ne 0) { throw "Overlay gate failed" }
       - name: Verify full package equivalence and rejected unsafe inputs
         run: |
-          python Tests/test_unified_package.py --baseline-zip Assets/Audit6Baseline/ChainMorningstarVR-1.0.0-audit6-diagnostic.zip --overlay build/blender-finish-overlay/ChainMorningstarVR-audit6-leather-edge-test.zip --inputs Assets/BlenderFinish/UNIFIED_PAYLOAD_SHA256.json
+          python Tests/test_unified_package.py --baseline-zip Assets/Audit6Baseline/ChainMorningstarVR-1.0.0-audit6-diagnostic.zip --overlay build/blender-finish-overlay/ChainMorningstarVR-audit6-spike-contact-overlay.zip --inputs Assets/BlenderFinish/UNIFIED_PAYLOAD_SHA256.json
           if ($LASTEXITCODE -ne 0) { throw "Unified package tests failed" }
       - name: Assemble complete Vortex test MOD with pinned audit6 runtime
         run: |
-          python Tools/Blender/package_unified_test.py --baseline-zip Assets/Audit6Baseline/ChainMorningstarVR-1.0.0-audit6-diagnostic.zip --overlay build/blender-finish-overlay/ChainMorningstarVR-audit6-leather-edge-test.zip --inputs Assets/BlenderFinish/UNIFIED_PAYLOAD_SHA256.json --out build/blender-finish-overlay/ChainMorningstarVR-1.0.0-audit6-unified-3996-test.zip
+          python Tools/Blender/package_unified_test.py --baseline-zip Assets/Audit6Baseline/ChainMorningstarVR-1.0.0-audit6-diagnostic.zip --overlay build/blender-finish-overlay/ChainMorningstarVR-audit6-spike-contact-overlay.zip --inputs Assets/BlenderFinish/UNIFIED_PAYLOAD_SHA256.json --out build/blender-finish-overlay/ChainMorningstarVR-1.0.0-audit6-unified-spike-prelighting-test.zip
           if ($LASTEXITCODE -ne 0) { throw "Unified package gate failed" }
       - name: Assemble lighting-corrected complete Vortex MOD
         run: |
-          python Tools/Blender/package_lighting_test.py --baseline-zip Assets/Audit6Baseline/ChainMorningstarVR-1.0.0-audit6-diagnostic.zip --overlay build/blender-finish-overlay/ChainMorningstarVR-audit6-leather-edge-test.zip --inputs Assets/BlenderFinish/UNIFIED_PAYLOAD_SHA256.json --inspector build/blender-finish-writer/Release/inspect_nif_materials.exe --out build/blender-finish-overlay/ChainMorningstarVR-1.0.0-audit6-unified-lighting-test.zip
+          python Tools/Blender/package_lighting_test.py --baseline-zip Assets/Audit6Baseline/ChainMorningstarVR-1.0.0-audit6-diagnostic.zip --overlay build/blender-finish-overlay/ChainMorningstarVR-audit6-spike-contact-overlay.zip --inputs Assets/BlenderFinish/UNIFIED_PAYLOAD_SHA256.json --inspector build/blender-finish-writer/Release/inspect_nif_materials.exe --out build/blender-finish-overlay/ChainMorningstarVR-1.0.0-audit6-unified-spike-contact-test.zip
           if ($LASTEXITCODE -ne 0) { throw "Lighting package gate failed" }
       - name: Verify lighting-only byte changes and independent NIF parsing
         run: |
-          python Tests/test_blender_lighting.py --nif build/blender-finish-overlay/ChainMorningstarVR-audit6-leather-edge-test.nif --inspector build/blender-finish-writer/Release/inspect_nif_materials.exe --previous-zip build/blender-finish-overlay/ChainMorningstarVR-1.0.0-audit6-unified-3996-test.zip --lighting-zip build/blender-finish-overlay/ChainMorningstarVR-1.0.0-audit6-unified-lighting-test.zip
+          python Tests/test_blender_lighting.py --nif build/blender-finish-overlay/ChainMorningstarVR-audit6-spike-contact-overlay.nif --inspector build/blender-finish-writer/Release/inspect_nif_materials.exe --previous-zip build/blender-finish-overlay/ChainMorningstarVR-1.0.0-audit6-unified-spike-prelighting-test.zip --lighting-zip build/blender-finish-overlay/ChainMorningstarVR-1.0.0-audit6-unified-spike-contact-test.zip
           if ($LASTEXITCODE -ne 0) { throw "Lighting-only contract failed" }
+      - name: Verify actual NIF spike contact and preserved runtime blocks
+        run: |
+          python Tests/test_spike_contacts.py --nif build/blender-finish-overlay/ChainMorningstarVR-1.0.0-audit6-unified-spike-contact-test.nif --inspector build/blender-finish-writer/Release/inspect_nif_materials.exe
+          if ($LASTEXITCODE -ne 0) { throw "Spike contact contract failed" }
+          python Tests/test_spike_nif_diff.py --writer build/blender-finish-writer/Release/export_reference_nif.exe --inspector build/blender-finish-writer/Release/inspect_nif_materials.exe --nif build/blender-finish-overlay/ChainMorningstarVR-1.0.0-audit6-unified-spike-contact-test.nif --out build/blender-finish-overlay/spike-contact-nif-diff.json
+          if ($LASTEXITCODE -ne 0) { throw "Protected NIF bytes changed" }
       # Never invoke generate_reference_mesh.py, generate_textures.py or
       # create_project.py here: these inputs are the saved, reviewed Blender edit.
       - uses: actions/upload-artifact@v4

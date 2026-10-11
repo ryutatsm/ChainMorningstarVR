@@ -66,6 +66,12 @@ class UnifiedPackageTests(unittest.TestCase):
         for name, item in self.report['files'].items():
             self.assertEqual(package.sha(self.files[name]), item['sha256'])
 
+    def test_authored_input_commit_resolves_to_actual_packaging_snapshot(self):
+        expected='a'*40 if self.approved['visual_input_commit']=='packaging-commit' else self.approved['visual_input_commit']
+        self.assertEqual(self.report['visual_input_commit'],expected)
+        bad=copy.deepcopy(self.approved);bad['visual_input_commit']='unidentified'
+        with self.assertRaisesRegex(ValueError,'Full visual input commit'):self.compose(approved=bad)
+
     def test_deterministic_zip_and_all_file_checksums(self):
         scratch = ROOT / 'build' / 'unified-package-tests'
         scratch.mkdir(parents=True, exist_ok=True)

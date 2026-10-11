@@ -28,6 +28,38 @@ def verify_inspections(before, after):
     unified.require(visible == 31, 'Incomplete independent material check')
 
 
+def contact_readme():
+    return (
+        'チェーンドモーニングスター audit6 統合・スパイク接合修正版（3,996三角形）\n\n'
+        'DLL・ESP・音声・21 DDSを含む、Vortexに単独で導入できる統合テスト版です。前回の暗所照明修正も含みます。\n'
+        'SKSEVR・HIGGS・PLANCK等の前提MODは引き続き必要です。\n\n'
+        '導入:\n'
+        '1. Skyrim VRを終了します。\n'
+        '2. Vortexで現在のunified-lighting-test版、統合3996版、旧audit6-diagnostic本体、以前の外観テストをすべて無効化します。\n'
+        '3. ChainMorningstarVR-1.0.0-audit6-unified-spike-contact-test.zipを「ファイルからインストール」し、この版だけを有効にします。\n'
+        '4. ChainMorningstarVR.espを有効にし、「MODを配置」を実行します。\n'
+        '5. 通常のSKSEVR起動方法でゲームを再起動してください。以前から所持していた武器にも同じモデルが反映されます。\n\n'
+        '修正内容:\n'
+        '軽量化で省略したスパイク下部と鉄球の平らな面の間に、根元の隙間が残っていました。\n'
+        '14本の既存底面をそれぞれの軸に沿って約6.3～9.5mm内側へ延ばし、底面全体を実際の鉄球メッシュ内部に入れました。\n'
+        '鉄球を構成する全224面の平面から最低0.35mm内側に底面を収め、頂点だけでなく底面の辺・内部も接合を検証しています。\n'
+        '追加三角形は0。表示2,900＋血用1,096＝3,996三角形を維持。スパイク先端、根元の幅、UV、法線、鉄球本体、エンブレムは維持。\n'
+        '他の30表示メッシュ、22ノード、19鎖節、15衝突形状、75%寸法と原点・階層は維持。\n'
+        '血用2形状は修正後のスパイクに沿うよう固定NIF writerで再生成しています。\n'
+        '前回の暗所照明設定を維持。21 DDSとDLL・ESP・音声は前回統合版とバイト同一です。\n'
+        '内部バージョン表示は1.0.0-audit6のままです。物理演算・音・掴み等のコード変更はありません。\n\n'
+        '検証:\n'
+        '同じカメラ・照明のBlender比較、保存ファイルからの安全確認付き書き出し、14本の接合検査、NIF再読込、ZIP CRC・全ファイルSHA256を確認。\n'
+        '実機画像の加工による変更後画像は作成していません。Blender画像は形状比較であり、ゲームの照明再現ではありません。\n'
+        '今回版のSkyrim VR実機、xEdit、FPS、血・掴み・摩擦・装備解除・音は未確認。正式完成版ではありません。\n\n'
+        '確認してほしい点:\n'
+        '同じ持ち方で鉄球を回し、全方向のスパイク根元に背景の見える隙間がないか確認してください。暗所・明所で材質、血の付き方も確認してください。\n\n'
+        '戻し方:\n'
+        '今回のスパイク接合版を無効化し、直前のunified-lighting-test統合版を再有効化して「MODを配置」、ゲームを再起動します。\n'
+        '確認が終わるまで旧版ZIP/MODは残してください。統合版を複数同時に有効化しないでください。\n'
+    ).encode('utf-8-sig')
+
+
 def package(a):
     commit = a.packaging_commit or subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=unified.ROOT, text=True).strip()
     files, old = unified.compose(a.baseline_zip.read_bytes(), a.overlay.read_bytes(), json.loads(a.inputs.read_text()), commit)
@@ -69,6 +101,9 @@ def package(a):
         '今回の暗所照明テスト版を無効化し、前回のunified-3996-test統合版を再有効化して配置・再起動します。\n'
         '旧版は確認が終わるまで残してください。両方の統合版を同時に有効化しないでください。\n'
     ).encode('utf-8-sig')
+    visual=json.loads(files['Provenance/VISUAL_EDIT_SOURCE.json'])
+    contact=visual.get('spike_contact_finish')
+    if contact:files['README_JA.txt']=contact_readme()
     report = dict(old)
     report.update(format='cms-audit6-unified-lighting-test-v1', version='1.0.0-audit6-unified-lighting-test',
                   release_channel='unified-lighting-test', all_game_files_equal_to_prior_base_plus_overlay=False,
@@ -78,6 +113,13 @@ def package(a):
                   package_lighting_tool_sha256=unified.sha(Path(__file__).read_bytes()),
                   material_patch_tool_sha256=unified.sha(Path(__file__).with_name('nif_material_contract.py').read_bytes()),
                   files={n:dict(bytes=len(v), sha256=unified.sha(v)) for n,v in sorted(files.items())})
+    if contact:
+        report.update(format='cms-audit6-unified-spike-contact-test-v1',
+                      version='1.0.0-audit6-unified-spike-contact-test',release_channel='unified-spike-contact-test',
+                      spike_contact_finish=contact,
+                      previous_unified_success_is_historical=True,
+                      previous_user_success_build='unified-3996-test',
+                      lighting_patch_preserves_geometry_relative_to_current_contact_nif=True)
     files['BUILD_PROVENANCE.json'] = (json.dumps(report, indent=2) + '\n').encode()
     files['SHA256SUMS.txt'] = ''.join(unified.sha(v) + '  ' + n + '\n' for n,v in sorted(files.items())).encode()
     unified.write_zip(a.out, files)
@@ -85,7 +127,7 @@ def package(a):
                   zip_crc_and_internal_hashes_verified=True)
     a.out.with_suffix('.provenance.json').write_text(json.dumps(report, indent=2) + '\n')
     a.out.with_suffix('.inspection.json').write_text(json.dumps(dict(before=before, after=after), indent=2) + '\n')
-    print('UNIFIED_LIGHTING_TEST_PASS', a.out, '124 shader bytes; 27 game files; unchanged 3996 triangles', report['zip_sha256'])
+    print('UNIFIED_CONTACT_TEST_PASS' if contact else 'UNIFIED_LIGHTING_TEST_PASS', a.out, '124 shader bytes; 27 game files; unchanged 3996 triangles', report['zip_sha256'])
     return report
 
 

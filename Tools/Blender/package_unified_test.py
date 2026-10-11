@@ -85,6 +85,11 @@ def compose(base_data,overlay_data,approved,packaging_commit):
     require(approved['format']=='cms-audit6-unified-payload-v1' and approved['baseline_zip_sha256']==BASE_SHA,'Wrong approved input manifest')
     require(set(approved['game_files'])==REPLACEMENTS,'Approved replacement set changed')
     require(re.fullmatch('[0-9a-f]{40}',packaging_commit),'Full packaging commit required')
+    # Saved inputs and packaging code now share one committed snapshot. Resolve
+    # this explicit marker to its actual Git SHA; avoid a circular self-hash.
+    visual_commit=approved['visual_input_commit']
+    if visual_commit=='packaging-commit':visual_commit=packaging_commit
+    require(re.fullmatch('[0-9a-f]{40}',visual_commit),'Full visual input commit required')
     base=read_zip(base_data);visual=read_zip(overlay_data)
     verify_sums(base,'SHA256SUMS.txt');verify_sums(visual,'SHA256SUMS_OPTIMIZED_TEST.txt')
     require(set(visual)==REPLACEMENTS|OVERLAY_META,'Overlay must contain only five visual assets and metadata')
@@ -137,7 +142,7 @@ def compose(base_data,overlay_data,approved,packaging_commit):
         standalone_chainmorningstar_package=True,external_prerequisites_unchanged=True,
         baseline_zip_sha256=BASE_SHA,overlay_zip_sha256=sha(overlay_data),
         runtime_source_commit='df3ef906a7927516263b567817900cc125d5f860',
-        visual_input_commit=approved['visual_input_commit'],packaging_commit=packaging_commit,
+        visual_input_commit=visual_commit,packaging_commit=packaging_commit,
         runtime_dll_build_label='1.0.0-audit6',draw_triangles=2900,blood_triangles=1096,nif_total_triangles=3996,
         baseline_game_files=27,replaced_game_files=sorted(REPLACEMENTS),
         dll_esp_audio_byte_identical_to_audit6=True,all_other_game_files_byte_identical_to_audit6=True,

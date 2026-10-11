@@ -3,9 +3,9 @@
   "gameplay_baseline": "df3ef906a7927516263b567817900cc125d5f860",
   "tooling_baseline": "f10604b25d7ae0772356ad606b5fdfd3ae246cb3",
   "files": {
-    "ChainMorningstarVR_work.blend": "5f8a62ed6018d946ea02776da937c697c98660e8e4499f320066516808f2231a",
-    "optimized.cms": "76e945ab472b49e233eb5931270768f95381222158c5b16321cecbaeef556a2b",
-    "optimized.edit.json": "5eaf471663996bbc2980b4e195f4bb83227f76da42693d8f53dd9eb19120d66e",
+    "ChainMorningstarVR_work.blend": "a8030e1e04fbfd073d9d82c42ae48fd77c4caee1a1ee6a4d59fe5a1d7d48877c",
+    "optimized.cms": "bd33532f40971f1af144b81c9a94b22d7a92d80875a68b109e13069b81005243",
+    "optimized.edit.json": "a2414e7dd4c96aa7afa00e68afe0986206b02ae8d6b8ab141da6b3690d48e8df",
     "audit6_baseline.cms": "0319d497343fc72afa85f68ac5c3444df4042ac920633aea96eebe19e1d3ca57",
     "textures/cms_emblem_n.png": "6814b1d1cae4d8b0f059b7ec3588664589a28e535849e64fad61bcce778212ce",
     "textures/cms_leather_d.png": "2e0dd2ce926a96acc93d1f0dd6d22e348760736349862ec807001e030c244a70",

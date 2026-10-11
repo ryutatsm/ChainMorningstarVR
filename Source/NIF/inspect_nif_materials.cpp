@@ -6,7 +6,8 @@
 #include <stdexcept>
 using namespace nifly;
 int main(int argc,char**argv) try {
-    if(argc!=2)throw std::runtime_error("usage: inspect_nif_materials INPUT.nif");
+    if(argc!=2&&(argc!=3||std::string(argv[2])!="--geometry"))throw std::runtime_error("usage: inspect_nif_materials INPUT.nif [--geometry]");
+    const bool geometry=argc==3;
     NifFile nif;
     if(nif.Load(argv[1])!=0||nif.HasUnknown())throw std::runtime_error("Invalid or unknown NIF blocks");
     std::cout<<std::setprecision(9)<<"{\"node_count\":"<<nif.GetNodes().size()<<",\"shapes\":[";
@@ -23,6 +24,16 @@ int main(int argc,char**argv) try {
                 <<",\"glossiness\":"<<s->glossiness<<",\"environment_scale\":"<<s->environmentMapScale
                 <<",\"alpha\":"<<s->alpha<<",\"textures\":[";
             for(int i=0;i<9;i++){if(i)std::cout<<',';std::string path;nif.GetTextureSlot(shape,path,i);std::cout<<std::quoted(path);}
+            std::cout<<']';
+        }
+        if(geometry){
+            const auto* vertices=nif.GetVertsForShape(shape);
+            std::vector<Triangle> triangles;
+            if(!vertices||!shape->GetTriangles(triangles))throw std::runtime_error("Missing shape geometry");
+            std::cout<<",\"vertices\":[";
+            for(size_t i=0;i<vertices->size();i++){if(i)std::cout<<',';const auto& v=(*vertices)[i];std::cout<<'['<<v.x<<','<<v.y<<','<<v.z<<']';}
+            std::cout<<"],\"triangles\":[";
+            for(size_t i=0;i<triangles.size();i++){if(i)std::cout<<',';const auto& t=triangles[i];std::cout<<'['<<t.p1<<','<<t.p2<<','<<t.p3<<']';}
             std::cout<<']';
         }
         std::cout<<'}';

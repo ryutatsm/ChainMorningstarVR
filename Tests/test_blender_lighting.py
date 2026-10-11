@@ -55,7 +55,7 @@ class LightingTests(unittest.TestCase):
 
     def test_deterministic_output_identity(self):
         self.assertEqual(material.patch(self.before), (self.after, self.proof))
-        self.assertEqual(material.sha(self.after), '667c88138d3572b4057dc6792c9d1569e2cae09fd08a89d53d751f37122ca01c')
+        self.assertEqual(material.sha(self.after), '8d07faf527074902495386f0e9c8a2b8e53ffd8b0e9d33f27c401f8656a2302f')
         self.assertEqual(len(self.before), len(self.after))
         self.assertEqual(self.proof['changed_bytes'], 124)
 

@@ -2,8 +2,8 @@
   "format": "cms-blender-under4k-v2",
   "baseline_commit": "df3ef906a7927516263b567817900cc125d5f860",
   "baseline_cms_sha256": "0319d497343fc72afa85f68ac5c3444df4042ac920633aea96eebe19e1d3ca57",
-  "edited_cms_sha256": "76e945ab472b49e233eb5931270768f95381222158c5b16321cecbaeef556a2b",
-  "saved_blend_sha256": "5f8a62ed6018d946ea02776da937c697c98660e8e4499f320066516808f2231a",
+  "edited_cms_sha256": "bd33532f40971f1af144b81c9a94b22d7a92d80875a68b109e13069b81005243",
+  "saved_blend_sha256": "a8030e1e04fbfd073d9d82c42ae48fd77c4caee1a1ee6a4d59fe5a1d7d48877c",
   "unsaved_blender_changes": true,
   "removed_mesh": "CMS_CMS_ROOT_cord",
   "source_loaded_from_saved_file": true,
@@ -820,16 +820,16 @@
       "after_triangles": 224,
       "distances": {
         "original_to_edited": {
-          "samples": 68768,
-          "max_mm": 4.644447006285191,
-          "p99_mm": 3.5223617171868686,
-          "rms_mm": 1.3595497251093382
+          "samples": 1906,
+          "max_mm": 0.025821580493357033,
+          "p99_mm": 0.00854254794830922,
+          "rms_mm": 0.0016442519608595052
         },
         "edited_to_original": {
           "samples": 1906,
-          "max_mm": 3.960520960390568,
-          "p99_mm": 3.9331495994701977,
-          "rms_mm": 1.212374346437291
+          "max_mm": 0.025821580493357033,
+          "p99_mm": 0.008655592637296655,
+          "rms_mm": 0.0016520087758915328
         }
       },
       "surface_topology": {
@@ -841,7 +841,180 @@
       "minimum_face_normal_dot": 0.5716510133402454,
       "uv_domain_preserved": true,
       "uv_orientation_verified": true,
-      "uv_triangles_checked": 168
+      "uv_triangles_checked": 168,
+      "spike_contact_finish": {
+        "policy": "spike-root-core-contact-v1",
+        "source_cms_sha256": "76e945ab472b49e233eb5931270768f95381222158c5b16321cecbaeef556a2b",
+        "spike_count": 14,
+        "inset_mm": 0.35,
+        "maximum_allowed_root_extension_mm": 10.0,
+        "maximum_actual_root_extension_mm": 9.531526343,
+        "minimum_base_plane_clearance_mm": 0.35,
+        "entire_base_polygon_inside_core": true,
+        "proof": "all vertices behind every outward face plane; convexity of half-space intersection covers complete base polygons",
+        "tip_positions_uv_normals_preserved": true,
+        "base_width_uv_normals_preserved": true,
+        "faces_and_triangle_count_preserved": true,
+        "all_other_meshes_unchanged": true,
+        "spikes": [
+          {
+            "axis": [
+              -0.923879672281,
+              -2.12266e-07,
+              0.38268309493
+            ],
+            "before_maximum_plane_gap_mm": 6.079536479,
+            "root_extension_mm": 6.883991761,
+            "after_maximum_plane_gap_mm": -0.35
+          },
+          {
+            "axis": [
+              -0.923879529252,
+              -0.000101553101,
+              -0.382683426758
+            ],
+            "before_maximum_plane_gap_mm": 7.369454213,
+            "root_extension_mm": 8.195694626,
+            "after_maximum_plane_gap_mm": -0.35
+          },
+          {
+            "axis": [
+              -0.384271934401,
+              0.639949279989,
+              0.665432189988
+            ],
+            "before_maximum_plane_gap_mm": 5.713066688,
+            "root_extension_mm": 6.352669627,
+            "after_maximum_plane_gap_mm": -0.35
+          },
+          {
+            "axis": [
+              -0.384200258446,
+              0.640004163884,
+              -0.665420792898
+            ],
+            "before_maximum_plane_gap_mm": 6.811274205,
+            "root_extension_mm": 7.403365668,
+            "after_maximum_plane_gap_mm": -0.35
+          },
+          {
+            "axis": [
+              -0.38269025608,
+              1.2753535e-05,
+              -0.923876705919
+            ],
+            "before_maximum_plane_gap_mm": 8.812308729,
+            "root_extension_mm": 9.531526343,
+            "after_maximum_plane_gap_mm": -0.35
+          },
+          {
+            "axis": [
+              -0.384199203078,
+              -0.64000381956,
+              0.665421733416
+            ],
+            "before_maximum_plane_gap_mm": 6.70126607,
+            "root_extension_mm": 7.557098228,
+            "after_maximum_plane_gap_mm": -0.35
+          },
+          {
+            "axis": [
+              -0.38418713856,
+              -0.639999771821,
+              -0.665432592104
+            ],
+            "before_maximum_plane_gap_mm": 6.913948864,
+            "root_extension_mm": 7.509323738,
+            "after_maximum_plane_gap_mm": -0.35
+          },
+          {
+            "axis": [
+              -0.382683397541,
+              -4.83838e-07,
+              0.923879546936
+            ],
+            "before_maximum_plane_gap_mm": 6.78246175,
+            "root_extension_mm": 7.346431328,
+            "after_maximum_plane_gap_mm": -0.35
+          },
+          {
+            "axis": [
+              0.382683515928,
+              4.99856e-07,
+              -0.923879497898
+            ],
+            "before_maximum_plane_gap_mm": 8.029122653,
+            "root_extension_mm": 8.917195925,
+            "after_maximum_plane_gap_mm": -0.35
+          },
+          {
+            "axis": [
+              0.382677261668,
+              -1.1525253e-05,
+              0.923882088402
+            ],
+            "before_maximum_plane_gap_mm": 5.499262395,
+            "root_extension_mm": 6.324684179,
+            "after_maximum_plane_gap_mm": -0.35
+          },
+          {
+            "axis": [
+              0.768374801737,
+              0.640000128169,
+              -2.82107e-07
+            ],
+            "before_maximum_plane_gap_mm": 6.396659147,
+            "root_extension_mm": 7.006297325,
+            "after_maximum_plane_gap_mm": -0.35
+          },
+          {
+            "axis": [
+              0.768310645386,
+              -0.640077145496,
+              0.0
+            ],
+            "before_maximum_plane_gap_mm": 5.865297837,
+            "root_extension_mm": 6.399372759,
+            "after_maximum_plane_gap_mm": -0.35
+          },
+          {
+            "axis": [
+              0.923879654877,
+              -1.82828e-07,
+              -0.382683136947
+            ],
+            "before_maximum_plane_gap_mm": 6.084411913,
+            "root_extension_mm": 6.825450548,
+            "after_maximum_plane_gap_mm": -0.35
+          },
+          {
+            "axis": [
+              0.923879528411,
+              -0.000101932179,
+              0.382683428689
+            ],
+            "before_maximum_plane_gap_mm": 6.583699753,
+            "root_extension_mm": 7.268014719,
+            "after_maximum_plane_gap_mm": -0.35
+          }
+        ]
+      },
+      "original_audit6_distances": {
+        "original_to_edited": {
+          "samples": 68768,
+          "max_mm": 7.822880521416664,
+          "p99_mm": 6.292660445906222,
+          "rms_mm": 2.8862130212143042
+        },
+        "edited_to_original": {
+          "samples": 1906,
+          "max_mm": 10.508180595934391,
+          "p99_mm": 9.521194407716402,
+          "rms_mm": 3.283369432414022
+        }
+      },
+      "custom_normals_canonicalized_from_pinned_source": true,
+      "distances_scope": "pinned root-contact repair; original audit6 distances retained separately; only base-ring axis extension <=10mm permitted"
     },
     {
       "mesh": "CMS_CMS_HeadNode_ring",
@@ -1035,5 +1208,162 @@
     "maximum_inner_edge_gap_mm": -0.07999999999999674,
     "retained_exterior_vertices_uv_normals": true,
     "other_meshes_unchanged": true
+  },
+  "spike_contact_finish": {
+    "policy": "spike-root-core-contact-v1",
+    "source_cms_sha256": "76e945ab472b49e233eb5931270768f95381222158c5b16321cecbaeef556a2b",
+    "spike_count": 14,
+    "inset_mm": 0.35,
+    "maximum_allowed_root_extension_mm": 10.0,
+    "maximum_actual_root_extension_mm": 9.531526343,
+    "minimum_base_plane_clearance_mm": 0.35,
+    "entire_base_polygon_inside_core": true,
+    "proof": "all vertices behind every outward face plane; convexity of half-space intersection covers complete base polygons",
+    "tip_positions_uv_normals_preserved": true,
+    "base_width_uv_normals_preserved": true,
+    "faces_and_triangle_count_preserved": true,
+    "all_other_meshes_unchanged": true,
+    "spikes": [
+      {
+        "axis": [
+          -0.923879672281,
+          -2.12266e-07,
+          0.38268309493
+        ],
+        "before_maximum_plane_gap_mm": 6.079536479,
+        "root_extension_mm": 6.883991761,
+        "after_maximum_plane_gap_mm": -0.35
+      },
+      {
+        "axis": [
+          -0.923879529252,
+          -0.000101553101,
+          -0.382683426758
+        ],
+        "before_maximum_plane_gap_mm": 7.369454213,
+        "root_extension_mm": 8.195694626,
+        "after_maximum_plane_gap_mm": -0.35
+      },
+      {
+        "axis": [
+          -0.384271934401,
+          0.639949279989,
+          0.665432189988
+        ],
+        "before_maximum_plane_gap_mm": 5.713066688,
+        "root_extension_mm": 6.352669627,
+        "after_maximum_plane_gap_mm": -0.35
+      },
+      {
+        "axis": [
+          -0.384200258446,
+          0.640004163884,
+          -0.665420792898
+        ],
+        "before_maximum_plane_gap_mm": 6.811274205,
+        "root_extension_mm": 7.403365668,
+        "after_maximum_plane_gap_mm": -0.35
+      },
+      {
+        "axis": [
+          -0.38269025608,
+          1.2753535e-05,
+          -0.923876705919
+        ],
+        "before_maximum_plane_gap_mm": 8.812308729,
+        "root_extension_mm": 9.531526343,
+        "after_maximum_plane_gap_mm": -0.35
+      },
+      {
+        "axis": [
+          -0.384199203078,
+          -0.64000381956,
+          0.665421733416
+        ],
+        "before_maximum_plane_gap_mm": 6.70126607,
+        "root_extension_mm": 7.557098228,
+        "after_maximum_plane_gap_mm": -0.35
+      },
+      {
+        "axis": [
+          -0.38418713856,
+          -0.639999771821,
+          -0.665432592104
+        ],
+        "before_maximum_plane_gap_mm": 6.913948864,
+        "root_extension_mm": 7.509323738,
+        "after_maximum_plane_gap_mm": -0.35
+      },
+      {
+        "axis": [
+          -0.382683397541,
+          -4.83838e-07,
+          0.923879546936
+        ],
+        "before_maximum_plane_gap_mm": 6.78246175,
+        "root_extension_mm": 7.346431328,
+        "after_maximum_plane_gap_mm": -0.35
+      },
+      {
+        "axis": [
+          0.382683515928,
+          4.99856e-07,
+          -0.923879497898
+        ],
+        "before_maximum_plane_gap_mm": 8.029122653,
+        "root_extension_mm": 8.917195925,
+        "after_maximum_plane_gap_mm": -0.35
+      },
+      {
+        "axis": [
+          0.382677261668,
+          -1.1525253e-05,
+          0.923882088402
+        ],
+        "before_maximum_plane_gap_mm": 5.499262395,
+        "root_extension_mm": 6.324684179,
+        "after_maximum_plane_gap_mm": -0.35
+      },
+      {
+        "axis": [
+          0.768374801737,
+          0.640000128169,
+          -2.82107e-07
+        ],
+        "before_maximum_plane_gap_mm": 6.396659147,
+        "root_extension_mm": 7.006297325,
+        "after_maximum_plane_gap_mm": -0.35
+      },
+      {
+        "axis": [
+          0.768310645386,
+          -0.640077145496,
+          0.0
+        ],
+        "before_maximum_plane_gap_mm": 5.865297837,
+        "root_extension_mm": 6.399372759,
+        "after_maximum_plane_gap_mm": -0.35
+      },
+      {
+        "axis": [
+          0.923879654877,
+          -1.82828e-07,
+          -0.382683136947
+        ],
+        "before_maximum_plane_gap_mm": 6.084411913,
+        "root_extension_mm": 6.825450548,
+        "after_maximum_plane_gap_mm": -0.35
+      },
+      {
+        "axis": [
+          0.923879528411,
+          -0.000101932179,
+          0.382683428689
+        ],
+        "before_maximum_plane_gap_mm": 6.583699753,
+        "root_extension_mm": 7.268014719,
+        "after_maximum_plane_gap_mm": -0.35
+      }
+    ]
   }
 }
