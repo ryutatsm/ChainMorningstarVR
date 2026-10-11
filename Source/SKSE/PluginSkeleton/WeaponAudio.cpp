@@ -64,9 +64,23 @@ void WeaponAudio::EquipmentDropped(const RE::NiPoint3& position) {
     SKSE::log::info("CMS equipment-drop audio: cue=disarm-strike accepted={}",accepted);
     if(!accepted) {Stop(sound);SKSE::log::warn("CMS equipment-drop sound unavailable; check matching ESP and sound files");}
 }
+void WeaponAudio::HeavyImpact(const RE::NiPoint3& position, float intensity) {
+    if (impactFailed_ || !std::isfinite(intensity) || intensity <= 0) return;
+    auto& sound = impacts_[nextImpact_++ % impacts_.size()]; Stop(sound);
+    const float volume = std::clamp(intensity, .45f, 1.0f);
+    const bool accepted = Build(sound, 0x805, position, volume) && sound.Play();
+    if (impactSamples_++ < 24)
+        SKSE::log::info("CMS world impact audio: cue=heavy-iron localDescriptor=00000805 accepted={} volume={:.3f} position=({:.1f},{:.1f},{:.1f})", accepted, volume, position.x, position.y, position.z);
+    if (!accepted) {
+        Stop(sound); impactFailed_ = true;
+        SKSE::log::warn("CMS world impact sound unavailable: descriptor=00000805; check matching audit7 ESP and iron_impact.wav");
+    }
+}
 void WeaponAudio::Reset() {
     Stop(scrape_.handle);Stop(air_);scrape_={};airFailed_=false;airSamples_=0;
     for(auto& sound:drops_)Stop(sound);
     nextDrop_=0;
+    for (auto& sound : impacts_) Stop(sound);
+    nextImpact_ = 0; impactSamples_ = 0; impactFailed_ = false;
 }
 } // namespace cms::skyrimvr

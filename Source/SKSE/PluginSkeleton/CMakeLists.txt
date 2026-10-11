@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 project(ChainMorningstarVR VERSION 1.0.0 LANGUAGES CXX)
-set(CMS_BUILD_LABEL "${PROJECT_VERSION}-audit6")
+set(CMS_BUILD_LABEL "${PROJECT_VERSION}-audit7")
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -40,6 +40,7 @@ add_commonlibsse_plugin(${PROJECT_NAME}
         WeaponAudio.cpp
         WeaponAudio.hpp
         ../MotionAudioCore.hpp
+        ../WorldImpactAudioCore.hpp
         NativePhysicsBackend.cpp
         NativePhysicsBackend.hpp
         NativeWorldSweep.cpp

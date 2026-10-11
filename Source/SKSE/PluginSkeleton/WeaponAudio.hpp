@@ -11,6 +11,7 @@ public:
     static WeaponAudio& GetSingleton();
     void Update(MotionAudioMix mix,RE::NiAVObject* head);
     void EquipmentDropped(const RE::NiPoint3& position);
+    void HeavyImpact(const RE::NiPoint3& position, float intensity);
     void Reset();
 private:
     struct Loop { RE::BSSoundHandle handle{}; bool failed{}; unsigned samples{}; };
@@ -21,5 +22,9 @@ private:
     unsigned airSamples_{};
     std::array<RE::BSSoundHandle,4> drops_{};
     std::size_t nextDrop_{};
+    std::array<RE::BSSoundHandle, 4> impacts_{};
+    std::size_t nextImpact_{};
+    unsigned impactSamples_{};
+    bool impactFailed_{};
 };
 } // namespace cms::skyrimvr

@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include "ChainRuntimeCore.hpp"
+#include "WorldImpactAudioCore.hpp"
 
 namespace cms {
 
@@ -21,6 +22,7 @@ public:
     virtual float consumeWorldContactImpulse() = 0;
     virtual void playChainRattle(float intensity) = 0;
     virtual void playChainClank(float intensity) = 0;
+    virtual void playWorldImpact(float intensity, Vec3) { playChainClank(intensity); }
     virtual void updateMotionAudio(MotionAudioMix) {}
 };
 
@@ -46,6 +48,7 @@ public:
     void onUnequip() {
         active_ = false;
         controller_.onUnequip();
+        worldImpactAudio_.reset();
         bridge_.releaseWeaponNodes();
     }
 
@@ -68,7 +71,9 @@ public:
             onEquip();
             if (!active_) return;
         }
-        const float contactImpulse = controller_.applyWorldContacts(bridge_.consumeWorldContacts());
+        const auto contacts = bridge_.consumeWorldContacts();
+        const auto impact = worldImpactAudio_.update(frameDt, contacts);
+        controller_.applyWorldContacts(contacts);
         const auto hold = bridge_.updatePlayerInteraction(controller_.visualFrame().head,
             anchor*kMetersPerSkyrimUnit, frameDt);
         if (!controller_.update(teleported ? 0.0f : frameDt, anchor, &bridge_, hold)) return;
@@ -76,10 +81,12 @@ public:
         bridge_.applyVisualFrame(frame);
         bridge_.submitNativePose(frame.head, controller_.headSweep(), frameDt);
 
-        const float impulse = std::max(contactImpulse, bridge_.consumeWorldContactImpulse());
-        const ChainSoundEvent ev = controller_.soundEvent(frameDt, impulse);
+        // Drain legacy telemetry; corrected solver velocity must not trigger a
+        // second impact or repeated impacts during sustained contact.
+        (void)bridge_.consumeWorldContactImpulse();
+        const ChainSoundEvent ev = controller_.soundEvent(frameDt, 0.0f);
         if (ev.type == ChainSoundEventType::kRattle) bridge_.playChainRattle(ev.intensity);
-        if (ev.type == ChainSoundEventType::kHeavyClank) bridge_.playChainClank(ev.intensity);
+        if (impact.intensity > 0) bridge_.playWorldImpact(impact.intensity, impact.pointM);
         bridge_.updateMotionAudio(controller_.motionAudio(frameDt));
     }
 
@@ -89,6 +96,7 @@ public:
 private:
     IGameBridge& bridge_;
     ChainController controller_{};
+    WorldImpactAudioGate worldImpactAudio_{};
     bool active_{};
 };
 

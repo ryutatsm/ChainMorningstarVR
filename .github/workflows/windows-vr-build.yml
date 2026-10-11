@@ -9,6 +9,11 @@ on:
       - "Source/NIF/**"
       - "Source/Textures/**"
       - "Source/Audio/**"
+      - "Source/xEdit/add_world_impact.py"
+      - "Tools/package_world_impact_test.py"
+      - "Tests/test_world_impact_assets.py"
+      - "Assets/WorldImpactBaseline/**"
+      - "Docs/WORLD_IMPACT_TEST_JA.txt"
       - "Source/xEdit/build_plugin.py"
       - "Tests/test_plugin_binary.py"
       - "Tests/test_material_maps.py"
@@ -23,6 +28,11 @@ on:
       - "Source/NIF/**"
       - "Source/Textures/**"
       - "Source/Audio/**"
+      - "Source/xEdit/add_world_impact.py"
+      - "Tools/package_world_impact_test.py"
+      - "Tests/test_world_impact_assets.py"
+      - "Assets/WorldImpactBaseline/**"
+      - "Docs/WORLD_IMPACT_TEST_JA.txt"
       - "Source/xEdit/build_plugin.py"
       - "Tests/test_plugin_binary.py"
       - "Tests/test_material_maps.py"
@@ -182,6 +192,9 @@ jobs:
           Audit5 adds persistent support friction and original scrape/air/disarm audio.
           Audit6 replaces the air loop with a short low swing one-shot, retriggered by actual angular motion.
           Descriptor 803 must be non-looping; matched ESP and WAV assets must accompany this DLL.
+          Audit7 uses incoming native contact velocity for heavy iron impacts at the contact position.
+          Descriptor 805 is non-looping and requires matching ESP plus original iron_impact.wav.
+          Sustained/resting contact is silent; physics, motion audio and equipment-drop policy are unchanged.
           This CI artifact is for investigation, not a verified fix or a Vortex release.
           "@ | Set-Content "$env:GITHUB_WORKSPACE\ci-artifact\BUILD_STATUS.txt"
 
@@ -190,4 +203,30 @@ jobs:
         with:
           name: ChainMorningstarVR-v${{ steps.stage.outputs.version }}-dll
           path: ci-artifact
+          if-no-files-found: error
+
+      - name: Set up impact packaging Python
+        if: github.ref == 'refs/heads/codex/blender-finish'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install pinned original audio synthesis dependency
+        if: github.ref == 'refs/heads/codex/blender-finish'
+        run: python -m pip install numpy==2.3.5
+
+      - name: Verify preserved ESP records and original impact audio
+        if: github.ref == 'refs/heads/codex/blender-finish'
+        run: python -m unittest discover -s Tests -p test_world_impact_assets.py -v
+
+      - name: Package unified world impact test without visual regeneration
+        if: github.ref == 'refs/heads/codex/blender-finish'
+        run: python Tools/package_world_impact_test.py --dll-stage ci-artifact --source-commit $env:GITHUB_SHA --out ci-world-impact/ChainMorningstarVR-1.0.0-audit7-unified-world-impact-test.zip
+
+      - name: Upload unified world impact test
+        if: github.ref == 'refs/heads/codex/blender-finish'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChainMorningstarVR-v1.0.0-audit7-unified-world-impact-test
+          path: ci-world-impact
           if-no-files-found: error

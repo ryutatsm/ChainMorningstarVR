@@ -565,6 +565,10 @@ void SkyrimVRSceneBridge::playChainSound(float intensity, bool heavyImpact)
 
 void SkyrimVRSceneBridge::playChainRattle(float intensity) { playChainSound(intensity, false); }
 void SkyrimVRSceneBridge::playChainClank(float intensity) { playChainSound(intensity, true); }
+void SkyrimVRSceneBridge::playWorldImpact(float intensity, Vec3 pointM) {
+    if (head_ && currentHandStillOwnsAnchor() && isFinite(pointM))
+        WeaponAudio::GetSingleton().HeavyImpact(toNi(pointM * kSkyrimUnitsPerMeter), intensity);
+}
 void SkyrimVRSceneBridge::updateMotionAudio(MotionAudioMix mix) {
     WeaponAudio::GetSingleton().Update(mix,currentHandStillOwnsAnchor()?head_.get():nullptr);
 }

@@ -33,6 +33,7 @@ public:
     float consumeWorldContactImpulse() override;
     void playChainRattle(float intensity) override;
     void playChainClank(float intensity) override;
+    void playWorldImpact(float intensity, Vec3 pointM) override;
     void updateMotionAudio(MotionAudioMix mix) override;
 
     [[nodiscard]] bool visualNodesReady() const noexcept { return anchor_ && head_; }
