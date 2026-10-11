@@ -8,7 +8,9 @@ Game source: `57e61bee55fcb6fad566687e13db804393662bfe`; internal DLL label `1.0
 The original handoff runtime baseline remains `df3ef906a7927516263b567817900cc125d5f860`.
 Main is not the finishing baseline and remains unchanged.
 After the user's completion request, repeated startup/load CTDs were reported;
-release finalization awaits crash isolation. See [current triage](CRASH_TRIAGE_20261011_JA.md).
+release finalization awaits evidence-based crash analysis. Further manual A/B crash trials
+are not requested, and six short successful launches do not establish causation.
+See [current triage](CRASH_TRIAGE_20261011_JA.md).
 
 ## Current authored visual payload (2026-10-11)
 

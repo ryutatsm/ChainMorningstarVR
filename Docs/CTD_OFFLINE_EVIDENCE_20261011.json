@@ -1,0 +1,190 @@
+{
+  "date": "2026-10-11",
+  "method": "Offline read-only log, PE and source comparison; no game launch",
+  "libraries": {
+    "capstone": "5.0.7",
+    "pefile": "2024.8.26"
+  },
+  "manual_repetition_requested": false,
+  "six_trials": {
+    "user_report": "Six successful starts/loads, seconds of play; each intentionally quit",
+    "causal_conclusion": "None; no CMS-on comparison and no crash-rate estimate"
+  },
+  "aiagent": {
+    "sha256": "2d4b7cd20c2612f44b4a1153b306b39b47bacc12d9e1dc3ffea961dabd84b96f",
+    "fault_rva": "0x1A6F75",
+    "fault_bytes": "0fb6701a",
+    "instruction": "movzx esi, byte ptr [rax + 0x1a]",
+    "cases": [
+      {
+        "file": "crash-2026-10-11-17-58-46.log",
+        "sha256": "9f261bce49ed7552e9df7ce96618ec0bf6aeba221b68d269dbf1ebcf22f9df59",
+        "fault": "AIAgent.dll+01A6F75",
+        "rax": "0x0",
+        "accessed_address": "0x1A",
+        "uptime": "00:00:30 (30114ms)"
+      },
+      {
+        "file": "crash-2026-10-11-19-54-45.log",
+        "sha256": "21d0345e7c96795a7d6c199929e2ee38e653aa1694435257781c91c85d0530f2",
+        "fault": "AIAgent.dll+01A6F75",
+        "rax": "0x0",
+        "accessed_address": "0x1A",
+        "uptime": "00:00:29 (29943ms)"
+      },
+      {
+        "file": "crash-2026-10-11-20-06-35.log",
+        "sha256": "f4206f66c612e7137fecc949960a1a93a57074ad27623194b764264ce747d0b5",
+        "fault": "AIAgent.dll+01A6F75",
+        "rax": "0x0",
+        "accessed_address": "0x1A",
+        "uptime": "00:00:29 (29906ms)"
+      }
+    ],
+    "embedded_strings": {
+      "0x32b258": "D:\\wt\\chim-release-dev-0926\\Plugin\\Plugin.cpp",
+      "0x332eb0": "void __cdecl __skyrimScriptingPluginCallback7::<lambda_11>::operator ()(const struct RE::TESTopicInfoEvent *) const",
+      "0x30fb00": "Checked NPC via grabbed ref {}"
+    },
+    "flow": [
+      [
+        "0x1a6f49",
+        "4c89a424c0000000",
+        "mov",
+        "qword ptr [rsp + 0xc0], r12"
+      ],
+      [
+        "0x1a6f51",
+        "410fbaed09",
+        "bts",
+        "r13d, 9"
+      ],
+      [
+        "0x1a6f56",
+        "44896c2454",
+        "mov",
+        "dword ptr [rsp + 0x54], r13d"
+      ],
+      [
+        "0x1a6f5b",
+        "488d9424c0000000",
+        "lea",
+        "rdx, [rsp + 0xc0]"
+      ],
+      [
+        "0x1a6f63",
+        "488d4c2470",
+        "lea",
+        "rcx, [rsp + 0x70]"
+      ],
+      [
+        "0x1a6f68",
+        "e873060e00",
+        "call",
+        "0x2875e0"
+      ],
+      [
+        "0x1a6f6d",
+        "488b8424c0000000",
+        "mov",
+        "rax, qword ptr [rsp + 0xc0]"
+      ],
+      [
+        "0x1a6f75",
+        "0fb6701a",
+        "movzx",
+        "esi, byte ptr [rax + 0x1a]"
+      ],
+      [
+        "0x1a6f79",
+        "410fbaf509",
+        "btr",
+        "r13d, 9"
+      ],
+      [
+        "0x1a6f7e",
+        "44896c2454",
+        "mov",
+        "dword ptr [rsp + 0x54], r13d"
+      ],
+      [
+        "0x1a6f83",
+        "488b8c24c0000000",
+        "mov",
+        "rcx, qword ptr [rsp + 0xc0]"
+      ],
+      [
+        "0x1a6f8b",
+        "4885c9",
+        "test",
+        "rcx, rcx"
+      ],
+      [
+        "0x1a6f8e",
+        "7411",
+        "je",
+        "0x1a6fa1"
+      ],
+      [
+        "0x1a6f90",
+        "4883c120",
+        "add",
+        "rcx, 0x20"
+      ],
+      [
+        "0x1a6f94",
+        "e807080e00",
+        "call",
+        "0x2877a0"
+      ],
+      [
+        "0x1a6f99",
+        "4c89a424c0000000",
+        "mov",
+        "qword ptr [rsp + 0xc0], r12"
+      ],
+      [
+        "0x1a6fa1",
+        "4080fe3e",
+        "cmp",
+        "sil, 0x3e"
+      ]
+    ],
+    "direct_failure": "A null resolved reference is dereferenced in the topic-info event callback",
+    "unresolved": "Why the reference failed to resolve; CMS interaction; other crash patterns",
+    "reference_source": {
+      "commit": "03b070ee3f42f2e0e88ad4780e3f2a4012da87c3",
+      "path": "Plugin/Plugin.cpp",
+      "sha256": "282958ce7c1666bdc8dcd18ea09ff27e0151be4e43458d574662d2f1d2215f23",
+      "matching_region_lines": [
+        9562,
+        9567,
+        9568
+      ],
+      "whole_binary_source_provenance_confirmed": false
+    }
+  },
+  "skyrimvr": {
+    "sha256": "6961efb4f4775a307b0fc9a3d637542c1e090be207d3b09467eab216b7f87971",
+    "md5": "6cc5baea600d6a688a5fa5aa67a54248",
+    "logged_fault_rva": "0x14339F",
+    "on_disk_bytes_at_fault": "5b7c",
+    "logged_instruction": "cmp [rdi], eax",
+    "limitation": "Disk bytes differ from logged runtime instruction; disk disassembly is excluded from call-path conclusions"
+  },
+  "deployed_payload": {
+    "unchanged": true,
+    "game_files_hash_matched": 28,
+    "cms_dll_restored": true,
+    "archive_sha256": "09817948fd49a3827c7aa5d6696cd81e0d6b9208fff8da130c34500bf7b813c9"
+  },
+  "cms_code_review": {
+    "runtime_modified": false,
+    "candidates_not_established_causes": [
+      "PostLoadGame handler does not inspect load success before requestReacquire",
+      "DataLoaded requests runtime reacquisition before a game-session event",
+      "Actor eligibility calls in contact capture precede some cell/3D validity filters"
+    ]
+  },
+  "conclusion": "One direct AIAgent null dereference verified in three logged exceptions; overall CTD cause unresolved; no stability or release pass"
+}
