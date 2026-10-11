@@ -64,16 +64,21 @@ void WeaponAudio::EquipmentDropped(const RE::NiPoint3& position) {
     SKSE::log::info("CMS equipment-drop audio: cue=disarm-strike accepted={}",accepted);
     if(!accepted) {Stop(sound);SKSE::log::warn("CMS equipment-drop sound unavailable; check matching ESP and sound files");}
 }
-void WeaponAudio::HeavyImpact(const RE::NiPoint3& position, float intensity) {
-    if (impactFailed_ || !std::isfinite(intensity) || intensity <= 0) return;
+void WeaponAudio::HeavyImpact(RE::NiAVObject* head, const RE::NiPoint3& contactPosition, float intensity) {
+    if (!head || impactFailed_ || !std::isfinite(intensity) || intensity <= 0) return;
     auto& sound = impacts_[nextImpact_++ % impacts_.size()]; Stop(sound);
-    const float volume = std::clamp(intensity, .45f, 1.0f);
-    const bool accepted = Build(sound, 0x805, position, volume) && sound.Play();
+    // Use the same owned scene-node spatialization as the audible scrape/swing.
+    // The iron body rings with the head after impact; keep its short tail there.
+    const auto position = head->world.translate;
+    const float volume = std::clamp(.60f + .40f * intensity, .78f, 1.0f);
+    bool accepted = Build(sound, 0x805, position, volume);
+    if (accepted) { sound.SetObjectToFollow(head); accepted = sound.Play(); }
+    const float dx=position.x-contactPosition.x, dy=position.y-contactPosition.y, dz=position.z-contactPosition.z;
     if (impactSamples_++ < 24)
-        SKSE::log::info("CMS world impact audio: cue=heavy-iron localDescriptor=00000805 accepted={} volume={:.3f} position=({:.1f},{:.1f},{:.1f})", accepted, volume, position.x, position.y, position.z);
+        SKSE::log::info("CMS world impact audio: cue=heavy-iron localDescriptor=00000805 accepted={} volume={:.3f} follow=head soundID={} position=({:.1f},{:.1f},{:.1f}) contact=({:.1f},{:.1f},{:.1f}) contactHeadDistanceSU={:.2f}", accepted, volume, sound.soundID, position.x, position.y, position.z, contactPosition.x, contactPosition.y, contactPosition.z, std::sqrt(dx*dx+dy*dy+dz*dz));
     if (!accepted) {
         Stop(sound); impactFailed_ = true;
-        SKSE::log::warn("CMS world impact sound unavailable: descriptor=00000805; check matching audit7 ESP and iron_impact.wav");
+        SKSE::log::warn("CMS world impact sound unavailable: descriptor=00000805; check matching audit8 ESP and iron_impact.wav");
     }
 }
 void WeaponAudio::Reset() {

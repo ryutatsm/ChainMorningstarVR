@@ -11,7 +11,7 @@ public:
     static WeaponAudio& GetSingleton();
     void Update(MotionAudioMix mix,RE::NiAVObject* head);
     void EquipmentDropped(const RE::NiPoint3& position);
-    void HeavyImpact(const RE::NiPoint3& position, float intensity);
+    void HeavyImpact(RE::NiAVObject* head, const RE::NiPoint3& contactPosition, float intensity);
     void Reset();
 private:
     struct Loop { RE::BSSoundHandle handle{}; bool failed{}; unsigned samples{}; };

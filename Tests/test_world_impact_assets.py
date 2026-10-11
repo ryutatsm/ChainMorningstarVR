@@ -38,9 +38,12 @@ class WorldImpactAssets(unittest.TestCase):
         with self.assertRaises(ValueError):append_impact(self.esp[:-1])
     def test_new_original_wave_reproducible_and_low_body(self):
         data,report=synthesize();self.assertEqual(data,synthesize()[0])
-        self.assertEqual(report['sha256'],'3a7e5b7ca0261363e7bfa6e9ebe825518b00e9143250f0262b73567054408ecd')
+        self.assertEqual(report['sha256'],'b7a81e50ff226e7e4d23ae3ce8a7b83b99dbd784e327f777d9a30ed00820b0eb')
         self.assertGreater(report['power_below_700hz'],.9)
-        self.assertEqual(report['seconds'],.9)
+        self.assertLess(report['power_below_140hz'],.25)
+        self.assertGreater(report['power_700_to_3500hz'],.08)
+        self.assertGreater(report['rms'],.18)
+        self.assertEqual(report['seconds'],.8)
         with wave.open(io.BytesIO(data),'rb') as w:self.assertEqual((w.getnchannels(),w.getsampwidth(),w.getframerate()),(1,2,44100))
     def test_old_audio_and_successful_nif_identity(self):
         expected={'iron_scrape.wav':'b6309ee4a9142198e44282ce02f48f379b2c66a8d0f55e3e66accf7b6fcce69c',

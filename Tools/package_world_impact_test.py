@@ -1,4 +1,4 @@
-"""Unified audit7 world-impact test. Preserve the user-approved visual payload.
+"""Unified audit8 world-impact test. Preserve the user-approved visual payload.
 
 This route never invokes a mesh/texture generator. Only DLL/ESP/new WAV change.
 """
@@ -22,7 +22,7 @@ def verify_dll(dll):
     pe=struct.unpack_from('<I',dll,60)[0]
     require(dll[pe:pe+4]==b'PE\0\0' and struct.unpack_from('<H',dll,pe+4)[0]==0x8664
             and struct.unpack_from('<H',dll,pe+24)[0]==0x20b,'DLL must be x64 PE32+')
-    require(b'1.0.0-audit7' in dll and b'CMS world impact audio:' in dll,'Wrong runtime/audio build')
+    require(b'1.0.0-audit8' in dll and b'follow=head soundID=' in dll,'Wrong runtime/audio build')
 
 def source_proof(stage):
     proofs={}
@@ -47,7 +47,7 @@ def compose(stage,commit):
     dll=(stage/DLL).read_bytes();verify_dll(dll)
     require((stage/'ChainMorningstarVR.dll.sha256').read_text(encoding='utf-8-sig').strip()==sha(dll),'DLL stage checksum mismatch')
     status=(stage/'BUILD_STATUS.txt').read_text(encoding='utf-8-sig')
-    require('Commit: '+commit in status and '1.0.0-audit7' in status,'DLL source commit/build mismatch')
+    require('Commit: '+commit in status and '1.0.0-audit8' in status,'DLL source commit/build mismatch')
     files=dict(original);files[DLL]=dll;files[ESP]=append_impact(original[ESP])
     files[WAV],audio=synthesize()
     records,groups=inspect_binary(files[ESP]);old_records,_=inspect_binary(original[ESP])
@@ -68,11 +68,11 @@ def compose(stage,commit):
     files.update(source_proof(stage))
     files['Provenance/DLL_BUILD_STATUS.txt']=(stage/'BUILD_STATUS.txt').read_bytes()
     files['README_JA.txt']=(ROOT/'Docs/WORLD_IMPACT_TEST_JA.txt').read_bytes()
-    report=dict(format='cms-audit7-world-impact-test-v1',version='1.0.0-audit7-unified-world-impact-test',
+    report=dict(format='cms-audit8-world-impact-test-v2',version='1.0.0-audit8-unified-world-impact-test',
                 source_commit=commit,baseline_zip_sha256=BASE_SHA,
                 baseline_visual_source_commit='b46f8d78492090edb66d47d7e345b303cb9b0e0e',
-                change_scope=['DLL: incoming contact audio gate and spatial impact cue',
-                              'ESP: append SNDR 00000805 only','WAV: new original iron_impact.wav'],
+                change_scope=['DLL: incoming contact gate, audible-head spatialization and position diagnostics',
+                              'ESP: append SNDR 00000805 only','WAV: revised original iron_impact.wav with audible low-mid body and metal transient'],
                 preserved_game_files={n:sha(files[n]) for n in sorted(unchanged)},
                 game_files={n:sha(v) for n,v in sorted(game_files(files).items())},
                 total_triangles=3996,chain_links=19,runtime_nodes=22,collision_hulls=15,
