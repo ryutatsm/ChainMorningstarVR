@@ -80,7 +80,19 @@ try {
             $LogRoot = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'My Games\Skyrim VR\SKSE'
         }
         $resolvedLogs = (Resolve-Path -LiteralPath $LogRoot).ProviderPath
-        $label = if (Test-Path -LiteralPath $dllPath) { 'CMS-on' } else { 'CMS-off' }
+        # A DLL can already have been restored after the last trial. Name the
+        # capture from that trial's SKSE log, not the current deployment state.
+        $skseSource = Join-Path $resolvedLogs 'sksevr.log'
+        $cmsLoadedInLog = $null
+        $skseLogWrittenAt = $null
+        if (Test-Path -LiteralPath $skseSource -PathType Leaf) {
+            $skseText = [IO.File]::ReadAllText($skseSource)
+            $skseLogWrittenAt = (Get-Item -LiteralPath $skseSource).LastWriteTime.ToString('o')
+            if ($skseText -match '(?im)^SKSEVR runtime:') {
+                $cmsLoadedInLog = [bool]($skseText -match '(?im)^plugin .*ChainMorningstarVR\.dll\b.*loaded correctly')
+            }
+        }
+        $label = if ($cmsLoadedInLog -eq $true) { 'CMS-on' } elseif ($cmsLoadedInLog -eq $false) { 'CMS-off' } else { 'CMS-unknown' }
         $captureRoot = Join-Path $PSScriptRoot ('CMS-comparison-' + $label + '-' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
         New-Item -ItemType Directory -Path $captureRoot | Out-Null
         $captured = @()
@@ -102,10 +114,13 @@ try {
             captured_at = (Get-Date -Format 'o')
             game_root = $resolvedRoot
             cms_dll_enabled = (Test-Path -LiteralPath $dllPath)
+            cms_loaded_in_copied_skse_log = $cmsLoadedInLog
+            skse_log_last_written_at = $skseLogWrittenAt
+            cms_log_may_be_from_an_earlier_trial = ($cmsLoadedInLog -ne $true)
             disabled_copy_exists = (Test-Path -LiteralPath $offPath)
             active_dll_sha256 = $(if (Test-Path -LiteralPath $dllPath) { Get-CMSHash $dllPath } else { $null })
             captured_files = $captured
-            note = 'Copied logs may be older than this trial. Match their timestamps to the trial; no automatic pass/fail judgement.'
+            note = 'ZIP label describes the copied SKSE session. cms_dll_enabled describes current deployment and can differ after Restore. Copied CMS/crash logs may be older. Match timestamps and intentional exit vs unexpected CTD; no automatic pass/fail judgement.'
         }
         $status | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $captureRoot 'comparison_status.json') -Encoding UTF8
         Add-Type -AssemblyName System.IO.Compression.FileSystem
