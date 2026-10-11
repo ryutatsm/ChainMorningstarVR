@@ -9,6 +9,8 @@ permissions:
   contents: read
 jobs:
   nif:
+    # Blender finishing uses reviewed snapshots, not the original model generator.
+    if: github.ref != 'refs/heads/codex/blender-finish' && github.head_ref != 'codex/blender-finish'
     runs-on: windows-2022
     defaults:
       run:

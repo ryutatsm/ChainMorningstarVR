@@ -9,6 +9,8 @@ permissions:
   contents: read
 jobs:
   textures:
+    # Preserve the reviewed/baked texture inputs on the Blender finishing branch.
+    if: github.ref != 'refs/heads/codex/blender-finish' && github.head_ref != 'codex/blender-finish'
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
