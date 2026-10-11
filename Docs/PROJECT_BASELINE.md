@@ -3,7 +3,23 @@
 This is the independent ChainMorningstarVR project. Do not mix runtime evidence
 or assets from the older ChainedMorningstarVR project.
 Audited main: `0777e257d64fcab908df03ff94e7a9af4ff1a0ee` (2026-10-06).
-Current work: `astra/zero-base-audit-v050`, 1.0.0-audit6 (completed release blocked; user-requested diagnostic distribution). Main remains unchanged.
+Current work: `codex/blender-finish`, accepted sound1/3996-triangle unified payload.
+Game source: `57e61bee55fcb6fad566687e13db804393662bfe`; internal DLL label `1.0.0-audit8`.
+The original handoff runtime baseline remains `df3ef906a7927516263b567817900cc125d5f860`.
+Main is not the finishing baseline and remains unchanged.
+After the user's completion request, repeated startup/load CTDs were reported;
+release finalization awaits crash isolation. See [current triage](CRASH_TRIAGE_20261011_JA.md).
+
+## Current authored visual payload (2026-10-11)
+
+The accepted NIF has 3996 triangles including blood (2900 visible + 1096 blood),
+31 visible meshes, 22 runtime nodes, 19 chain links and 15 collision hulls.
+NIF SHA256: `8d07faf527074902495386f0e9c8a2b8e53ffd8b0e9d33f27c401f8656a2302f`.
+Leather cords and curved emblem detail use diffuse/normal textures. Leather edges
+are closed against the wood. Dark-room material response and embedded spike bases
+are retained. Sound sample 01 uses gain 0.85; other three WAVs remain unchanged.
+Legacy model generation must not replace these authored assets.
+The following audit history describes retained behavior, not a fresh exhaustive test pass.
 
 One-hand mace: damage44, weight17, value550; Japanese name
 「チェーンドモーニングスター」; Eorlund sale; physical chain without chain damage;

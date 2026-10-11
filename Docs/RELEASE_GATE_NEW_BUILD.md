@@ -1,5 +1,12 @@
 # Release gate — audited development branch
 
+Current status (2026-10-11): the user accepts the current sound1/3996-triangle
+unified payload and requests completion. They subsequently report repeated
+startup/load CTDs. Finalization is pending crash isolation; do not convert this
+general appearance/audio acceptance into an itemized gate pass.
+See [captured evidence and reversible comparison](CRASH_TRIAGE_20261011_JA.md).
+No main merge or public release has been performed.
+
 All gates are required. A compiler pass, NIF parser pass, or simulated test does
 not establish in-game compatibility. Do not reuse evidence from the old
 ChainedMorningstarVR project or a different build combination.

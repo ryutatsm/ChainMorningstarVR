@@ -1,5 +1,17 @@
 # ChainMorningstarVR
 
+## 現在の仕上げ状況（2026-10-11）
+
+作業ブランチは`codex/blender-finish`。最新は①の重い衝撃音を含む統合版。
+合計3,996三角形（表示2,900・血用1,096）、鎖19節、22ノード、21DDSを維持する。
+ゲーム用ソースは`57e61bee55fcb6fad566687e13db804393662bfe`、DLL内部ラベルは`1.0.0-audit8`。
+ユーザーから完成版への仕上げ依頼を受けた後、起動・ロード時のクラッシュ増加が報告された。
+完成版の確定前に[クラッシュの比較テスト](Docs/CRASH_TRIAGE_20261011_JA.md)を行う。
+配置済み28ゲーム用ファイルは①統合ZIPと全SHA256一致。外観・音の合意を全安定性項目の合格へ読み替えない。
+旧モデル生成でBlender編集を上書きしない。main統合・正式公開は行っていない。
+
+以下はaudit6時点の開発・検証記録。最新の版と残る確認は上記リンクを参照。
+
 **チェーンドモーニングスター — 1.0.0-audit6、実機診断版（正式版は保留）。**
 Skyrim VR 1.4.15 / SKSEVR 2.0.12; requires HIGGS and PLANCK, with VRIK for
 non-damaging player-body chain contacts. One-hand mace: damage44, weight17, value550.
